@@ -35,6 +35,9 @@
   :ensure t
   :bind ("C-c m" . helm-bm))
 
+(use-package helm-make
+  :ensure t)
+
 ;; (use-package ivy-posframe
 ;;   :ensure t
 ;;   :config

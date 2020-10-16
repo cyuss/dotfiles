@@ -49,6 +49,9 @@
   :init
   (exec-path-from-shell-initialize))
 
+(use-package restart-emacs
+  :ensure t)
+
 ;; increase gc-cons threshold to decrease the load and compile time
 ;; (setq gc-cons-threshold 402653184
 ;;       gc-cons-percentage 0.6

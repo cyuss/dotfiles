@@ -50,3 +50,22 @@
   :bind ("C-;" . comment-dwim-2)
   :config (setq comment-dwim-2--inline-comment-behavior 'reindent-comment)
   )
+
+(use-package tide
+  :ensure t
+  :after (typescript-mode company flycheck)
+  :hook ((typescript-mode . tide-setup)
+         (typescript-mode . tide-hl-identifier-mode)
+         (before-save . tide-format-before-save)))
+
+(use-package npm
+  :ensure t
+  :config
+  (setq npm-test-library nil))
+
+(use-package esh-autosuggest
+  :hook (eshell-mode . esh-autosuggest-mode)
+  ;; If you have use-package-hook-name-suffix set to nil, uncomment and use the
+  ;; line below instead:
+  ;; :hook (eshell-mode-hook . esh-autosuggest-mode)
+  :ensure t)
