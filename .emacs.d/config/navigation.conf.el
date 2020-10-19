@@ -24,6 +24,9 @@
 (use-package treemacs
   :ensure t
   :defer t
+  :init
+  (with-eval-after-load 'winum
+    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
   :config
   (progn
     (setq treemacs-indentation                   2
@@ -34,7 +37,15 @@
           treemacs-space-between-root-nodes      t
           treemacs-width                         30
           treemacs-eldoc-display                 t
-          treemacs-no-delete-other-windows       t)))
+          treemacs-no-delete-other-windows       t)
+	(treemacs-follow-mode t)
+    (treemacs-filewatch-mode t)
+    (treemacs-fringe-indicator-mode t)
+	(require 'treemacs-all-the-icons)
+	(treemacs-load-theme "all-the-icons")))
+
+(use-package treemacs-all-the-icons
+  :ensure t)
 
 (use-package treemacs-magit
   :after treemacs magit

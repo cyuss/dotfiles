@@ -102,3 +102,5 @@
 (load "~/.emacs.d/config/helm.conf.el")
 (load "~/.emacs.d/config/language.conf.el")
 ;; (load "~/.emacs.d/config/go.conf.el")
+(load "~/.emacs.d/config/helm-all-the-icons.el")
+(helm-all-the-icons-enable)
