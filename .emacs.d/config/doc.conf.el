@@ -67,6 +67,10 @@
 ;; 	      all-the-icons-material
 ;; 	      all-the-icons-octicon
 ;; 	      all-the-icons-alltheicon))
+(use-package company-box
+  :hook (company-mode . company-box-mode)
+  :config
+  (setq company-box-icons-unknown 'fa_question_circle))
 
 ;; autocomplete
 (use-package auto-complete
