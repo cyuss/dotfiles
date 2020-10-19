@@ -200,7 +200,7 @@ alias bibtex='/Library/TeX/texbin/bibtex'
 alias poetry='/Users/youcef/.poetry/bin/poetry'
 
 # default display settings
-# export BAT_THEME="Dracula"
+export BAT_THEME="Dracula"
 # export FZF_DEFAULT_OPTS="--height 40% --layout=reverse --border --preview 'bat --color=always --style=header,grid --line-range :300 {}' --preview-window 'right:60%' --layout reverse --margin=1,4"
 export FZF_DEFAULT_OPTS="--height 40% --layout=reverse --border --layout reverse --margin=1,4"
 alias fzfp="fzf --preview 'bat --color=always --style=header,grid --line-range :300 {}' --preview-window 'right:60%' --layout reverse --margin=1,4"
