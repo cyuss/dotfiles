@@ -1,17 +1,17 @@
 ;; this file contains all the configuration
 ;; related to helm settings
 
-(use-package helm-icons
-  :ensure t)
+;; (use-package helm-icons
+;;   :ensure t)
 
 ;; helm configuration
 (use-package helm
   :diminish helm-mode
   :ensure t
-  :after (helm-icons)
+  ;; :after (helm-icons)
   :init
   (progn
-    (helm-icons-enable)
+    ;; (helm-icons-enable)
     (require 'helm-bm) ;; Not necessary if using ELPA package
     (setq helm-candidate-number-limit 100)
     (setq helm-idle-delay 0.0

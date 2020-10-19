@@ -111,10 +111,13 @@ plugins=(
     you-should-use
     zsh-autosuggestions
     zsh-command-note
-	zshmarks
     urltools
     jsontools
     cheatsheet)
+
+# load fzf-tab plugin
+source ~/.oh-my-zsh/custom/plugins/fzf-tab/fzf-tab.plugin.zsh
+source ~/.oh-my-zsh/custom/plugins/fzf-marks/fzf-marks.plugin.zsh
 
 source $ZSH/oh-my-zsh.sh
 
@@ -204,6 +207,9 @@ alias fzfp="fzf --preview 'bat --color=always --style=header,grid --line-range :
 
 # source antigen package manager
 source ~/antigen.zsh
+
+# load zgen
+source "${HOME}/.zgen/zgen.zsh"
 
 # set autoload path
 fpath=(~/zsh "${fpath[@]}")

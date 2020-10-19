@@ -152,3 +152,9 @@
 
 (use-package origami
   :ensure t)
+
+(use-package ripgrep
+  :ensure t)
+
+(use-package fzf
+  :ensure t)
