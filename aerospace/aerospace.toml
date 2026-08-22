@@ -1,0 +1,424 @@
+# ~/.config/aerospace/aerospace.toml
+# AeroSpace 0.21.x
+# FelixKratz-inspired layout + gaps
+
+# ==================
+# Config version
+# ==================
+# En v2, persistent-workspaces n'est plus deduit des raccourcis clavier
+# (heuristique jugee fragile en amont) : il faut le declarer explicitement.
+config-version = 2
+
+persistent-workspaces = [
+  '01_Main',
+  '02_Coding',
+  '03_Work',
+  '04_Management',
+  '05_I.A',
+  '06_Web',
+  '07_System',
+  '08_Ops',
+  '09_Divers',
+]
+
+# ==================
+# Startup
+# ==================
+after-login-command = []
+
+# sync_top_gap.sh calculait outer.top a partir de la hauteur de SketchyBar.
+# SketchyBar est desactive (service arrete, LaunchAgent retire) : il n'y a
+# plus de barre a contourner, donc plus rien a synchroniser. outer.top est
+# fixe en dur plus bas, a la meme valeur que les autres marges.
+after-startup-command = []
+
+start-at-login = true
+
+
+# ==================
+# Core behavior
+# ==================
+# Normalisation de l'arbre : c'est CE qui range les fenetres toutes seules.
+#   flatten-containers          supprime les conteneurs a un seul enfant, qui
+#                               sinon s'empilent et figent la disposition
+#   opposite-orientation…       un conteneur imbrique prend l'orientation
+#                               inverse de son parent -> vrai pavage, au lieu
+#                               de tout aligner dans le meme sens
+# Les deux etaient a false (les defauts AeroSpace sont true) : l'arbre
+# degenerait au fil des ouvertures et plus rien ne se placait tout seul.
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+accordion-padding = 30
+
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+# Le curseur suit la fenetre focalisee. « lazy » = il ne bouge que s'il
+# n'est pas deja dans la fenetre : pas de saut intempestif si tu es a la
+# souris. Evite de chercher son pointeur apres un changement au clavier.
+on-focus-changed = ['move-mouse window-lazy-center']
+
+# Script lance a chaque changement de workspace (rafraichit sketchybar,
+# et tout ce que tu voudras y ajouter). Defensif : ne fait rien si le
+# script est absent.
+exec-on-workspace-change = [
+  '/bin/bash', '-c',
+  '~/.config/aerospace/scripts/on_workspace_change.sh "$AEROSPACE_FOCUSED_WORKSPACE" "$AEROSPACE_PREV_WORKSPACE" 2>/dev/null || true',
+]
+
+automatically-unhide-macos-hidden-apps = true
+key-mapping.preset = 'qwerty'
+
+# ══════════════════════════════════════════════════════════════════════
+#  Ancrage des workspaces aux ecrans
+#  Sur un seul ecran, tout retombe dessus : ces regles ne s'activent
+#  qu'au branchement du second. Le travail lourd reste sur l'ultrawide,
+#  la surveillance et le loisir partent sur l'ecran du MacBook.
+# ══════════════════════════════════════════════════════════════════════
+[workspace-to-monitor-force-assignment]
+'01_Main'       = 'main'
+'02_Coding'     = 'main'
+'03_Work'       = ['secondary', 'built-in']
+'04_Management' = 'main'
+'05_I.A'        = 'main'
+'06_Web'        = 'main'
+'07_System'     = ['secondary', 'built-in']
+'08_Ops'        = 'main'
+'09_Divers'     = ['secondary', 'built-in']
+
+
+# ==================
+# Gaps (FelixKratz-inspired)
+# ==================
+[gaps]
+inner.horizontal = 12
+inner.vertical = 12
+outer.left = 12
+outer.right = 12
+outer.top = 12       # symetrique avec les autres marges. macOS reserve deja
+                     # la barre de menus : AeroSpace pose les fenetres sous
+                     # elle, cette valeur ne s'ajoute qu'a l'espace visible.
+outer.bottom = 12
+
+# ==================
+# Main mode bindings
+# ==================
+[mode.main.binding]
+
+# Hyper = cmd + alt + ctrl + shift
+
+# --- Focus (vim) ---
+# cmd-alt-ctrl-shift-h = 'focus left'
+cmd-alt-ctrl-shift-j = 'focus left'
+cmd-alt-ctrl-shift-k = 'focus down'
+cmd-alt-ctrl-shift-l = 'focus right'
+cmd-alt-ctrl-shift-i = 'focus up'
+
+# --- Focus (IJKL cluster, no Shift) ---
+cmd-alt-ctrl-i = 'focus up'
+cmd-alt-ctrl-j = 'focus left'
+cmd-alt-ctrl-k = 'focus down'
+cmd-alt-ctrl-l = 'focus right'
+# cmd-alt-i/j/k/l retires : strictement redondants avec les deux blocs
+# ci-dessus (cmd-alt-ctrl-* et Hyper), et c'etaient les seuls bindings
+# sans ctrl — donc les seuls exposes aux raccourcis applicatifs.
+
+# --- Focus (arrows) ---
+cmd-alt-ctrl-shift-left = 'focus left'
+cmd-alt-ctrl-shift-down = 'focus down'
+cmd-alt-ctrl-shift-up = 'focus up'
+cmd-alt-ctrl-shift-right = 'focus right'
+
+# --- Move windows (SEDF) ---
+cmd-alt-ctrl-shift-s = 'move left'
+cmd-alt-ctrl-shift-e = 'move up'
+cmd-alt-ctrl-shift-d = 'move down'
+cmd-alt-ctrl-shift-f = 'move right'
+
+# --- Layout ---
+cmd-alt-ctrl-shift-space = 'layout tiles accordion'
+cmd-alt-ctrl-shift-enter = 'layout floating tiling'
+
+# --- Fullscreen ---
+cmd-alt-ctrl-shift-t = 'fullscreen'
+cmd-alt-ctrl-shift-g = 'macos-native-fullscreen'
+
+# --- Modes ---
+cmd-alt-ctrl-shift-r = 'mode resize'
+cmd-alt-ctrl-shift-a = 'mode layout'   # t/a/f/h/v/s/g/b/r puis esc
+
+# --- Quick resize presets ---
+cmd-alt-ctrl-shift-y = 'balance-sizes'
+cmd-alt-ctrl-shift-u = ['balance-sizes', 'exec-and-forget ~/.config/aerospace/scripts/resize_thirds.sh one-third']
+cmd-alt-ctrl-shift-o = ['balance-sizes', 'exec-and-forget ~/.config/aerospace/scripts/resize_thirds.sh two-thirds']
+
+# --- Workspace switching (numeric) ---
+cmd-alt-ctrl-shift-1 = 'workspace 01_Main'
+cmd-alt-ctrl-shift-2 = 'workspace 02_Coding'
+cmd-alt-ctrl-shift-3 = 'workspace 03_Work'
+cmd-alt-ctrl-shift-4 = 'workspace 04_Management'
+cmd-alt-ctrl-shift-5 = 'workspace 05_I.A'
+cmd-alt-ctrl-shift-6 = 'workspace 06_Web'
+cmd-alt-ctrl-shift-7 = 'workspace 07_System'
+cmd-alt-ctrl-shift-8 = 'workspace 08_Ops'
+cmd-alt-ctrl-shift-9 = 'workspace 09_Divers'
+cmd-alt-ctrl-shift-0 = 'workspace 01_Main'
+
+# --- Send window to workspace (mode) ---
+cmd-alt-ctrl-shift-n = 'mode workspace'
+
+# --- Back and forth ---
+cmd-alt-ctrl-shift-b = 'workspace-back-and-forth'
+
+# --- Move workspace to another monitor ---
+cmd-alt-ctrl-shift-m = 'move-workspace-to-monitor --wrap-around next'
+
+# --- Service mode ---
+cmd-alt-ctrl-shift-semicolon = 'mode service'
+cmd-alt-ctrl-shift-x = 'mode service'
+
+# --- App switcher (works across native fullscreen spaces) ---
+cmd-tab = 'exec-and-forget ~/.config/workflow-tools/appswitcher next'
+cmd-shift-tab = 'exec-and-forget ~/.config/workflow-tools/appswitcher prev'
+cmd-alt-tab = 'exec-and-forget ~/.config/workflow-tools/appswitcher next'
+cmd-alt-shift-tab = 'exec-and-forget ~/.config/workflow-tools/appswitcher prev'
+
+
+# ==================
+# Layout mode  (Hyper+A)  — plus besoin de retenir 3 combos Hyper
+# ==================
+[mode.layout.binding]
+t = ['layout tiles horizontal vertical', 'mode main']   # tuiles
+a = ['layout accordion horizontal vertical', 'mode main']
+f = ['layout floating tiling', 'mode main']             # bascule flottant
+h = ['layout tiles horizontal', 'mode main']            # force horizontal
+v = ['layout tiles vertical', 'mode main']              # force vertical
+s = ['fullscreen', 'mode main']                         # plein ecran (space)
+g = ['macos-native-fullscreen', 'mode main']
+b = ['balance-sizes', 'mode main']
+r = ['flatten-workspace-tree', 'mode main']             # remet a plat
+
+esc = 'mode main'
+enter = 'mode main'
+
+# ==================
+# Resize mode
+# ==================
+[mode.resize.binding]
+
+i = 'resize height -50'
+j = 'resize width -50'
+k = 'resize height +50'
+l = 'resize width +50'
+1 = ['balance-sizes', 'exec-and-forget ~/.config/aerospace/scripts/resize_thirds.sh one-third']
+2 = ['balance-sizes', 'exec-and-forget ~/.config/aerospace/scripts/resize_thirds.sh two-thirds']
+b = 'balance-sizes'
+
+esc = 'mode main'
+enter = 'mode main'
+
+
+# ==================
+# Workspace send mode
+# ==================
+[mode.workspace.binding]
+
+1 = ['move-node-to-workspace 01_Main', 'workspace 01_Main', 'mode main']
+2 = ['move-node-to-workspace 02_Coding', 'workspace 02_Coding', 'mode main']
+3 = ['move-node-to-workspace 03_Work', 'workspace 03_Work', 'mode main']
+4 = ['move-node-to-workspace 04_Management', 'workspace 04_Management', 'mode main']
+5 = ['move-node-to-workspace 05_I.A', 'workspace 05_I.A', 'mode main']
+6 = ['move-node-to-workspace 06_Web', 'workspace 06_Web', 'mode main']
+7 = ['move-node-to-workspace 07_System', 'workspace 07_System', 'mode main']
+8 = ['move-node-to-workspace 08_Ops', 'workspace 08_Ops', 'mode main']
+9 = ['move-node-to-workspace 09_Divers', 'workspace 09_Divers', 'mode main']
+0 = ['move-node-to-workspace 01_Main', 'workspace 01_Main', 'mode main']
+
+esc = 'mode main'
+enter = 'mode main'
+
+
+# ==================
+# Service mode
+# ==================
+[mode.service.binding]
+
+esc = ['reload-config', 'mode main']
+r = ['flatten-workspace-tree', 'mode main']
+f = ['layout floating tiling', 'mode main']
+backspace = ['close-all-windows-but-current', 'mode main']
+q = ['close', 'mode main']
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  Regles a l'ouverture d'une fenetre
+#
+#  Choix de conception : on NE route PAS le terminal ni l'editeur.
+#  Une fenetre Alacritty ou Emacs doit s'ouvrir la ou tu travailles,
+#  pas sauter ailleurs — c'etait la raison de ton ancien commentaire
+#  « keep new windows on the current workspace ».
+#  On route seulement les apps « destination » (navigateur, chat, media,
+#  ops) et on fait flotter les utilitaires, ou le gain est sans ambiguite.
+# ══════════════════════════════════════════════════════════════════════
+
+# ── Utilitaires : flottants, jamais tuiles ────────────────────────────
+# Lanceurs, presse-papiers, HUD, captures : les tuiler n'a aucun sens et
+# casse la mise en page a chaque apparition.
+[[on-window-detected]]
+if.app-id = 'com.raycast.macos'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'org.p0deje.Maccy'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'cc.ffitch.shottr'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.dwarvesv.minimal-numi'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'org.pqrs.Karabiner-Elements.Settings'
+run = ['layout floating']
+
+[[on-window-detected]]
+if.app-id = 'pro.betterdisplay.BetterDisplay'
+run = ['layout floating']
+
+# ── Finder : le BUREAU flotte, les fenetres de dossier se tuilent ─────
+#
+# Deux familles de fenetres Finder n'ont rien a faire dans le pavage :
+#
+#   Desktop / Bureau   macOS expose le bureau comme une fenetre Finder a
+#                      part entiere. Tuilee, elle occupe un emplacement
+#                      pour rien : Finder semble prendre deux places.
+#   Copy / Copie       la fenetre de progression d'une copie. Elle
+#                      apparait, pousse tout le monde, et disparait.
+#
+# L'ancrage ^...$ evite d'attraper un dossier dont le nom CONTIENT ces
+# mots. Un dossier nomme exactement « Copy » flotterait quand meme —
+# c'est le seul faux positif possible, et il est benin.
+#
+# Son window-id change en permanence — macOS la recree — donc rien ne
+# sert de la traiter a la main : seule une regle a la detection tient.
+#
+# Verification : `aerospace list-windows --all` la fait apparaitre a cote
+# des vraies fenetres de dossier. Un premier controle ne l'avait pas vue,
+# ce qui m'avait fait conclure a tort qu'il n'y avait rien a proteger.
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+if.window-title-regex-substring = '^(Desktop|Bureau|Copy|Copie|Move|Deplacement|Déplacement)$'
+run = ['layout floating']
+
+# Les fenetres de DOSSIER, elles, ne sont pas dans la liste des flottants
+# ci-dessus, et c'est un changement assume.
+# Il y figurait par erreur de classement : les entrees ci-dessus sont des
+# fenetres PASSAGERES (lanceur, presse-papiers, capture, HUD) qu'on fait
+# apparaitre puis disparaitre. Finder est une fenetre dans laquelle on
+# TRAVAILLE — la tuiler a exactement le meme sens que tuiler un terminal.
+#
+# Verifie avant de changer : `aerospace list-windows --all` ne rapporte
+# qu'une fenetre Finder (celle du dossier ouvert). Le bureau n'est pas
+# compte comme une fenetre, il n'y a donc rien a proteger ici.
+#
+# Les boites Ouvrir/Enregistrer de Finder restent flottantes : elles sont
+# couvertes par la regle de titre juste en dessous, qui vaut pour toutes
+# les applications.
+
+# Boites de dialogue (Ouvrir/Enregistrer) : toujours flottantes
+[[on-window-detected]]
+if.window-title-regex-substring = '^(Open|Save|Enregistrer|Ouvrir|Preferences|Reglages)'
+run = ['layout floating']
+check-further-callbacks = true
+
+# ── 06_Web : navigateurs ──────────────────────────────────────────────
+[[on-window-detected]]
+if.app-id = 'company.thebrowser.Browser'
+run = ['move-node-to-workspace 06_Web']
+
+[[on-window-detected]]
+if.app-id = 'com.google.Chrome'
+run = ['move-node-to-workspace 06_Web']
+
+[[on-window-detected]]
+if.app-id = 'org.mozilla.firefox'
+run = ['move-node-to-workspace 06_Web']
+
+[[on-window-detected]]
+if.app-id = 'com.apple.Safari'
+run = ['move-node-to-workspace 06_Web']
+
+# ── 05_I.A : assistants ───────────────────────────────────────────────
+[[on-window-detected]]
+if.app-id = 'com.anthropic.claudefordesktop'
+run = ['move-node-to-workspace 05_I.A']
+
+[[on-window-detected]]
+if.app-id = 'com.openai.chat'
+run = ['move-node-to-workspace 05_I.A']
+
+[[on-window-detected]]
+if.app-id = 'ai.perplexity.mac'
+run = ['move-node-to-workspace 05_I.A']
+
+# ── 03_Work : communication ───────────────────────────────────────────
+[[on-window-detected]]
+if.app-id = 'com.mimestream.Mimestream'
+run = ['move-node-to-workspace 03_Work']
+
+[[on-window-detected]]
+if.app-id = 'ru.keepcoder.Telegram'
+run = ['move-node-to-workspace 03_Work']
+
+[[on-window-detected]]
+if.app-id = 'com.hnc.Discord'
+run = ['move-node-to-workspace 03_Work']
+
+# ── 04_Management : notes & organisation ──────────────────────────────
+[[on-window-detected]]
+if.app-id = 'notion.id'
+run = ['move-node-to-workspace 04_Management']
+
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = ['move-node-to-workspace 04_Management']
+
+[[on-window-detected]]
+if.app-id = 'com.clickup.desktop-app'
+run = ['move-node-to-workspace 04_Management']
+
+# ── 08_Ops : infra & bases de donnees ─────────────────────────────────
+[[on-window-detected]]
+if.app-id = 'com.docker.docker'
+run = ['move-node-to-workspace 08_Ops']
+
+[[on-window-detected]]
+if.app-id = 'com.postmanlabs.mac'
+run = ['move-node-to-workspace 08_Ops']
+
+[[on-window-detected]]
+if.app-id = 'org.jkiss.dbeaver.core.product'
+run = ['move-node-to-workspace 08_Ops']
+
+# ── 09_Divers : media ─────────────────────────────────────────────────
+[[on-window-detected]]
+if.app-id = 'com.spotify.client'
+run = ['move-node-to-workspace 09_Divers']
+
+[[on-window-detected]]
+if.app-id = 'com.colliderli.iina'
+run = ['move-node-to-workspace 09_Divers']
+
+[[on-window-detected]]
+if.app-id = 'org.videolan.vlc'
+run = ['move-node-to-workspace 09_Divers']
