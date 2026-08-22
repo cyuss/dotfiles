@@ -1,0 +1,49 @@
+{
+  "$schema": "https://opencode.ai/tui.json",
+
+  // "system" = opencode hérite des 16 couleurs du terminal.
+  // Résultat : cohérence parfaite avec le thème Alacritty (premium-noir).
+  "theme": "system",
+
+  // ── Confort de lecture ──────────────────────────────────────────────
+  "diff_style": "auto",
+  "scroll_speed": 3,
+  "scroll_acceleration": { "enabled": true },
+  "mouse": true,
+  "cursor": {
+    "style": "default",
+    "blinking": false
+  },
+  "prompt": {
+    "max_height": 20,
+    "max_width": "auto"
+  },
+
+  // ── Notifications quand l'agent a besoin de toi ─────────────────────
+  "attention": {
+    "enabled": true,
+    "notifications": true,
+    "sound": true,
+    "volume": 0.35
+  },
+
+  // ── Clavier ─────────────────────────────────────────────────────────
+  "leader_timeout": 800,
+  "keybinds": {
+    "leader": "ctrl+x",
+
+    // Retour à la ligne sans envoyer. Les 3 formes sont acceptées :
+    // Alacritty envoie ESC+CR (= alt+enter) sur ⇧⏎ et ⌘⏎, et ctrl+j
+    // reste le repli universel (tmux, SSH, terminal sans protocole kitty).
+    "input_newline": ["shift+enter", "alt+enter", "ctrl+j"],
+
+    // Édition de prompt façon readline / macOS
+    "input_line_home": ["ctrl+a", "home"],
+    "input_line_end": ["ctrl+e", "end"],
+    "input_word_backward": ["alt+arrowleft", "alt+b"],
+    "input_word_forward": ["alt+arrowright", "alt+f"],
+    "input_delete_word_backward": ["ctrl+w", "alt+backspace"],
+    "input_delete_to_line_start": "ctrl+u",
+    "input_delete_to_line_end": "ctrl+k"
+  }
+}
