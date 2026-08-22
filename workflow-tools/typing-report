@@ -1,0 +1,407 @@
+#!/usr/bin/env python3
+"""typing-report — analyse ta frappe REELLE contre ta VRAIE disposition.
+
+    typing-report                 tout : shell + commits + prose
+    typing-report -s shell        seulement l'historique atuin
+    typing-report -s git          seulement tes messages de commit
+    typing-report -s files F...   des fichiers precis
+    typing-report -n 20           allonge les classements
+    typing-report -k autre.keymap un autre keymap
+
+Ce que font les outils existants (monkeytype, typioca, ttyper) : ils
+mesurent ta vitesse sur UN TEXTE QU'ILS CHOISISSENT. Utile pour
+s'entrainer, inutile pour regler un clavier.
+
+Ce que fait celui-ci : il lit ce que tu as REELLEMENT tape — ton
+historique atuin, tes messages de commit, tes fichiers — et le fait
+passer a travers zmk/corne.keymap. Il repond donc a des questions que
+seul ton couple corpus + disposition permet de trancher :
+
+  · quelle proportion de ma frappe exige une couche ?
+  · quels caracteres me coutent le plus cher, en volume ?
+  · quels bigrammes tombent sur le meme doigt (SFB) ?
+  · quels enchainements risquent de declencher un mod de home row ?
+  · quels mots reviennent assez souvent pour meriter un combo ?
+
+Aucune donnee ne sort de la machine.
+"""
+import argparse, collections, os, re, subprocess, sys, unicodedata
+from pathlib import Path
+
+HOME = Path.home()
+DEFAULT_KEYMAP = HOME / ".config" / "zmk" / "corne.keymap"
+
+# ── Geometrie du Corne 42 touches ────────────────────────────────────
+#      0  1  2  3  4  5        6  7  8  9 10 11
+#     12 13 14 15 16 17       18 19 20 21 22 23
+#     24 25 26 27 28 29       30 31 32 33 34 35
+#              36 37 38       39 40 41
+#
+# Colonnes -> doigts. Six colonnes pour quatre doigts : la colonne
+# exterieure est une colonne d'auriculaire supplementaire, l'interieure
+# un etirement de l'index. Verifie contre la rangee de repos du keymap :
+# col1=A col2=S col3=D col4=F -> auriculaire, annulaire, majeur, index.
+FINGER_BY_COL = {
+    0: "auriculaire", 1: "auriculaire", 2: "annulaire",
+    3: "majeur",      4: "index",       5: "index-etire",
+}
+def col_of(pos):  return pos % 12 if pos < 36 else None
+def hand_of(pos):
+    if pos >= 36:
+        return "gauche" if pos < 39 else "droite"
+    return "gauche" if (pos % 12) < 6 else "droite"
+
+def finger_of(pos):
+    """Renvoie (main, doigt) ou None pour les pouces."""
+    if pos >= 36:
+        return (hand_of(pos), "pouce")
+    c = pos % 12
+    if c < 6:
+        return ("gauche", FINGER_BY_COL[c])
+    return ("droite", FINGER_BY_COL[11 - c])
+
+def row_of(pos):
+    return 3 if pos >= 36 else pos // 12
+
+HOME_ROW = {13, 14, 15, 16, 19, 20, 21, 22}   # les touches portant un mod
+
+# ── Codes ZMK -> caracteres (QWERTY US) ──────────────────────────────
+KC = {
+    "A":"a","B":"b","C":"c","D":"d","E":"e","F":"f","G":"g","H":"h","I":"i",
+    "J":"j","K":"k","L":"l","M":"m","N":"n","O":"o","P":"p","Q":"q","R":"r",
+    "S":"s","T":"t","U":"u","V":"v","W":"w","X":"x","Y":"y","Z":"z",
+    "N0":"0","N1":"1","N2":"2","N3":"3","N4":"4","N5":"5","N6":"6","N7":"7",
+    "N8":"8","N9":"9",
+    "NUMBER_0":"0","NUMBER_1":"1","NUMBER_2":"2","NUMBER_3":"3","NUMBER_4":"4",
+    "NUMBER_5":"5","NUMBER_6":"6","NUMBER_7":"7","NUMBER_8":"8","NUMBER_9":"9",
+    "SPACE":" ","RET":"\n","ENTER":"\n","TAB":"\t",
+    "COMMA":",","DOT":".","PERIOD":".","FSLH":"/","SLASH":"/",
+    "SEMI":";","SEMICOLON":";","SQT":"'","APOS":"'","APOSTROPHE":"'",
+    "GRAVE":"`","MINUS":"-","EQUAL":"=",
+    "LBKT":"[","RBKT":"]","LEFT_BRACKET":"[","RIGHT_BRACKET":"]",
+    "BSLH":"\\","BACKSLASH":"\\",
+    "EXCL":"!","EXCLAMATION":"!","AT":"@","AT_SIGN":"@","HASH":"#","POUND":"#",
+    "DLLR":"$","DOLLAR":"$","PRCNT":"%","PERCENT":"%","CARET":"^",
+    "AMPS":"&","AMPERSAND":"&","STAR":"*","ASTERISK":"*","ASTRK":"*",
+    "LPAR":"(","LEFT_PARENTHESIS":"(","RPAR":")","RIGHT_PARENTHESIS":")",
+    "UNDER":"_","UNDERSCORE":"_","PLUS":"+",
+    "LBRC":"{","LEFT_BRACE":"{","RBRC":"}","RIGHT_BRACE":"}",
+    "PIPE":"|","COLON":":","DQT":'"',"DOUBLE_QUOTES":'"',
+    "LT":"<","LESS_THAN":"<","GT":">","GREATER_THAN":">",
+    "QMARK":"?","QUESTION":"?","TILDE":"~","TILDE2":"~",
+}
+# Caracteres qui exigent Shift sur la couche de base (QWERTY US).
+SHIFTED_ON_BASE = {
+    "!":"1","@":"2","#":"3","$":"4","%":"5","^":"6","&":"7","*":"8",
+    "(":"9",")":"0","_":"-","+":"=","{":"[","}":"]","|":"\\",
+    ":":";",'"':"'","<":",",">":".","?":"/","~":"`",
+}
+
+# ── Lecture du keymap ────────────────────────────────────────────────
+def parse_keymap(path):
+    """-> [(nom_couche, [42 liaisons brutes])] dans l'ordre du fichier."""
+    src = path.read_text(encoding="utf-8", errors="replace")
+    # On se limite au bloc `keymap { ... }` : sinon les macros et les
+    # behaviors, qui contiennent eux aussi `bindings = <...>`, polluent.
+    m = re.search(r"keymap\s*\{(.*)\n\s*\};", src, re.S)
+    if not m:
+        sys.exit(f"typing-report: pas de bloc keymap dans {path}")
+    body = m.group(1)
+    layers = []
+    for lm in re.finditer(r"(\w+)\s*\{.*?bindings\s*=\s*<(.*?)>\s*;", body, re.S):
+        name, raw = lm.group(1), lm.group(2)
+        raw = re.sub(r"//[^\n]*", "", raw)
+        toks = re.findall(r"&\w+(?:\s+(?!&)[A-Za-z0-9_()]+)*", raw)
+        toks = [" ".join(t.split()) for t in toks]
+        if len(toks) == 42:
+            layers.append((name, toks))
+    return layers
+
+def binding_char(tok):
+    """Caractere produit par une liaison, ou None."""
+    parts = tok.split()
+    head = parts[0]
+    if head == "&kp" and len(parts) == 2:
+        return KC.get(parts[1])
+    # &hm MOD X et &mt MOD X : le TAP est le dernier argument.
+    if head in ("&hm", "&mt") and len(parts) == 3:
+        return KC.get(parts[2])
+    return None
+
+def build_map(layers):
+    """char -> (index_couche, position). La couche 0 gagne toujours."""
+    base_name = layers[0][0]
+    charmap, layer_names = {}, [n for n, _ in layers]
+    for li, (_, toks) in enumerate(layers):
+        for pos, tok in enumerate(toks):
+            ch = binding_char(tok)
+            if ch is None or ch in charmap:
+                continue
+            charmap[ch] = (li, pos)
+    # Majuscules et caracteres shiftes atteignables depuis la base.
+    for ch, base in list(SHIFTED_ON_BASE.items()):
+        if ch not in charmap and base in charmap:
+            li, pos = charmap[base]
+            charmap[ch] = (li, pos, "shift")
+    for ch in "abcdefghijklmnopqrstuvwxyz":
+        if ch in charmap and ch.upper() not in charmap:
+            li, pos = charmap[ch][:2]
+            charmap[ch.upper()] = (li, pos, "shift")
+    return charmap, layer_names
+
+# ── Corpus ───────────────────────────────────────────────────────────
+def corpus_shell(limit=20000):
+    try:
+        out = subprocess.run(["atuin", "search", "--limit", str(limit),
+                              "--format", "{command}"],
+                             capture_output=True, text=True, timeout=60)
+        return out.stdout
+    except Exception:
+        return ""
+
+def corpus_git(roots, limit=4000):
+    texts = []
+    for root in roots:
+        if not (Path(root) / ".git").is_dir():
+            continue
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(root), "log", "--format=%s%n%b",
+                 f"-{limit}", "--all"],
+                capture_output=True, text=True, timeout=60)
+            texts.append(out.stdout)
+        except Exception:
+            pass
+    return "\n".join(texts)
+
+def corpus_files(paths):
+    texts = []
+    for p in paths:
+        p = Path(p)
+        files = [p] if p.is_file() else [
+            f for f in p.rglob("*")
+            if f.is_file() and f.suffix in {".md", ".py", ".el", ".toml", ".sh", ".zsh"}
+        ]
+        for f in files[:800]:
+            try:
+                texts.append(f.read_text(encoding="utf-8", errors="replace"))
+            except Exception:
+                pass
+    return "\n".join(texts)
+
+# ── Analyse ──────────────────────────────────────────────────────────
+def analyse(text, charmap, layer_names):
+    chars   = collections.Counter()
+    layers  = collections.Counter()
+    fingers = collections.Counter()
+    hands   = collections.Counter()
+    unknown = collections.Counter()
+    accented = collections.Counter()
+    sfb     = collections.Counter()
+    hrm     = collections.Counter()
+    total   = 0
+    prev = None
+
+    for ch in text:
+        if ch in "\r":
+            continue
+        # On normalise les accents : le clavier est en QWERTY US, « é »
+        # se tape en composant. On compte la lettre de base et on
+        # signale le volume d'accents a part.
+        entry = charmap.get(ch)
+        key = ch
+        if entry is None:
+            # QWERTY US n'a pas d'accent : « é » se compose. On rattache
+            # la frappe a sa lettre de BASE — sinon les statistiques par
+            # doigt ignoreraient tout le francais — et on compte le
+            # volume d'accents a part.
+            nfd = unicodedata.normalize("NFD", ch)
+            base = "".join(c for c in nfd if not unicodedata.combining(c))
+            entry = charmap.get(base)
+            if entry is None:
+                unknown[ch] += 1
+                prev = None
+                continue
+            key = base
+            accented[ch] += 1
+        total += 1
+        chars[key] += 1
+        li, pos = entry[0], entry[1]
+        layers[layer_names[li]] += 1
+        f = finger_of(pos)
+        fingers[f] += 1
+        hands[f[0]] += 1
+        if prev is not None:
+            ppos, pli = prev
+            pf, cf = finger_of(ppos), finger_of(pos)
+            if pf == cf and ppos != pos and cf[1] != "pouce":
+                sfb[(ppos, pos)] += 1
+            # Mod de home row suivi d'une touche de la MEME main : c'est
+            # la que `tap-preferred` a 200 ms se fait sentir.
+            if ppos in HOME_ROW and hand_of(ppos) == hand_of(pos) and ppos != pos:
+                hrm[(ppos, pos)] += 1
+        prev = (pos, li)
+
+    return dict(total=total, chars=chars, layers=layers, fingers=fingers,
+                hands=hands, unknown=unknown, accented=accented, sfb=sfb, hrm=hrm)
+
+LABEL = {" ": "␣", "\n": "⏎", "\t": "⇥"}
+
+def reverse_map(charmap):
+    """position -> etiquette lisible, couche de base uniquement."""
+    rev = {}
+    for ch, e in charmap.items():
+        if e[0] == 0 and len(e) == 2:
+            rev.setdefault(e[1], LABEL.get(ch, ch))
+    return rev
+
+def char_at(charmap, pos):
+    for ch, e in charmap.items():
+        if e[1] == pos and e[0] == 0 and len(e) == 2 and ch.islower() or \
+           (e[1] == pos and e[0] == 0 and len(e) == 2):
+            return ch
+    return f"@{pos}"
+
+# ── Rendu ────────────────────────────────────────────────────────────
+def bar(frac, width=22):
+    n = round(frac * width)
+    return "█" * n + "·" * (width - n)
+
+C = {"b":"\033[1m","d":"\033[2m","g":"\033[32m","y":"\033[33m",
+     "r":"\033[31m","c":"\033[36m","x":"\033[0m"}
+if not sys.stdout.isatty():
+    C = {k: "" for k in C}
+
+def main():
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("-s", "--source", default="all",
+                    choices=["all", "shell", "git", "files"])
+    ap.add_argument("-k", "--keymap", default=str(DEFAULT_KEYMAP))
+    ap.add_argument("-n", "--top", type=int, default=12)
+    ap.add_argument("-h", "--help", action="store_true")
+    ap.add_argument("paths", nargs="*")
+    a = ap.parse_args()
+    if a.help:
+        print(__doc__)
+        return
+
+    kp = Path(a.keymap).expanduser()
+    if not kp.is_file():
+        sys.exit(f"typing-report: keymap introuvable : {kp}")
+    layers = parse_keymap(kp)
+    if not layers:
+        sys.exit("typing-report: aucune couche de 42 touches trouvee")
+    charmap, layer_names = build_map(layers)
+
+    parts, srcs = [], []
+    if a.source in ("all", "shell"):
+        t = corpus_shell()
+        if t.strip():
+            parts.append(t); srcs.append(f"atuin ({len(t.splitlines())} commandes)")
+    if a.source in ("all", "git"):
+        roots = [HOME / ".config"] + sorted(
+            (HOME / "Desktop" / "projects").glob("*"))[:25]
+        t = corpus_git(roots)
+        if t.strip():
+            parts.append(t); srcs.append(f"messages de commit ({len(t.splitlines())} lignes)")
+    if a.source == "files" or (a.source == "all" and a.paths):
+        t = corpus_files(a.paths or [HOME / ".config"])
+        if t.strip():
+            parts.append(t); srcs.append("fichiers")
+    text = "\n".join(parts)
+    if not text.strip():
+        sys.exit("typing-report: corpus vide")
+
+    r = analyse(text, charmap, layer_names)
+    tot = r["total"] or 1
+
+    print(f"\n{C['b']}  Analyse de frappe{C['x']}  {C['d']}— corpus reel × {kp.name}{C['x']}\n")
+    print(f"  {C['d']}sources : {' · '.join(srcs)}{C['x']}")
+    print(f"  {C['d']}{tot:,} frappes analysees, {len(r['chars'])} caracteres distincts{C['x']}\n")
+
+    # ── Couches ──────────────────────────────────────────────────────
+    print(f"  {C['b']}Cout des couches{C['x']}")
+    print(f"  {C['d']}Chaque frappe hors couche de base demande un maintien de pouce.{C['x']}\n")
+    for name, n in r["layers"].most_common():
+        frac = n / tot
+        col = C["g"] if name == layer_names[0] else C["y"]
+        print(f"    {col}{name:<9}{C['x']} {bar(frac)} {frac*100:5.1f} %   {n:>8,}")
+    off = tot - r["layers"][layer_names[0]]
+    print(f"\n    {C['d']}-> {off/tot*100:.1f} % de ta frappe passe par une couche.{C['x']}\n")
+
+    # ── Repartition par doigt ────────────────────────────────────────
+    print(f"  {C['b']}Charge par doigt{C['x']}\n")
+    order = [("gauche", f) for f in ["auriculaire","annulaire","majeur","index","index-etire"]] \
+          + [("gauche","pouce"), ("droite","pouce")] \
+          + [("droite", f) for f in ["index-etire","index","majeur","annulaire","auriculaire"]]
+    for key in order:
+        n = r["fingers"].get(key, 0)
+        if not n: continue
+        frac = n / tot
+        col = C["r"] if frac > 0.16 else (C["y"] if frac > 0.12 else C["x"])
+        print(f"    {key[0]:<7} {key[1]:<13} {col}{bar(frac)}{C['x']} {frac*100:5.1f} %")
+    lh = r["hands"]["gauche"] / tot * 100
+    print(f"\n    {C['d']}mains : gauche {lh:.1f} %  ·  droite {100-lh:.1f} %{C['x']}\n")
+
+    # ── Caracteres les plus couteux ──────────────────────────────────
+    costly = [(ch, n) for ch, n in r["chars"].items()
+              if charmap[ch][0] != 0 or len(charmap[ch]) > 2]
+    costly.sort(key=lambda x: -x[1])
+    if costly:
+        print(f"  {C['b']}Caracteres les plus couteux{C['x']}")
+        print(f"  {C['d']}Volume x acces (couche ou shift). Les candidats a un combo.{C['x']}\n")
+        for ch, n in costly[:a.top]:
+            e = charmap[ch]
+            how = layer_names[e[0]] if e[0] else "shift"
+            if len(e) > 2 and e[0] == 0: how = "shift"
+            disp = {"\n":"\\n","\t":"\\t"," ":"espace"}.get(ch, ch)
+            print(f"    {C['c']}{disp:<8}{C['x']} {n:>8,}  {C['d']}{how}{C['x']}")
+        print()
+
+    # ── Bigrammes meme doigt ─────────────────────────────────────────
+    if r["sfb"]:
+        sfb_tot = sum(r["sfb"].values())
+        print(f"  {C['b']}Bigrammes sur le meme doigt (SFB){C['x']}  "
+              f"{C['d']}{sfb_tot/tot*100:.2f} % de la frappe{C['x']}")
+        print(f"  {C['d']}Deux touches differentes, un seul doigt : le doigt doit sauter.{C['x']}\n")
+        rev = reverse_map(charmap)
+        for (p1, p2), n in r["sfb"].most_common(a.top):
+            f = finger_of(p1)
+            a1, a2 = rev.get(p1, f"@{p1}"), rev.get(p2, f"@{p2}")
+            print(f"    {C['c']}{a1}{a2}{C['x']}   {n:>7,}  {C['d']}{f[0]} {f[1]}{C['x']}")
+        print()
+
+    # ── Risque mods de home row ──────────────────────────────────────
+    if r["hrm"]:
+        hrm_tot = sum(r["hrm"].values())
+        print(f"  {C['b']}Enchainements depuis un mod de home row{C['x']}  "
+              f"{C['d']}{hrm_tot/tot*100:.1f} % de la frappe{C['x']}")
+        print(f"  {C['d']}Touche a mod suivie d'une touche de la MEME main.{C['x']}\n")
+        rev = reverse_map(charmap)
+        for (p1, p2), n in r["hrm"].most_common(a.top):
+            print(f"    {C['c']}{rev.get(p1,'?')}{rev.get(p2,'?')}{C['x']}   {n:>7,}  "
+                  f"{C['d']}{hand_of(p1)}{C['x']}")
+        print()
+
+    # ── Mots frequents ───────────────────────────────────────────────
+    words = collections.Counter(
+        w for w in re.findall(r"[a-zA-Z][a-zA-Z-]{2,}", text) if len(w) >= 4)
+    print(f"  {C['b']}Mots les plus tapes{C['x']}  {C['d']}candidats a un combo ou une macro{C['x']}\n")
+    for w, n in words.most_common(a.top):
+        print(f"    {C['c']}{w:<18}{C['x']} {n:>7,}  {C['d']}{n*len(w):>9,} frappes{C['x']}")
+
+    if r["accented"]:
+        na = sum(r["accented"].values())
+        top = " ".join(f"{c}×{n:,}" for c, n in r["accented"].most_common(6))
+        print(f"  {C['b']}Accents{C['x']}  {C['d']}{na:,} frappes ({na/tot*100:.1f} %) "
+              f"comptees sur leur lettre de base{C['x']}")
+        print(f"    {C['d']}QWERTY US n'a pas de touche morte : {top}{C['x']}\n")
+
+    if r["unknown"]:
+        u = sum(r["unknown"].values())
+        top = "".join(c for c, _ in r["unknown"].most_common(8) if c.isprintable())
+        print(f"\n  {C['d']}{u:,} frappes hors disposition (non comptees) : {top}{C['x']}")
+    print()
+
+if __name__ == "__main__":
+    main()
