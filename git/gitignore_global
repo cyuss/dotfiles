@@ -1,0 +1,41 @@
+# ── macOS ──
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# ── Éditeurs ──
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.nvim.lua
+.helix/
+
+# ── Outils ──
+.direnv/
+.envrc.local
+*.log
+.claude/
+.opencode/
+.aider*
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+.venv/
+.python-version
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# ── Node ──
+node_modules/
+.npm/
+.pnpm-store/

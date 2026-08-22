@@ -1,0 +1,78 @@
+[user]
+	name = Cyuss
+	email = 7107418+cyuss@users.noreply.github.com
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[credential]
+	helper = 
+	helper = /usr/local/share/gcm-core/git-credential-manager
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+[init]
+	defaultBranch = main
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true
+	updateRefs = true
+[push]
+	autoSetupRemote = true
+	followTags = true
+[fetch]
+	prune = true
+	pruneTags = true
+[diff]
+	algorithm = histogram
+	colorMoved = default
+	mnemonicPrefix = true
+	renames = true
+[merge]
+	conflictStyle = zdiff3
+	tool = delta
+[rerere]
+	enabled = true
+	autoUpdate = true
+[column]
+	ui = auto
+[branch]
+	sort = -committerdate
+[tag]
+	sort = -version:refname
+[help]
+	autocorrect = prompt
+[core]
+	excludesfile = /Users/youcef/.gitignore_global
+	pager = delta
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+	line-numbers = true
+	side-by-side = true
+	hyperlinks = true
+	syntax-theme = ansi
+	file-style = bold
+	file-decoration-style = "#3a404c ul"
+	hunk-header-decoration-style = "#3a404c box"
+	line-numbers-minus-style = "#d2696b"
+	line-numbers-plus-style = "#8fb884"
+	line-numbers-zero-style = "#3a404c"
+	true-color = always
+[difftool "difftastic"]
+	cmd = difft \"$LOCAL\" \"$REMOTE\"
+[difftool]
+	prompt = false
+[alias]
+	dft = difftool --tool difftastic --no-prompt
+	dlog = -c diff.external=difft log --ext-diff -p
+	dshow = -c diff.external=difft show --ext-diff
+	ab = absorb --and-rebase
+	st = status -sb
+	undo = reset --soft HEAD~1
+	amend = commit --amend --no-edit
+	wip = !git add -A && git commit -m \"wip\"
+[absorb]
+	maxStack = 15
