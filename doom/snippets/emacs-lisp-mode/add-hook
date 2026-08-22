@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: add-hook! (doom)
+# key: hookd
+# group: doom
+# --
+(add-hook! '${1:python-mode-hook}
+  (defun ${2:my/name}-h ()
+    $0))

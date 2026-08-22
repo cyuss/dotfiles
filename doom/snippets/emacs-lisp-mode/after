@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: after! (doom)
+# key: after
+# group: doom
+# --
+(after! ${1:package}
+  $0)

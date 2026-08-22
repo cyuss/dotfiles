@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: Path racine du fichier
+# key: pth
+# group: stdlib
+# --
+${1:HERE} = Path(__file__).resolve().parent
+$0

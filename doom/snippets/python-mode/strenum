@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: StrEnum (3.11+)
+# key: senum
+# group: typage
+# --
+class ${1:Name}(StrEnum):
+    ${2:MEMBER} = "${3:value}"
+    $0

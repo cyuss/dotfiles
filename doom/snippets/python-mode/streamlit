@@ -1,0 +1,22 @@
+# -*- mode: snippet -*-
+# name: streamlit — squelette de page
+# key: stapp
+# group: data
+# --
+import streamlit as st
+
+st.set_page_config(page_title="${1:Titre}", page_icon="${2:📊}", layout="wide")
+
+
+@st.cache_data(ttl=${3:3600})
+def load_data() -> ${4:pd.DataFrame}:
+    ${5:return pd.read_parquet("data.parquet")}
+
+
+st.title("$1")
+
+with st.sidebar:
+    ${6:option} = st.selectbox("${7:Choix}", ${8:options})
+
+df = load_data()
+$0

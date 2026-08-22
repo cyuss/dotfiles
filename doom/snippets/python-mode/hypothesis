@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: hypothesis @given
+# key: given
+# group: tests
+# --
+@given(${1:st.integers(min_value=0)})
+def test_${2:propriete}(${3:value}: ${4:int}) -> None:
+    $0

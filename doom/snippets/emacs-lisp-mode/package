@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: package! (packages.el)
+# key: pkg
+# group: doom
+# --
+(package! ${1:name}
+  :recipe (:host github :repo "${2:owner/repo}" :files ("*.el")))
+$0

@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: guard clause (early raise)
+# key: guard
+# group: controle
+# --
+if not ${1:condition}:
+    raise ${2:ValueError}(f"${3:message}: {${4:value}!r}")
+$0

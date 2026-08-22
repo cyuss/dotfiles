@@ -1,0 +1,11 @@
+# -*- mode: snippet -*-
+# name: <details> repliable
+# key: details
+# group: base
+# --
+<details>
+<summary>${1:Titre}</summary>
+
+$0
+
+</details>

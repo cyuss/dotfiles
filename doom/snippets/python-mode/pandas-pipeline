@@ -1,0 +1,14 @@
+# -*- mode: snippet -*-
+# name: pandas — chaine de transformations
+# key: pdp
+# group: data
+# --
+${1:df} = (
+    pd.read_${2:csv}("${3:data.csv}")
+    .rename(columns=str.lower)
+    .assign(${4:col}=lambda d: ${5:d["x"] * 2})
+    .query("${6:col > 0}")
+    .sort_values("${7:col}", ascending=False)
+    .reset_index(drop=True)
+)
+$0

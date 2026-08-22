@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: bloc src python (session + results)
+# key: srcpy
+# group: babel
+# --
+#+begin_src python :session ${1:main} :results ${2:output} :exports both
+  $0
+#+end_src

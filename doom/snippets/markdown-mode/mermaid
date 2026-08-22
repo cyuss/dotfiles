@@ -1,0 +1,11 @@
+# -*- mode: snippet -*-
+# name: diagramme mermaid
+# key: mermaid
+# group: base
+# --
+\`\`\`mermaid
+${1:flowchart TD}
+    ${2:A[Entree]} --> ${3:B[Traitement]}
+    $3 --> ${4:C[Sortie]}
+\`\`\`
+$0

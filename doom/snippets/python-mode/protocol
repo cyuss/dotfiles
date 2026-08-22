@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: Protocol (duck typing verifiable)
+# key: proto
+# group: typage
+# --
+@runtime_checkable
+class ${1:Name}(Protocol):
+    def ${2:method}(self, ${3:arg}: ${4:str}) -> ${5:None}: ...
+    $0

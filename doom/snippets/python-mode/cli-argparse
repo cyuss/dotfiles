@@ -1,0 +1,23 @@
+# -*- mode: snippet -*-
+# name: CLI argparse + main() -> int
+# key: cli
+# group: script
+# --
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="${1:Description.}")
+    parser.add_argument("${2:input}", type=Path, help="${3:fichier d'entree}")
+    parser.add_argument("-o", "--output", type=Path, default=None, help="sortie")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    logger.remove()
+    logger.add(sys.stderr, level="DEBUG" if args.verbose else "INFO")
+    $0
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

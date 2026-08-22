@@ -1,0 +1,19 @@
+# -*- mode: snippet -*-
+# name: plotly express — figure propre
+# key: pxfig
+# group: data
+# --
+fig = px.${1:bar}(
+    ${2:df},
+    x="${3:x}",
+    y="${4:y}",
+    color="${5:categorie}",
+    title="${6:Titre}",
+)
+fig.update_layout(
+    template="plotly_dark",
+    margin=dict(l=0, r=0, t=40, b=0),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02),
+)
+${7:st.plotly_chart(fig, use_container_width=True)}
+$0

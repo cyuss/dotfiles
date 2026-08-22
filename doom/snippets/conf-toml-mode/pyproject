@@ -1,0 +1,44 @@
+# -*- mode: snippet -*-
+# name: pyproject.toml — PEP 621 + uv + ruff + pytest
+# key: pyproject
+# group: packaging
+# --
+[project]
+name = "${1:package}"
+version = "${2:0.1.0}"
+description = "${3:...}"
+readme = "README.md"
+requires-python = ">=${4:3.12}"
+dependencies = [
+    "loguru>=0.7.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "hypothesis>=6.123",
+    "mypy>=1.14",
+    "ruff>=0.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py${5:312}"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ANN", "PTH"]
+ignore = ["ANN101", "ANN102"]
+
+[tool.mypy]
+strict = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --cov=$1 --cov-report=term-missing"
+testpaths = ["tests"]
+$0

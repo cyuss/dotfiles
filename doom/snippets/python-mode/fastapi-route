@@ -1,0 +1,11 @@
+# -*- mode: snippet -*-
+# name: FastAPI — endpoint type
+# key: route
+# group: web
+# --
+@${1:router}.${2:get}("/${3:items}/{item_id}", response_model=${4:ItemOut}, status_code=status.HTTP_${5:200_OK})
+async def ${6:read_item}(
+    item_id: ${7:int},
+    ${8:service}: Annotated[${9:Service}, Depends(get_${8:service})],
+) -> $4:
+    $0

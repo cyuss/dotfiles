@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: functools.cache
+# key: cache
+# group: stdlib
+# --
+@functools.cache
+def ${1:name}(${2:arg}: ${3:str}) -> ${4:Any}:
+    $0

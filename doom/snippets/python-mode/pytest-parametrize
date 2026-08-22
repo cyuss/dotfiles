@@ -1,0 +1,14 @@
+# -*- mode: snippet -*-
+# name: @pytest.mark.parametrize (avec id)
+# key: param
+# group: tests
+# --
+@pytest.mark.parametrize(
+    ("${1:value}", "${2:expected}"),
+    [
+        pytest.param(${3:...}, ${4:...}, id="${5:cas nominal}"),
+        pytest.param(${6:...}, ${7:...}, id="${8:cas limite}"),
+    ],
+)
+def test_${9:name}($1: ${10:Any}, $2: ${11:Any}) -> None:
+    $0

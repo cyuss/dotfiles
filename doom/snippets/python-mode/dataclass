@@ -1,0 +1,12 @@
+# -*- mode: snippet -*-
+# name: dataclass (slots, frozen)
+# key: dcls
+# group: typage
+# --
+@dataclass(slots=True, frozen=True)
+class ${1:Name}:
+    """${2:Resume.}"""
+
+    ${3:field}: ${4:str}
+    ${5:other}: ${6:int} = ${7:0}
+    $0

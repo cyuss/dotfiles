@@ -1,0 +1,11 @@
+# -*- mode: snippet -*-
+# name: fixture pytest (yield)
+# key: fix
+# group: tests
+# --
+@pytest.fixture
+def ${1:name}(${2:tmp_path: Path}) -> Iterator[${3:Path}]:
+    ${4:# setup}
+    yield ${5:...}
+    ${6:# teardown}
+$0

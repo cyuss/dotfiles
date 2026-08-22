@@ -1,0 +1,11 @@
+# -*- mode: snippet -*-
+# name: entree TODO datee
+# key: todo
+# group: gtd
+# --
+* TODO ${1:tache}
+  DEADLINE: <`(format-time-string "%Y-%m-%d %a")`>
+  :PROPERTIES:
+  :CREATED: [`(format-time-string "%Y-%m-%d %a %H:%M")`]
+  :END:
+  $0

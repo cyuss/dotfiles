@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: bloc de code
+# key: fence
+# group: base
+# --
+\`\`\`${1:python}
+$0
+\`\`\`

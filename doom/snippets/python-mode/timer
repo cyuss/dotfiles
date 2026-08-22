@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: chrono perf_counter
+# key: timer
+# group: observabilite
+# --
+_t0 = time.perf_counter()
+${1:...}
+logger.info("${2:etape} en {:.3f}s", time.perf_counter() - _t0)
+$0

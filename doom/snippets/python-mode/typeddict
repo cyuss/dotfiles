@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: TypedDict
+# key: tdict
+# group: typage
+# --
+class ${1:Name}(TypedDict, total=${2:False}):
+    ${3:key}: ${4:str}
+    $0

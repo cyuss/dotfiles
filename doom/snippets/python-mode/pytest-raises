@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: pytest.raises
+# key: raises
+# group: tests
+# --
+with pytest.raises(${1:ValueError}, match=r"${2:message}"):
+    $0

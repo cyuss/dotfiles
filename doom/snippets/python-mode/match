@@ -1,0 +1,11 @@
+# -*- mode: snippet -*-
+# name: match / case (pattern matching)
+# key: match
+# group: controle
+# --
+match ${1:value}:
+    case ${2:pattern}:
+        ${3:pass}
+    case _:
+        raise ValueError(f"cas non gere: {$1!r}")
+$0

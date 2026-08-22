@@ -1,0 +1,15 @@
+# -*- mode: snippet -*-
+# name: loguru — setup complet
+# key: lgr
+# group: observabilite
+# --
+from loguru import logger
+
+logger.remove()
+logger.add(
+    sys.stderr,
+    level="${1:INFO}",
+    format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}:{line}</cyan> - {message}",
+)
+logger.add("${2:logs/app.log}", rotation="${3:10 MB}", retention="${4:10 days}", level="DEBUG")
+$0

@@ -1,0 +1,13 @@
+# -*- mode: snippet -*-
+# name: @contextmanager
+# key: ctxm
+# group: stdlib
+# --
+@contextmanager
+def ${1:name}(${2:arg}) -> Iterator[${3:None}]:
+    ${4:# setup}
+    try:
+        yield ${5:None}
+    finally:
+        ${6:pass}
+$0

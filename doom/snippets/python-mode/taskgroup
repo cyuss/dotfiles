@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: asyncio.TaskGroup (3.11+)
+# key: tgroup
+# group: async
+# --
+async with asyncio.TaskGroup() as tg:
+    ${1:task} = tg.create_task(${2:coro()})
+$0

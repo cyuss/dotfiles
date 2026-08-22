@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: breakpoint()
+# key: bpt
+# group: debug
+# --
+breakpoint()  # TODO: retirer
+$0

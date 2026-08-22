@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: map! :leader avec prefixe
+# key: mapl
+# group: doom
+# --
+(map! :leader
+      (:prefix ("${1:k}" . "${2:groupe}")
+       :desc "${3:action}" "${4:a}" #'${5:command}
+       :desc "${6:action}" "${7:b}" #'${8:command}))
+$0

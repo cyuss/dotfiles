@@ -1,0 +1,20 @@
+# -*- mode: snippet -*-
+# name: [tool.ruff] complet
+# key: ruff
+# group: packaging
+# --
+[tool.ruff]
+line-length = ${1:100}
+target-version = "py${2:312}"
+extend-exclude = ["migrations", "notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ANN", "PTH", "C4", "ARG"]
+ignore = ["ANN101", "ANN102", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN", "ARG", "S101"]
+
+[tool.ruff.format]
+docstring-code-format = true
+$0

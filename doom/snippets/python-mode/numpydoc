@@ -1,0 +1,28 @@
+# -*- mode: snippet -*-
+# name: docstring numpydoc
+# key: nd
+# group: doc
+# --
+"""${1:Resume en une ligne.}
+
+Parameters
+----------
+${2:name} : ${3:type}
+    ${4:Description.}
+
+Returns
+-------
+${5:type}
+    ${6:Description.}
+
+Raises
+------
+${7:ValueError}
+    ${8:Quand ...}
+
+Examples
+--------
+>>> ${9:call()}
+${10:resultat}
+"""
+$0

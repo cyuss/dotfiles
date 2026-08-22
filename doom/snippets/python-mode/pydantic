@@ -1,0 +1,12 @@
+# -*- mode: snippet -*-
+# name: pydantic v2 BaseModel
+# key: pyd
+# group: typage
+# --
+class ${1:Model}(BaseModel):
+    """${2:Resume.}"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    ${3:field}: ${4:str} = Field(..., description="${5:...}")
+    $0

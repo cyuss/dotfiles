@@ -1,0 +1,13 @@
+# -*- mode: snippet -*-
+# name: use-package! (doom)
+# key: usep
+# group: doom
+# --
+(use-package! ${1:package}
+  :defer t
+  :commands (${2:command})
+  :hook ((${3:prog-mode}) . ${1:package}-mode)
+  :init
+  ${4:;; avant le chargement}
+  :config
+  $0)

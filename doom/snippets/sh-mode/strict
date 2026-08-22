@@ -1,0 +1,29 @@
+# -*- mode: snippet -*-
+# name: en-tete bash strict + usage
+# key: strict
+# group: script
+# --
+#!/usr/bin/env bash
+# ${1:Description.}
+set -euo pipefail
+IFS=\$'\n\t'
+
+usage() {
+  cat >&2 <<'USAGE'
+usage: ${2:script} [-v] <${3:arg}>
+USAGE
+  exit 1
+}
+
+VERBOSE=0
+while getopts ":vh" opt; do
+  case \$opt in
+    v) VERBOSE=1 ;;
+    h) usage ;;
+    *) usage ;;
+  esac
+done
+shift \$((OPTIND - 1))
+[[ \$# -ge 1 ]] || usage
+
+$0

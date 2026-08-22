@@ -1,0 +1,13 @@
+# -*- mode: snippet -*-
+# name: test pytest (arrange/act/assert)
+# key: test
+# group: tests
+# --
+def test_${1:comportement_attendu}() -> None:
+    # arrange
+    ${2:...}
+    # act
+    ${3:result} = ${4:...}
+    # assert
+    assert $3 == ${5:expected}
+$0

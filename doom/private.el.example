@@ -1,0 +1,14 @@
+;;; private.el.example -*- lexical-binding: t; -*-
+;;
+;; Copie ce fichier en `private.el' (meme dossier) et remplis-le.
+;; `private.el' est ignore par git : c'est la que vivent les valeurs
+;; personnelles qui n'ont rien a faire dans un depot public.
+;;
+;;     cp doom/private.el.example doom/private.el
+
+(setq user-full-name    "Prenom Nom"
+      user-mail-address "moi@example.com")
+
+;; Autres valeurs personnelles possibles ici :
+;;   (setq org-directory "~/Dropbox/Org/")
+;;   (setq auth-sources '("~/.authinfo.gpg"))

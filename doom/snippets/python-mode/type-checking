@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: if TYPE_CHECKING (import sans cout runtime)
+# key: tcheck
+# group: typage
+# --
+if TYPE_CHECKING:
+    from ${1:module} import ${2:Thing}
+$0

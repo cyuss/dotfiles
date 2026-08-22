@@ -1,0 +1,23 @@
+# -*- mode: snippet -*-
+# name: docker compose — service
+# key: svc
+# group: docker
+# --
+  ${1:api}:
+    build:
+      context: .
+      target: ${2:runtime}
+    env_file: [.env]
+    ports: ["${3:8000}:${3:8000}"]
+    volumes:
+      - ./${4:src}:/app/${4:src}:ro
+    depends_on:
+      ${5:db}:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${3:8000}/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+$0

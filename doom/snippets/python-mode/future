@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: from __future__ import annotations
+# key: future
+# group: typage
+# --
+from __future__ import annotations
+$0
