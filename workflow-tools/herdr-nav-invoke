@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# herdr-nav-invoke "<plugin>\t<action>" — l'action « open » de l'integration.
+set -uo pipefail
+
+if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
+  s="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
+  [[ -S $s ]] && export HERDR_SOCKET_PATH="$s"
+fi
+
+ARG="${1:-}"
+[[ -n $ARG ]] || { echo "usage: herdr-nav-invoke '<plugin>\\t<action>'" >&2; exit 1; }
+
+PLUGIN="${ARG%%$'\t'*}"
+ACTION="${ARG#*$'\t'}"
+[[ -n $PLUGIN && -n $ACTION && $PLUGIN != "$ACTION" ]] || {
+  echo "identifiant illisible : $ARG" >&2; exit 1; }
+
+exec herdr plugin action invoke --plugin "$PLUGIN" "$ACTION"

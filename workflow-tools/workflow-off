@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOOLS_DIR="${HOME}/.config/workflow-tools"
+AEROSPACE_CTL="${TOOLS_DIR}/aerospacectl"
+SKETCHYBAR_CTL="${TOOLS_DIR}/sketchybarctl"
+
+# Stop workflow services
+"${AEROSPACE_CTL}" stop >/dev/null 2>&1 || true
+"${SKETCHYBAR_CTL}" stop >/dev/null 2>&1 || true
+
+# Stop potential conflicting helpers
+pkill -x skhd 2>/dev/null || true
+pkill -x yabai 2>/dev/null || true
+
+echo "Workflow disabled. AeroSpace + SketchyBar stopped."

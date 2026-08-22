@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+AEROSPACE_BIN="${AEROSPACE_BIN:-$(command -v aerospace || true)}"
+APP_PATH="/Applications/AeroSpace.app"
+APP_BIN="${APP_PATH}/Contents/MacOS/AeroSpace"
+
+is_running() {
+  if [[ -z "${AEROSPACE_BIN}" ]]; then
+    return 1
+  fi
+  "${AEROSPACE_BIN}" list-workspaces --all >/dev/null 2>&1
+}
+
+start_app() {
+  if is_running; then
+    echo "AeroSpace is already running"
+    return 0
+  fi
+
+  if [[ -d "${APP_PATH}" ]]; then
+    open -a "${APP_PATH}" >/dev/null 2>&1 || true
+  fi
+
+  sleep 0.6
+
+  if is_running; then
+    echo "AeroSpace started"
+    return 0
+  fi
+
+  if [[ -x "${APP_BIN}" ]]; then
+    nohup "${APP_BIN}" >/tmp/aerospace.log 2>&1 &
+  fi
+
+  sleep 0.6
+  if is_running; then
+    echo "AeroSpace started"
+    return 0
+  fi
+
+  echo "Failed to start AeroSpace" >&2
+  exit 1
+}
+
+stop_app() {
+  pkill -x AeroSpace 2>/dev/null || true
+  sleep 0.3
+  if is_running; then
+    echo "Failed to stop AeroSpace" >&2
+    exit 1
+  fi
+  echo "AeroSpace stopped"
+}
+
+reload_cfg() {
+  if ! is_running; then
+    echo "AeroSpace is not running" >&2
+    exit 1
+  fi
+  "${AEROSPACE_BIN}" reload-config
+  echo "AeroSpace config reloaded"
+}
+
+status_app() {
+  if is_running; then
+    echo "AeroSpace: running"
+    "${AEROSPACE_BIN}" --version | head -n 2
+  else
+    echo "AeroSpace: stopped"
+    exit 1
+  fi
+}
+
+cmd="${1:-}"
+case "${cmd}" in
+  start)
+    start_app
+    ;;
+  stop)
+    stop_app
+    ;;
+  restart)
+    stop_app || true
+    start_app
+    ;;
+  reload)
+    reload_cfg
+    ;;
+  status)
+    status_app
+    ;;
+  *)
+    echo "Usage: $(basename "$0") {start|stop|restart|reload|status}"
+    exit 2
+    ;;
+esac

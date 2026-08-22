@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# herdr-new — creer un space ou une session, sans quitter le clavier.
+#
+#   herdr-new scratch            space jetable : ~/scratch/<horodatage>
+#   herdr-new space [cwd]        space sur un repertoire (defaut : cwd du
+#                                pane focalise) ; focalise l'existant
+#   herdr-new session <nom>      nouvelle fenetre Alacritty sur cette session
+#   herdr-new manage-space       selecteur : renommer / fermer un space
+#   herdr-new manage-session     selecteur : renommer / supprimer une session
+#
+# Appele a la main, ou par les entrees "creer" du navigator (prefix+w).
+# ─────────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+PY=$(command -v python3.13 || command -v /opt/homebrew/bin/python3 || command -v python3)
+ALACRITTY=/Applications/Alacritty.app/Contents/MacOS/alacritty
+SCRATCH_ROOT="${HERDR_SCRATCH_ROOT:-$HOME/scratch}"
+
+if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
+  s="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
+  [[ -S $s ]] && export HERDR_SOCKET_PATH="$s"
+fi
+
+jqp() { "$PY" -c "import json,sys; d=json.load(sys.stdin); print(eval('d'+sys.argv[1]))" "$1"; }
+
+# Cree le space, puis les tabs supplementaires. Rend l'id du space.
+make_space() { # $1 = cwd, $2 = label
+  local out ws
+  out=$(herdr workspace create --cwd "$1" --label "$2" --focus)
+  ws=$(printf '%s' "$out" | jqp "['result']['workspace']['workspace_id']")
+  printf '%s' "$ws"
+}
+
+# Ajoute un tab qui lance une commande. Le tab reste en arriere-plan pour
+# que le premier garde le focus.
+add_tab() { # $1 = ws, $2 = label, $3 = cwd, $4 = commande (optionnelle)
+  local out pane
+  out=$(herdr tab create --workspace "$1" --label "$2" --cwd "$3" --no-focus)
+  [[ -n ${4:-} ]] || return 0
+  pane=$(printf '%s' "$out" | jqp "['result']['root_pane']['pane_id']")
+  herdr pane run "$pane" "$4" >/dev/null
+}
+
+# Un space porte-t-il deja ce libelle ? (le plugin automatic-rename
+# prefixe par "[N] ", on l'ignore)
+find_space() { # $1 = label
+  herdr workspace list 2>/dev/null | "$PY" -c '
+import json, re, sys
+want = sys.argv[1].casefold()
+for w in json.load(sys.stdin)["result"]["workspaces"]:
+    if re.sub(r"^\s*\[\d+\]\s*", "", w.get("label", "")).casefold() == want:
+        print(w["workspace_id"]); break
+' "$1"
+}
+
+cmd="${1:-}"; shift || true
+
+case "$cmd" in
+  scratch)
+    stamp=$(date +%Y-%m-%d_%H%M%S)
+    dir="$SCRATCH_ROOT/$stamp"
+    mkdir -p "$dir"
+    ws=$(make_space "$dir" "scratch $(date +%H:%M)")
+    add_tab "$ws" "agent" "$dir" "opencode"
+    echo "scratch → $dir"
+    ;;
+
+  manage-space)   exec herdr-manage space ;;
+  manage-session) exec herdr-manage session ;;
+
+  space)
+    dir="${1:-}"
+    if [[ -z $dir ]]; then
+      dir=$(herdr pane current 2>/dev/null | "$PY" -c '
+import json, sys
+try: print(json.load(sys.stdin)["result"]["pane"]["cwd"])
+except Exception: print("")
+') || dir=""
+    fi
+    [[ -n $dir ]] || dir="$HOME"
+    dir="${dir/#\~/$HOME}"
+    [[ -d $dir ]] || { echo "répertoire introuvable : $dir" >&2; exit 1; }
+    label=$(basename "$dir"); [[ $dir == "$HOME" ]] && label="~"
+    if existing=$(find_space "$label") && [[ -n $existing ]]; then
+      herdr workspace focus "$existing" >/dev/null
+      echo "focus $label ($existing)"
+    else
+      make_space "$dir" "$label" >/dev/null
+      echo "space $label → $dir"
+    fi
+    ;;
+
+  session)
+    name="${1:-}"
+    [[ -n $name ]] || { echo "usage: herdr-new session <nom>" >&2; exit 1; }
+    [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || { echo "nom invalide : $name" >&2; exit 1; }
+    [[ -x $ALACRITTY ]] || { echo "Alacritty introuvable : $ALACRITTY" >&2; exit 1; }
+    # Une session est un serveur separe : elle a besoin de sa propre
+    # fenetre. `msg create-window` reutilise le process Alacritty en cours
+    # (ipc_socket = true) au lieu d'en lancer un second.
+    "$ALACRITTY" msg create-window --title "herdr · $name" \
+      -e /bin/zsh -lc "exec herdr --session $name" 2>/dev/null \
+      || open -na Alacritty --args -e /bin/zsh -lc "exec herdr --session $name"
+    echo "session $name"
+    ;;
+
+  *)
+    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+    exit 1 ;;
+esac

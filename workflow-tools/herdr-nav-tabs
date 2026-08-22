@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# herdr-nav-tabs — la sous-liste des tabs, sous chaque space, dans le
+# navigator (prefix+w).
+#
+# POURQUOI UN SCRIPT
+# herdr-navigator n'a pas de source « tab » : ses sources sont workspace,
+# agent, session, server, project, zoxide, root, quick, plugin. Il n'a pas
+# non plus de vue arborescente — c'est un picker plat. Le seul point
+# d'extension prevu est [[integrations]] : une commande `collect` qui
+# imprime un tableau JSON, une commande `open` lancee sur la selection.
+#
+# OBSOLETE — l'integration est desactivee dans config.toml.
+# La vue arborescente est maintenant NATIVE (picker.tab_children), via un
+# correctif du plugin : voir ~/.config/herdr/patches/.
+#
+# Ce script est conserve comme repli : si le correctif ne peut plus etre
+# reapplique apres une mise a jour du plugin, remettre enabled = true rend
+# les tabs accessibles, dans une section « tabs » separee.
+#
+# CE QUE CA DONNE
+# Une entree par tab, titree « <space> › <tab> ». Le nom du space etant
+# DANS le titre, taper ce nom fait remonter le space et tous ses tabs
+# ensemble.
+#
+# ATTENTION : kind = "workspace" NE range PAS l'entree avec les spaces.
+# Le plugin n'interprete `kind` que pour "server"/"remote-terminal" ->
+# Source::Server et "session" -> Source::Session ; tout le reste tombe
+# dans Source::Integration. Aucun chemin ne mene a la section « open » :
+# c'est precisement pourquoi le correctif natif existe.
+#
+# Les spaces a UN SEUL tab sont ignores : leur unique tab ferait doublon
+# avec la ligne du space, sans rien apprendre. Passer SHOW_SINGLE=1 pour
+# les inclure malgre tout.
+#
+# Les sessions ne sont PAS imbriquees ici, et ce n'est pas un oubli : une
+# session est un serveur herdr separe, pas un enfant d'un space. Elle a
+# son propre filtre, Ctrl-L.
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+PY=$(command -v python3.13 || command -v /opt/homebrew/bin/python3 || command -v python3)
+
+if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
+  s="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
+  [[ -S $s ]] && export HERDR_SOCKET_PATH="$s"
+fi
+
+WS=$(herdr workspace list 2>/dev/null)
+TABS=$(herdr tab list 2>/dev/null)
+
+# Serveur absent ou muet : un tableau vide, jamais une erreur. Le navigator
+# afficherait le message d'erreur comme une entree.
+[[ -n $WS && -n $TABS ]] || { echo "[]"; exit 0; }
+
+WS="$WS" TABS="$TABS" SHOW_SINGLE="${SHOW_SINGLE:-0}" "$PY" - <<'PYEOF'
+import json, os, re, sys
+
+def unwrap(raw, key):
+    """Les commandes CLI rendent {"result": {...}} ; certaines rendent la
+    charge a la racine. On accepte les deux — une exception silencieuse
+    ici viderait la liste sans rien dire."""
+    try:
+        d = json.loads(raw)
+    except Exception:
+        return []
+    return d.get("result", {}).get(key) or d.get(key) or []
+
+workspaces = unwrap(os.environ.get("WS", ""), "workspaces")
+tabs       = unwrap(os.environ.get("TABS", ""), "tabs")
+show_single = os.environ.get("SHOW_SINGLE") == "1"
+
+# herdr prefixe ses libelles du numero d'affichage : « [2] zsh ». Le numero
+# est deja dans le champ `number`, on le retire du texte pour ne pas avoir
+# « [3] projet › [2] run ».
+NUM = re.compile(r"^\s*\[\d+\]\s*")
+def clean(label, fallback=""):
+    return NUM.sub("", (label or "").strip()) or fallback
+
+# Etat d'agent -> pastille. Seuls les etats qui APPELLENT une action sont
+# marques ; « unknown » et « idle » restent muets pour ne pas bruiter.
+DOT = {
+    "working":   "◐",
+    "blocked":   "●",
+    "attention": "●",
+    "request":   "●",
+    "error":     "✖",
+    "done":      "✓",
+}
+
+by_ws = {}
+for t in tabs:
+    by_ws.setdefault(t.get("workspace_id"), []).append(t)
+
+items = []
+for w in sorted(workspaces, key=lambda x: x.get("number", 0)):
+    wid   = w.get("workspace_id")
+    wname = clean(w.get("label"), wid or "?")
+    kids  = sorted(by_ws.get(wid, []), key=lambda x: x.get("number", 0))
+
+    if len(kids) <= 1 and not show_single:
+        continue
+
+    for t in kids:
+        tname = clean(t.get("label"), "tab")
+        dot   = DOT.get(t.get("agent_status") or "", "")
+        panes = t.get("pane_count") or 1
+
+        # Le nom du space est dans le TITRE, pas seulement dans le
+        # sous-titre : c'est le titre qui est indexe par le matcher, donc
+        # c'est ce qui fait remonter les tabs avec leur space.
+        title = f"{wname} › {tname}"
+        if dot:
+            title = f"{title}  {dot}"
+
+        bits = [f"tab {t.get('number', '?')}"]
+        if panes > 1:
+            bits.append(f"{panes} panes")
+        if t.get("focused"):
+            bits.append("courant")
+
+        items.append({
+            "id":       t.get("tab_id", ""),
+            "title":    title,
+            "subtitle": " · ".join(bits),
+            "path":     wid or "",
+            # Range l'entree avec les spaces : Ctrl-W montre alors les deux
+            # niveaux, space puis ses tabs.
+            "kind":     "workspace",
+        })
+
+print(json.dumps(items, ensure_ascii=False))
+PYEOF

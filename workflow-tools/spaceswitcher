@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+dir="${1:-next}"
+
+case "$dir" in
+  next)
+    osascript -e 'tell application "System Events" to key code 124 using control down'
+    ;;
+  prev)
+    osascript -e 'tell application "System Events" to key code 123 using control down'
+    ;;
+  *)
+    echo "Usage: $(basename "$0") {next|prev}" >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SKETCHYBAR_BIN="${SKETCHYBAR_BIN:-$(command -v sketchybar || true)}"
+LABEL="homebrew.mxcl.sketchybar"
+PLIST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
+GUI="gui/$(id -u)"
+
+is_running() {
+  if [[ -z "${SKETCHYBAR_BIN}" ]]; then
+    return 1
+  fi
+  "${SKETCHYBAR_BIN}" --query bar >/dev/null 2>&1
+}
+
+start_bar() {
+  if is_running; then
+    echo "SketchyBar is already running"
+    return 0
+  fi
+
+  if [[ -f "${PLIST}" ]]; then
+    launchctl bootstrap "${GUI}" "${PLIST}" >/dev/null 2>&1 || true
+    launchctl kickstart -k "${GUI}/${LABEL}" >/dev/null 2>&1 || true
+  fi
+
+  sleep 0.6
+
+  if is_running; then
+    echo "SketchyBar started"
+    return 0
+  fi
+
+  if [[ -n "${SKETCHYBAR_BIN}" ]]; then
+    nohup "${SKETCHYBAR_BIN}" >/tmp/sketchybar.log 2>&1 &
+  fi
+
+  sleep 0.6
+  if is_running; then
+    echo "SketchyBar started"
+    return 0
+  fi
+
+  echo "Failed to start SketchyBar" >&2
+  exit 1
+}
+
+stop_bar() {
+  launchctl bootout "${GUI}/${LABEL}" >/dev/null 2>&1 || true
+  pkill -x sketchybar 2>/dev/null || true
+  sleep 0.3
+  if is_running; then
+    echo "Failed to stop SketchyBar" >&2
+    exit 1
+  fi
+  echo "SketchyBar stopped"
+}
+
+reload_bar() {
+  if ! is_running; then
+    echo "SketchyBar is not running" >&2
+    exit 1
+  fi
+  "${SKETCHYBAR_BIN}" --reload
+  echo "SketchyBar reloaded"
+}
+
+status_bar() {
+  if is_running; then
+    echo "SketchyBar: running"
+    launchctl print "${GUI}/${LABEL}" 2>/dev/null | awk '/state = / {print; exit}' || true
+  else
+    echo "SketchyBar: stopped"
+    exit 1
+  fi
+}
+
+cmd="${1:-}"
+case "${cmd}" in
+  start)
+    start_bar
+    ;;
+  stop)
+    stop_bar
+    ;;
+  restart)
+    stop_bar || true
+    start_bar
+    ;;
+  reload)
+    reload_bar
+    ;;
+  status)
+    status_bar
+    ;;
+  *)
+    echo "Usage: $(basename "$0") {start|stop|restart|reload|status}"
+    exit 2
+    ;;
+esac

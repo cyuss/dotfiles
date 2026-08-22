@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# herdr-open-project <nom> — ouvre un template herdr-plus, OU le focalise
+# s'il est deja ouvert.
+#
+# Pourquoi ce script existe : `herdr-plus open <nom>` appelle toujours
+# workspaceCreate (verifie dans projects.go). Sur un projet ponctuel c'est
+# ce qu'on veut ; sur un space de base auquel on revient dix fois par jour,
+# ca empile les doublons. Ici on cherche d'abord un space existant.
+#
+# Le plugin automatic-rename prefixe les libelles par "[N] " — la
+# comparaison ignore ce prefixe.
+#
+#   herdr-open-project quotidien
+#   herdr-open-project --new quotidien   force un nouveau space
+# ─────────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+FORCE_NEW=0
+[[ "${1:-}" == "--new" ]] && { FORCE_NEW=1; shift; }
+NAME="${1:-}"
+[[ -n $NAME ]] || { echo "usage: herdr-open-project [--new] <nom-du-template>" >&2; exit 1; }
+
+# On n'exige PAS HERDR_ENV : un binding `type = "shell"` n'injecte pas
+# forcement le contexte du pane. Ce qu'il faut vraiment, c'est la socket.
+# herdr-plus, lui, la lit dans HERDR_SOCKET_PATH — on la pose si elle manque.
+if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
+  default_sock="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
+  [[ -S $default_sock ]] || { echo "serveur herdr injoignable" >&2; exit 1; }
+  export HERDR_SOCKET_PATH="$default_sock"
+fi
+[[ -S $HERDR_SOCKET_PATH ]] || { echo "socket herdr absente : $HERDR_SOCKET_PATH" >&2; exit 1; }
+
+PY=$(command -v python3.13 || command -v /opt/homebrew/bin/python3 || command -v python3)
+
+# Un space existant porte-t-il ce nom ? (libelle depouille de "[N] ")
+if [[ $FORCE_NEW -eq 0 ]]; then
+  ws=$(herdr workspace list 2>/dev/null | "$PY" -c '
+import json, re, sys
+want = sys.argv[1].casefold()
+try:
+    data = json.load(sys.stdin)["result"]["workspaces"]
+except Exception:
+    sys.exit(0)
+for w in data:
+    label = re.sub(r"^\s*\[\d+\]\s*", "", w.get("label", ""))
+    if label.casefold() == want:
+        print(w["workspace_id"]); break
+' "$NAME")
+  if [[ -n ${ws:-} ]]; then
+    herdr workspace focus "$ws" >/dev/null
+    echo "focus $NAME ($ws)"
+    exit 0
+  fi
+fi
+
+# Sinon on le monte via herdr-plus, dont le chemin change a chaque
+# reinstallation : on le resout par l'API plutot que de le coder en dur.
+ROOT=$(herdr plugin list --json 2>/dev/null | "$PY" -c '
+import json, sys
+try:
+    for p in json.load(sys.stdin)["result"]["plugins"]:
+        if p.get("plugin_id") == "cloudmanic.herdr-plus":
+            print(p["plugin_root"]); break
+except Exception:
+    pass
+')
+[[ -n ${ROOT:-} && -x "$ROOT/bin/herdr-plus" ]] || {
+  echo "herdr-plus introuvable — herdr plugin install cloudmanic/herdr-plus" >&2; exit 1; }
+
+exec "$ROOT/bin/herdr-plus" open "$NAME"

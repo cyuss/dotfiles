@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# make-target-info <cible> — ce que fait une cible make, avant de la lancer.
+#
+# Sert d'apercu a fzf-tab : `make <TAB>` liste les cibles, et cette
+# commande montre a droite la description et la recette.
+#
+# Tes Makefile suivent le motif auto-documente `cible: ## description`
+# (verifie sur stats_hdj) : on lit donc la description dans le fichier,
+# et la recette juste en dessous.
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+t="${1:-}"
+[[ -n $t ]] || exit 0
+
+mk=""
+for f in Makefile makefile GNUmakefile; do [[ -f $f ]] && { mk="$f"; break; }; done
+[[ -n $mk ]] || { echo "aucun Makefile ici"; exit 0; }
+
+b()  { printf '\033[1m%s\033[0m\n' "$1"; }
+dim(){ printf '\033[2m%s\033[0m\n' "$1"; }
+amb(){ printf '\033[33m%s\033[0m\n' "$1"; }
+
+desc=$(grep -hE "^${t}:.*##" $mk $(grep -hoE '^include .*' $mk 2>/dev/null | cut -d' ' -f2-) 2>/dev/null \
+       | head -1 | sed 's/.*## *//')
+[[ -n $desc ]] && { amb "$desc"; echo; }
+
+# La recette : de la ligne de la cible jusqu'a la premiere ligne qui ne
+# commence ni par une tabulation ni par un commentaire.
+awk -v t="$t" '
+  $0 ~ "^"t":" { inr=1; print; next }
+  inr && /^\t/  { print; next }
+  inr && /^#/   { next }
+  inr           { exit }
+' $mk | sed 's/^\t/  /' | head -30
+
+# Les variables que la recette utilise, avec leur valeur effective.
+vars=$(awk -v t="$t" '$0 ~ "^"t":" {inr=1;next} inr && /^\t/ {print} inr && !/^\t/ {exit}' $mk \
+       | grep -oE '\$\(([A-Z_][A-Z0-9_]*)\)' | tr -d '$()' | sort -u)
+if [[ -n $vars ]]; then
+  echo; dim "── variables ──"
+  while IFS= read -r v; do
+    [[ -n $v ]] || continue
+    val=$(make -pn 2>/dev/null | grep -E "^${v} [:?]?= " | head -1 | sed 's/^[^=]*= *//')
+    printf '  \033[2m%-14s\033[0m %s\n' "$v" "${val:-—}"
+  done <<< "$vars"
+fi

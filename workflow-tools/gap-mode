@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOOLS_DIR="${HOME}/.config/workflow-tools"
+AEROSPACE_CTL="${TOOLS_DIR}/aerospacectl"
+SYNC_TOP_GAP="${HOME}/.config/aerospace/scripts/sync_top_gap.sh"
+CONFIG="${HOME}/.config/aerospace/aerospace.toml"
+NO_MARGIN_FLAG="${HOME}/.config/aerospace/.no_margin_mode"
+
+DEFAULT_INNER_H=10
+DEFAULT_INNER_V=10
+DEFAULT_OUTER_LEFT=8
+DEFAULT_OUTER_RIGHT=8
+DEFAULT_OUTER_BOTTOM=8
+DEFAULT_OUTER_TOP_FALLBACK=8
+NO_MARGIN_GAP=8
+
+ensure_config() {
+  if [[ ! -f "${CONFIG}" ]]; then
+    echo "Missing ${CONFIG}" >&2
+    exit 1
+  fi
+}
+
+set_gap_value() {
+  local key="$1"
+  local value="$2"
+  local tmp
+  tmp="$(mktemp)"
+  sed -E "s/^([[:space:]]*${key}[[:space:]]*=[[:space:]]*)[0-9]+([[:space:]]*)$/\\1${value}\\2/" "${CONFIG}" > "${tmp}"
+  mv "${tmp}" "${CONFIG}"
+}
+
+reload_if_running() {
+  "${AEROSPACE_CTL}" reload >/dev/null 2>&1 || true
+}
+
+show_status() {
+  if [[ -f "${NO_MARGIN_FLAG}" ]]; then
+    echo "mode=no-margin"
+  else
+    echo "mode=normal"
+  fi
+  sed -nE 's/^[[:space:]]*(inner\.horizontal|inner\.vertical|outer\.left|outer\.right|outer\.top|outer\.bottom)[[:space:]]*=[[:space:]]*([0-9]+).*/\1=\2/p' "${CONFIG}"
+}
+
+set_no_margin() {
+  ensure_config
+  touch "${NO_MARGIN_FLAG}"
+  set_gap_value "inner\\.horizontal" "${NO_MARGIN_GAP}"
+  set_gap_value "inner\\.vertical" "${NO_MARGIN_GAP}"
+  set_gap_value "outer\\.left" "${NO_MARGIN_GAP}"
+  set_gap_value "outer\\.right" "${NO_MARGIN_GAP}"
+  set_gap_value "outer\\.top" "${NO_MARGIN_GAP}"
+  set_gap_value "outer\\.bottom" "${NO_MARGIN_GAP}"
+  reload_if_running
+  echo "No-margin mode enabled."
+}
+
+set_normal() {
+  ensure_config
+  rm -f "${NO_MARGIN_FLAG}"
+  set_gap_value "inner\\.horizontal" "${DEFAULT_INNER_H}"
+  set_gap_value "inner\\.vertical" "${DEFAULT_INNER_V}"
+  set_gap_value "outer\\.left" "${DEFAULT_OUTER_LEFT}"
+  set_gap_value "outer\\.right" "${DEFAULT_OUTER_RIGHT}"
+  set_gap_value "outer\\.bottom" "${DEFAULT_OUTER_BOTTOM}"
+  set_gap_value "outer\\.top" "${DEFAULT_OUTER_TOP_FALLBACK}"
+  if [[ -x "${SYNC_TOP_GAP}" ]]; then
+    "${SYNC_TOP_GAP}" >/dev/null 2>&1 || true
+  fi
+  reload_if_running
+  echo "Normal gap mode restored."
+}
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") {show|none|normal}
+EOF
+}
+
+cmd="${1:-show}"
+case "${cmd}" in
+  show)
+    ensure_config
+    show_status
+    ;;
+  none)
+    set_no_margin
+    ;;
+  normal)
+    set_normal
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac

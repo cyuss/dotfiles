@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# mdv — lire du Markdown rendu, dans le terminal.
+#
+#   mdv fichier.md        rend le fichier
+#   mdv                   parcourt les .md du repertoire courant (TUI)
+#   mdv ~/.config/docs    parcourt un dossier
+#   cat x.md | mdv        depuis un tuyau
+#   mdv -w 120 f.md       forcer une largeur
+#
+# Nomme `mdv' et pas `md' : `md' est deja un alias vers `mkdir -p' dans
+# ~/.config/zsh/aliases.zsh, et c'est un reflexe qu'on ne remplace pas.
+#
+# Pourquoi ce script plutot que `glow' directement : dans glow 3.0.0 le
+# fichier ~/.config/glow/glow.yml et la variable GLAMOUR_STYLE sont
+# IGNORES — verifie, la largeur et le style declares n'ont aucun effet.
+# Seul le drapeau `-s' est honore. Ce script porte donc le theme, et en
+# profite pour adapter la largeur a la fenetre.
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+STYLE="${MD_STYLE:-$HOME/.config/glow/premium-noir.json}"
+[[ -r $STYLE ]] || STYLE=dark
+
+# Largeur : la fenetre moins les marges de glow, plafonnee a 100.
+# Au-dela, l'oeil perd la ligne — et sur un ultrawide glow prendrait tout.
+cols=$(tput cols 2>/dev/null || echo 100)
+WIDTH=$(( cols - 6 )); [[ $WIDTH -gt 100 ]] && WIDTH=100
+[[ $WIDTH -lt 40 ]] && WIDTH=40
+
+args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -w|--width) WIDTH="$2"; shift 2 ;;
+    -h|--help)  sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *)          args+=("$1"); shift ;;
+  esac
+done
+
+# Depuis un tuyau : glow lit stdin avec `-`.
+if [[ ! -t 0 && ${#args[@]} -eq 0 ]]; then
+  exec glow -s "$STYLE" -w "$WIDTH" -
+fi
+
+# Sans argument, ou sur un dossier : le mode TUI, qui liste les .md
+# trouves et permet de naviguer. C'est ce qui rend ~/.config/docs lisible.
+if [[ ${#args[@]} -eq 0 ]]; then
+  exec glow -s "$STYLE" -w "$WIDTH" -t .
+fi
+if [[ -d "${args[0]}" ]]; then
+  exec glow -s "$STYLE" -w "$WIDTH" -t "${args[0]}"
+fi
+
+# Un fichier : pagine seulement s'il depasse l'ecran.
+lines=$(glow -s "$STYLE" -w "$WIDTH" "${args[@]}" 2>/dev/null | wc -l)
+if [[ ${lines:-0} -gt $(( $(tput lines 2>/dev/null || echo 40) - 2 )) ]]; then
+  exec glow -s "$STYLE" -w "$WIDTH" -p "${args[@]}"
+fi
+exec glow -s "$STYLE" -w "$WIDTH" "${args[@]}"

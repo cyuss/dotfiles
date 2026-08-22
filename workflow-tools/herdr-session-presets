@@ -1,0 +1,12 @@
+# Sessions herdr proposees a la creation dans le navigator
+# (prefix+w, filtre Ctrl-N). Un nom par ligne, # pour commenter.
+#
+# Celles qui existent deja disparaissent automatiquement de la liste :
+# la source native du navigator les propose alors a l'attache, sous Ctrl-S.
+#
+# Vide = aucune proposition de creation de session. C'est l'etat actuel :
+# `perso' existe deja, et les propositions `hdj' / `labo' ont ete retirees.
+# Pour en reproposer une, decommenter ou ajouter une ligne.
+#
+# hdj
+# labo

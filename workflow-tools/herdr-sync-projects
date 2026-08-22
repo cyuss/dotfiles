@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# herdr-sync-projects
+#
+# Génère un template herdr-plus par dépôt git de ~/Desktop/projects.
+# Les tabs sont adaptés à la stack détectée (make / compose / node / …).
+#
+# Écrit UNIQUEMENT les fichiers qu'il gère (en-tête GENERATED) : un
+# template que tu édites à la main est laissé intact, et les fichiers
+# générés dont le repo a disparu sont supprimés.
+#
+#   herdr-sync-projects            # synchronise
+#   herdr-sync-projects --dry-run  # montre sans écrire
+# ─────────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+PROJECTS_ROOT="${HERDR_PROJECTS_ROOT:-$HOME/Desktop/projects}"
+MARKER="# GENERATED-BY herdr-sync-projects — retire cette ligne pour figer ce fichier"
+DRY_RUN=0
+[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
+
+OUT_DIR=$(herdr plugin config-dir cloudmanic.herdr-plus 2>/dev/null | tail -1)/projects
+[[ -d $OUT_DIR ]] || { echo "herdr-plus introuvable — herdr plugin install cloudmanic/herdr-plus" >&2; exit 1; }
+[[ -d $PROJECTS_ROOT ]] || { echo "$PROJECTS_ROOT introuvable" >&2; exit 1; }
+
+added=0 kept=0 removed=0
+declare -a seen=()
+
+for repo in "$PROJECTS_ROOT"/*/; do
+  [[ -d "$repo/.git" ]] || continue
+  name=$(basename "$repo")
+  out="$OUT_DIR/${name}.toml"
+  seen+=("$out")
+
+  # Fichier repris à la main : on n'y touche pas.
+  if [[ -f $out ]] && ! head -1 "$out" | grep -q "GENERATED-BY herdr-sync-projects"; then
+    kept=$((kept + 1)); continue
+  fi
+
+  # ── Détection de stack (pilote le groupe et le tab "run") ──
+  group="divers"; run_cmd=""
+  [[ -f "$repo/pyproject.toml" || -f "$repo/requirements.txt" ]] && group="python"
+  [[ -f "$repo/package.json" ]]                                  && group="node"
+  [[ -f "$repo/Cargo.toml" ]]                                    && group="rust"
+  [[ -f "$repo/go.mod" ]]                                        && group="go"
+
+  if [[ -f "$repo/docker-compose.yml" || -f "$repo/compose.yaml" || -f "$repo/docker-compose.yaml" ]]; then
+    run_cmd="docker compose up"
+  elif [[ -f "$repo/Makefile" ]]; then
+    run_cmd="make help 2>/dev/null || make -qp | grep -oE '^[a-zA-Z0-9_-]+:' | sort -u"
+  fi
+
+  desc=$(git -C "$repo" log -1 --format=%s 2>/dev/null | cut -c1-70 || true)
+  [[ -n $desc ]] && desc="dernier commit : $desc" || desc="dépôt git"
+
+  {
+    echo "$MARKER"
+    echo "name = \"$name\""
+    echo "description = \"${desc//\"/\'}\""
+    echo "group = \"$group\""
+    echo "working_dir = \"$repo\""
+    echo
+    echo '[[tabs]]'
+    echo 'name = "agent"'
+    echo 'command = "opencode"'
+    echo
+    echo '[[tabs]]'
+    echo 'name = "code"'
+    echo 'command = "nvim ."'
+    echo
+    echo '[[tabs]]'
+    echo 'name = "git"'
+    echo 'command = "lazygit"'
+    if [[ -n $run_cmd ]]; then
+      echo
+      echo '[[tabs]]'
+      echo 'name = "run"'
+      echo "command = \"${run_cmd//\"/\\\"}\""
+    fi
+    echo
+    echo '[[tabs]]'
+    echo 'name = "shell"'
+  } > "$( [[ $DRY_RUN -eq 1 ]] && echo /dev/null || echo "$out" )"
+
+  added=$((added + 1))
+done
+
+# Purge des templates générés dont le dépôt n'existe plus.
+for f in "$OUT_DIR"/*.toml; do
+  [[ -e $f ]] || continue
+  head -1 "$f" | grep -q "GENERATED-BY herdr-sync-projects" || continue
+  keep=0
+  for s in "${seen[@]+"${seen[@]}"}"; do [[ $s == "$f" ]] && keep=1 && break; done
+  if [[ $keep -eq 0 ]]; then
+    [[ $DRY_RUN -eq 0 ]] && rm -f "$f"
+    removed=$((removed + 1))
+  fi
+done
+
+printf '%s%d généré(s), %d conservé(s) à la main, %d supprimé(s) → %s\n' \
+  "$([[ $DRY_RUN -eq 1 ]] && echo '[dry-run] ')" "$added" "$kept" "$removed" "$OUT_DIR"

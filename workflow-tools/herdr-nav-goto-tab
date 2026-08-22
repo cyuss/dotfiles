@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# herdr-nav-goto-tab <tab_id> <workspace_id>
+#
+# L'action « open » de l'integration `tabs` du navigator.
+#
+# On focalise le SPACE d'abord, le tab ensuite. `herdr tab focus` suffit
+# probablement a lui seul, mais rien ne le garantit pour un tab situe
+# dans un space non focalise — et l'ordre inverse serait faux : focaliser
+# le space apres le tab ramenerait sur le tab actif du space, pas sur
+# celui qu'on a choisi.
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+TAB="${1:-}"
+WS="${2:-}"
+
+[[ -n $TAB ]] || { echo "usage: herdr-nav-goto-tab <tab_id> [workspace_id]" >&2; exit 1; }
+
+if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
+  s="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
+  [[ -S $s ]] && export HERDR_SOCKET_PATH="$s"
+fi
+
+# Le workspace_id est le prefixe du tab_id (« w4:t1 » -> « w4 ») ; on
+# l'utilise en repli si l'appelant ne l'a pas passe.
+[[ -n $WS ]] || WS="${TAB%%:*}"
+
+[[ -n $WS ]] && herdr workspace focus "$WS" >/dev/null 2>&1
+exec herdr tab focus "$TAB"

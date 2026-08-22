@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# repos-status — l'etat de tous les depots d'un coup.
+#
+# Une ligne par depot qui demande quelque chose : suivi modifie, commits
+# non pousses, commits en retard. Les depots propres sont comptes, pas
+# listes. Les depots sont inspectes EN PARALLELE (~8 a la fois), sinon
+# 28 depots x 3 appels git prennent une quinzaine de secondes.
+#
+#   repos-status              ~/Desktop/projects
+#   repos-status ~/autre      un autre dossier
+#   repos-status --all        montre aussi les depots propres
+#   repos-status --untracked  compte aussi les fichiers non suivis (LENT)
+#
+# Par defaut `git status -uno` : on ne scanne PAS les fichiers non suivis.
+# C'est ce scan qui coute — un depot dont le .venv ou le .tox n'est pas
+# ignore peut mettre 18 s la ou -uno met 15 ms — et ce n'est pas le signal
+# utile ici : ce qui demande une action, c'est le suivi modifie et le
+# decalage avec l'amont.
+#
+# Variables : REPOS_STATUS_TIMEOUT (defaut 5 s par appel git)
+#             REPOS_STATUS_JOBS    (defaut 8)
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+ROOT="${HOME}/Desktop/projects"
+ALL=0
+UNTRACKED=0
+TMO="${REPOS_STATUS_TIMEOUT:-5}"
+JOBS="${REPOS_STATUS_JOBS:-8}"
+
+# ── Mode interne : inspecte UN depot et emet une ligne "etat<TAB>texte".
+if [[ "${1:-}" == "--one" ]]; then
+  d="$2"; UNTRACKED="$3"; TMO="$4"
+  # Les dossiers qui ne sont pas des depots sortent en silence : sinon ils
+  # ressortaient tous en "trop lent", ce qui etait faux et bruyant.
+  [[ -e "$d/.git" ]] || exit 0
+  TO=$(command -v timeout || command -v gtimeout || true)
+  g() { if [[ -n $TO ]]; then "$TO" "$TMO" git -C "$d" "$@"; else git -C "$d" "$@"; fi; }
+  name=$(basename "$d")
+
+  branch=$(g symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=""
+  [[ -n $branch ]] || branch="detached"
+
+  ustyle=(-uno); [[ $UNTRACKED -eq 1 ]] && ustyle=(-unormal)
+  if ! porcelain=$(g status --porcelain "${ustyle[@]}" 2>/dev/null); then
+    printf 'slow\t%s\n' "$name"; exit 0
+  fi
+  dirty=$(printf '%s' "$porcelain" | grep -c . || true)
+
+  ahead=0 behind=0
+  if up=$(g rev-parse --abbrev-ref '@{upstream}' 2>/dev/null); then
+    counts=$(g rev-list --left-right --count "$up...HEAD" 2>/dev/null || printf '0\t0')
+    behind=$(printf '%s' "$counts" | awk '{print $1+0}')
+    ahead=$(printf  '%s' "$counts" | awk '{print $2+0}')
+  fi
+
+  [[ $dirty -eq 0 && $ahead -eq 0 && $behind -eq 0 ]] \
+    && printf 'clean\t%s\t%s\t0\t0\t0\n' "$name" "$branch" \
+    || printf 'dirty\t%s\t%s\t%s\t%s\t%s\n' "$name" "$branch" "$dirty" "$ahead" "$behind"
+  exit 0
+fi
+
+for a in "$@"; do
+  case "$a" in
+    --all)       ALL=1 ;;
+    --untracked) UNTRACKED=1 ;;
+    -h|--help)   sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *)           ROOT="${a/#\~/$HOME}" ;;
+  esac
+done
+[[ -d $ROOT ]] || { echo "introuvable : $ROOT" >&2; exit 1; }
+
+b()  { printf '\033[1m%s\033[0m' "$1"; }
+dim(){ printf '\033[2m%s\033[0m' "$1"; }
+
+printf '%s\n' "$(b "dépôts sous ${ROOT/#$HOME/~}")"
+printf '%s\n' "$(dim '──────────────────────────────────────────────────────────')"
+
+rows=$(
+  find "$ROOT" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null \
+  | xargs -0 -P "$JOBS" -I{} "$0" --one {} "$UNTRACKED" "$TMO" 2>/dev/null
+)
+
+clean=$(printf '%s\n' "$rows" | grep -c '^clean' || true)
+slow=$(printf  '%s\n' "$rows" | grep -c '^slow'  || true)
+
+printf '%s\n' "$rows" | sort -t$'\t' -k2,2 | while IFS=$'\t' read -r state name branch dirty ahead behind; do
+  case "$state" in
+    slow) printf '  %-30s %s\n' "$name" "$(dim "trop lent (>${TMO}s), ignoré")" ;;
+    clean) [[ $ALL -eq 1 ]] && printf '  %-30s %s %s\n' "$name" "$(dim "${branch:0:16}")" "$(dim 'à jour')" ;;
+    dirty)
+      f=""
+      [[ ${dirty:-0}  -gt 0 ]] && f+=$'\033[33m±'"${dirty}"$'\033[0m '
+      [[ ${ahead:-0}  -gt 0 ]] && f+=$'\033[32m↑'"${ahead}"$'\033[0m '
+      [[ ${behind:-0} -gt 0 ]] && f+=$'\033[31m↓'"${behind}"$'\033[0m '
+      printf '  %-30s %s %s\n' "$name" "$(dim "${branch:0:16}")" "$f" ;;
+  esac
+done
+
+printf '%s\n' "$(dim '──────────────────────────────────────────────────────────')"
+msg="$(printf '%s\n' "$rows" | grep -c '^dirty' || true) à traiter · ${clean} propres"
+[[ ${slow:-0} -gt 0 ]] && msg+=" · ${slow} ignorés"
+printf '  %s\n' "$(dim "$msg")"

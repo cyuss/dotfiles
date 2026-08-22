@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# pk — trouver un processus par son nom, et le tuer. Rien d'autre.
+#
+#   pk              la liste, triee par CPU
+#   pk <motif>      la liste, pre-filtree
+#   pk -m           triee par memoire
+#   pk -u           seulement TES processus (defaut : tous)
+#
+# Dans la liste :
+#   taper        recherche floue sur le nom ET la ligne de commande
+#   Tab          selectionner plusieurs processus
+#   Entree       SIGTERM  — demande poliment au process de s'arreter
+#   Ctrl-X       SIGKILL  — le systeme le tue, il ne peut rien nettoyer
+#   Ctrl-N       choisir un autre signal (HUP, INT, QUIT, STOP, CONT, USR1…)
+#   Ctrl-Y       copier le PID
+#   Ctrl-O       basculer le tri CPU <-> memoire
+#   Ctrl-R       rafraichir
+#   Ctrl-/       plier/deplier l'apercu
+#   Echap        sortir sans rien faire
+#
+# Garde-fous : PID 1 est refuse, et une poignee de processus critiques de
+# macOS demandent une confirmation explicite. Tout le reste part sans
+# ceremonie — c'est un outil pour quelqu'un qui sait ce qu'il fait.
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+SELF=$$
+SORT="${PK_SORT:-cpu}"
+SCOPE="${PK_SCOPE:-all}"
+QUERY=""
+
+for a in "$@"; do
+  case "$a" in
+    -m|--mem)  SORT=mem ;;
+    -c|--cpu)  SORT=cpu ;;
+    -u|--user) SCOPE=user ;;
+    -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *)         QUERY="$a" ;;
+  esac
+done
+
+# ── Mode interne : produire la liste ─────────────────────────────────
+PK_STATE="${TMPDIR:-/tmp}/pk-sort.$UID"
+
+if [[ "${1:-}" == "--toggle-sort" ]]; then
+  # fzf fige son environnement au lancement : un `transform' ne peut pas
+  # faire varier PK_SORT. L'etat du tri vit donc dans un fichier, que la
+  # touche bascule avant de redemander la liste.
+  cur=$(cat "$PK_STATE" 2>/dev/null || echo cpu)
+  [[ $cur == cpu ]] && echo mem > "$PK_STATE" || echo cpu > "$PK_STATE"
+  exec "$0" --list "$(cat "$PK_STATE")" "$2"
+fi
+
+if [[ "${1:-}" == "--list" ]]; then
+  sort_key="$2"; scope="$3"
+  ps_args=(-A)
+  [[ $scope == user ]] && ps_args=(-u "$(id -un)")
+
+  # Deux appels a ps, et pas un seul : `comm` comme `args' contiennent des
+  # espaces (« Google Chrome Helper (Renderer) »), donc un format qui les
+  # met au milieu est impossible a decouper. En les mettant chacun EN
+  # DERNIER de son propre appel, « premier champ = pid, tout le reste = la
+  # valeur » devient sans ambiguite. On rejoint sur le pid.
+  ps "${ps_args[@]}" -o pid=,comm= 2>/dev/null > "${TMPDIR:-/tmp}/pk-comm.$$"
+  ps "${ps_args[@]}" -o pid=,user=,%cpu=,%mem=,args= 2>/dev/null \
+  | awk -v sk="$sort_key" -v skip="${PK_SELF:-0}" '
+      NR == FNR {
+        pid = $1; $1 = ""; sub(/^ +/, "")
+        name[pid] = $0
+        next
+      }
+      {
+        pid = $1
+        if (pid <= 1 || pid == skip) next
+        user = $2; cpu = $3 + 0; mem = $4 + 0
+        args = ""
+        for (i = 5; i <= NF; i++) args = args $i " "
+        n = (pid in name && name[pid] != "") ? name[pid] : "?"
+        sub(/.*\//, "", n)
+        key = (sk == "mem") ? mem : cpu
+        printf "%012.4f\t%-7s %-11s %5.1f%% %5.1f%%  %-26s %s\n", key, pid, user, cpu, mem, substr(n, 1, 26), substr(args, 1, 110)
+      }' "${TMPDIR:-/tmp}/pk-comm.$$" - \
+  | sort -rn | cut -f2-
+  rm -f "${TMPDIR:-/tmp}/pk-comm.$$"
+  exit 0
+fi
+
+# ── Mode interne : apercu d'un processus ─────────────────────────────
+if [[ "${1:-}" == "--preview" ]]; then
+  pid="$2"
+  [[ -n $pid ]] || exit 0
+  printf '\033[1mPID %s\033[0m\n' "$pid"
+  ps -p "$pid" -o pid=,ppid=,user=,%cpu=,%mem=,rss=,etime=,stat=,nice= 2>/dev/null \
+    | awk '{printf "  parent %s   utilisateur %s\n  cpu %s%%   mem %s%% (%d Mo)\n  actif depuis %s   etat %s   nice %s\n", $2,$3,$4,$5,$6/1024,$7,$8,$9}'
+  echo
+  printf '\033[1mcommande\033[0m\n'
+  ps -p "$pid" -o args= 2>/dev/null | fold -s -w 74 | sed 's/^/  /'
+  echo
+  printf '\033[1mrepertoire\033[0m\n'
+  lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n/  /p' | head -1
+  echo
+  printf '\033[1menfants\033[0m\n'
+  pgrep -P "$pid" 2>/dev/null | head -8 | while read -r c; do
+    printf '  %-7s %s\n' "$c" "$(ps -p "$c" -o comm= 2>/dev/null | sed 's|.*/||')"
+  done
+  [[ -z $(pgrep -P "$pid" 2>/dev/null) ]] && echo "  (aucun)"
+  exit 0
+fi
+
+# ── Mode interne : envoyer un signal ─────────────────────────────────
+if [[ "${1:-}" == "--signal" ]]; then
+  sig="$2"; shift 2
+  CRITIQUES='^(launchd|kernel_task|WindowServer|loginwindow|Finder|Dock|SystemUIServer|coreaudiod|opendirectoryd)$'
+  for pid in "$@"; do
+    [[ $pid =~ ^[0-9]+$ ]] || continue
+    [[ $pid -le 1 ]] && { echo "refusé : PID $pid"; continue; }
+    name=$(ps -p "$pid" -o comm= 2>/dev/null | sed 's|.*/||')
+    [[ -z $name ]] && { echo "PID $pid : déjà parti"; continue; }
+    if [[ $name =~ $CRITIQUES ]]; then
+      if command -v gum >/dev/null; then
+        gum confirm --default=false \
+          "$name (PID $pid) est un processus critique de macOS. Envoyer SIG$sig ?" || { echo "annulé : $name"; continue; }
+      else
+        read -rp "$name (PID $pid) est critique. Envoyer SIG$sig ? [y/N] " a
+        [[ $a == y ]] || { echo "annulé : $name"; continue; }
+      fi
+    fi
+    if kill -"$sig" "$pid" 2>/dev/null; then
+      echo "SIG$sig → $name ($pid)"
+    elif sudo -n true 2>/dev/null && sudo kill -"$sig" "$pid" 2>/dev/null; then
+      echo "SIG$sig → $name ($pid)  [sudo]"
+    else
+      echo "échec sur $name ($pid) — appartient à un autre utilisateur ?"
+    fi
+  done
+  exit 0
+fi
+
+# ── L'interface ──────────────────────────────────────────────────────
+command -v fzf >/dev/null || { echo "fzf requis : brew install fzf" >&2; exit 1; }
+S="$0"
+
+LIST="$S --list \$PK_SORT \$PK_SCOPE"
+export PK_SORT="$SORT" PK_SCOPE="$SCOPE" PK_SELF="$SELF"
+echo "$SORT" > "$PK_STATE"
+
+# {+1} = les PID de TOUTES les lignes selectionnees (premier champ).
+"$S" --list "$SORT" "$SCOPE" | fzf \
+  --multi \
+  --query "$QUERY" \
+  --prompt 'process ❯ ' \
+  --header $'Entrée SIGTERM · Ctrl-X SIGKILL · Ctrl-N autre signal · Tab multi\nCtrl-O tri cpu/mem · Ctrl-R rafraîchir · Ctrl-Y copier PID · Échap quitter' \
+  --header-lines 0 \
+  --height 90% --layout=reverse --border=rounded --info=inline \
+  --preview "$S --preview {1}" \
+  --preview-window 'right,52%,border-left,wrap' \
+  --bind "enter:execute($S --signal TERM {+1} | sed 's/^/  /'; echo; echo '  — une touche pour continuer —'; read -rsn1)+reload($S --list \$PK_SORT \$PK_SCOPE)" \
+  --bind "ctrl-x:execute($S --signal KILL {+1} | sed 's/^/  /'; echo; echo '  — une touche pour continuer —'; read -rsn1)+reload($S --list \$PK_SORT \$PK_SCOPE)" \
+  --bind "ctrl-n:execute(sig=\$(printf 'HUP\nINT\nQUIT\nSTOP\nCONT\nUSR1\nUSR2\nWINCH\nTERM\nKILL' | fzf --prompt='signal ❯ ' --height=40% --reverse) && [ -n \"\$sig\" ] && $S --signal \$sig {+1} | sed 's/^/  /' && echo && echo '  — une touche —' && read -rsn1)+reload($S --list \$PK_SORT \$PK_SCOPE)" \
+  --bind "ctrl-y:execute-silent(printf %s {1} | pbcopy)+bell" \
+  --bind "ctrl-r:reload($S --list \$(cat \"$PK_STATE\" 2>/dev/null || echo cpu) \$PK_SCOPE)" \
+  --bind "ctrl-o:reload($S --toggle-sort \$PK_SCOPE)" \
+  --bind 'ctrl-/:toggle-preview' \
+  --bind 'esc:abort' \
+  >/dev/null

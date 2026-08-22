@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOOLS_DIR="${HOME}/.config/workflow-tools"
+SKETCHYBAR_CTL="${TOOLS_DIR}/sketchybarctl"
+GAP_MODE="${TOOLS_DIR}/gap-mode"
+
+"${SKETCHYBAR_CTL}" stop >/dev/null 2>&1 || true
+
+if [[ -x "${GAP_MODE}" ]]; then
+  "${GAP_MODE}" none >/dev/null 2>&1 || true
+fi
+
+echo "SketchyBar disabled. No-margin mode enabled."

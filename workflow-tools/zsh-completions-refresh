@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# zsh-completions-refresh — regenere les completions que carapace ne
+# couvre pas, a partir des outils eux-memes.
+#
+# carapace connait 653 commandes (gh, docker, jj, kubectl, aws, cargo…)
+# mais pas uv, ruff, herdr ni mise. Ces quatre-la savent generer leur
+# propre completion zsh : on la met en cache dans un fpath dedie plutot
+# que de la regenerer a chaque demarrage de shell.
+#
+# A relancer apres une mise a jour de ces outils.
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+DEST="${XDG_CONFIG_HOME:-$HOME/.config}/zsh/completions"
+mkdir -p "$DEST"
+ok=0; ko=0
+
+gen() {  # $1 = nom du fichier _xxx, $2... = commande
+  local name="$1"; shift
+  if out=$("$@" 2>/dev/null) && [[ -n $out ]]; then
+    printf '%s\n' "$out" > "$DEST/$name"
+    printf '  %-10s ok\n' "${name#_}"; ok=$((ok+1))
+  else
+    printf '  %-10s échec (outil absent ?)\n' "${name#_}"; ko=$((ko+1))
+  fi
+}
+
+command -v uv    >/dev/null && gen _uv    uv    generate-shell-completion zsh
+command -v uvx   >/dev/null && gen _uvx   uvx   --generate-shell-completion zsh
+command -v ruff  >/dev/null && gen _ruff  ruff  generate-shell-completion zsh
+command -v herdr >/dev/null && gen _herdr herdr completion zsh
+command -v jj    >/dev/null && gen _jj    jj    util completion zsh
+command -v mise  >/dev/null && gen _mise  mise  completion zsh
+command -v just  >/dev/null && gen _just  just  --completions zsh
+command -v glow  >/dev/null && gen _glow  glow  completion zsh
+command -v atuin >/dev/null && gen _atuin atuin gen-completions --shell zsh
+
+echo "  ── $ok générées, $ko ignorées → $DEST"
+echo "  Relance un shell (ou : rm -f ~/.zcompdump && exec zsh)"

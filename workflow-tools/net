@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# net — wifi et bluetooth au clavier, sans quitter le terminal.
+#
+#   net              etat : wifi + bluetooth + appareils connectes
+#   net wifi         choisir un reseau et s'y connecter (fzf)
+#   net wifi scan    scan des reseaux alentour
+#   net wifi off|on  couper / rallumer la radio wifi
+#   net bt           choisir un appareil appaire, bascule connexion (fzf)
+#   net bt off|on    couper / rallumer la radio bluetooth
+#
+# macOS 26 : `airport` a ete SUPPRIME. Tout passe par `networksetup`
+# (integre) et `system_profiler`. Le bluetooth passe par blueutil.
+#
+# ATTENTION — Localisation : depuis macOS 14, lire le SSID courant ou
+# scanner exige que l'app appelante ait l'autorisation « Service de
+# localisation ». Sans elle, macOS renvoie <redacted> et
+# « You are not associated ». A activer pour Alacritty dans
+# Reglages > Confidentialite et securite > Service de localisation.
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+DEV=$(networksetup -listallhardwareports 2>/dev/null \
+      | awk '/Hardware Port: Wi-Fi/{getline; print $2; exit}')
+DEV="${DEV:-en0}"
+
+b()  { printf '\033[1m%s\033[0m' "$1"; }
+dim(){ printf '\033[2m%s\033[0m' "$1"; }
+grn(){ printf '\033[32m%s\033[0m' "$1"; }
+red(){ printf '\033[31m%s\033[0m' "$1"; }
+amb(){ printf '\033[33m%s\033[0m' "$1"; }
+
+need() { command -v "$1" >/dev/null || { echo "manque : $1 (brew install $2)" >&2; exit 1; }; }
+
+current_ssid() {
+  networksetup -getairportnetwork "$DEV" 2>/dev/null \
+    | sed -n 's/^Current Wi-Fi Network: //p'
+}
+
+link_info() {
+  system_profiler SPAirPortDataType 2>/dev/null \
+    | sed -n '/Current Network Information:/,/^ *Other Local/p'
+}
+
+# ── Etat ─────────────────────────────────────────────────────────────
+status() {
+  local power ssid rssi chan
+  power=$(networksetup -getairportpower "$DEV" 2>/dev/null | awk '{print $NF}')
+  printf '%s\n' "$(b 'Wi-Fi')  $(dim "($DEV)")"
+  if [[ $power != On ]]; then
+    printf '  %s\n' "$(red 'radio coupée')"
+  else
+    ssid=$(current_ssid)
+    rssi=$(link_info | sed -n 's/.*Signal \/ Noise: \(-[0-9]*\) dBm.*/\1/p' | head -1)
+    chan=$(link_info | sed -n 's/^ *Channel: //p' | head -1)
+    if [[ -z $ssid ]]; then
+      printf '  %s\n' "$(amb 'SSID masqué — autorise la Localisation pour ton terminal')"
+      [[ -n $chan ]] && printf '  %s\n' "$(dim "connecté · canal $chan · ${rssi:-?} dBm")"
+    else
+      printf '  %s %s\n' "$(grn "$ssid")" "$(dim "canal $chan · ${rssi:-?} dBm")"
+    fi
+  fi
+
+  echo
+  printf '%s\n' "$(b 'Bluetooth')"
+  if ! command -v blueutil >/dev/null; then
+    printf '  %s\n' "$(dim 'blueutil absent — brew install blueutil')"
+  elif [[ $(blueutil -p) != 1 ]]; then
+    printf '  %s\n' "$(red 'radio coupée')"
+  else
+    local n=0
+    while IFS= read -r line; do
+      [[ -n $line ]] || continue
+      n=$((n+1))
+      printf '  %s %s\n' "$(grn '●')" "$(sed -n 's/.*name: "\([^"]*\)".*/\1/p' <<<"$line")" 
+    done < <(blueutil --connected 2>/dev/null)
+    [[ $n -eq 0 ]] && printf '  %s\n' "$(dim 'aucun appareil connecté')"
+    return 0
+  fi
+}
+
+# ── Wi-Fi ────────────────────────────────────────────────────────────
+wifi_scan() {
+  system_profiler SPAirPortDataType 2>/dev/null \
+  | awk '/Other Local Wi-Fi Networks:/{f=1;next}
+         f && /^ {12}[^ ].*:$/{name=$0; sub(/^ +/,"",name); sub(/:$/,"",name)}
+         f && /Signal \/ Noise:/{sig=$4; if(name!=""){printf "%s\t%s dBm\n", name, sig; name=""}}'
+}
+
+wifi_pick() {
+  need fzf fzf
+  local prefs scan list ssid pass
+  prefs=$(networksetup -listpreferredwirelessnetworks "$DEV" 2>/dev/null | tail -n +2 | sed 's/^\t//')
+  scan=$(wifi_scan | grep -v '<redacted>' | awk -F'\t' '{print $1}')
+  list=$(printf '%s\n%s\n' "$prefs" "$scan" | sed '/^$/d' | awk '!seen[$0]++')
+  [[ -n $list ]] || { echo "aucun réseau — radio coupée, ou Localisation non autorisée" >&2; exit 1; }
+
+  ssid=$(printf '%s\n' "$list" | fzf --prompt='wifi ❯ ' --height=40% --reverse \
+          --header="Entrée = se connecter · Échap = annuler") || exit 0
+  [[ -n $ssid ]] || exit 0
+
+  # Un reseau deja connu : macOS reprend le mot de passe dans le trousseau.
+  if grep -qxF "$ssid" <<<"$prefs"; then
+    networksetup -setairportnetwork "$DEV" "$ssid"
+  else
+    if command -v gum >/dev/null; then
+      pass=$(gum input --password --placeholder "mot de passe pour $ssid")
+    else
+      read -rsp "mot de passe pour $ssid : " pass; echo
+    fi
+    networksetup -setairportnetwork "$DEV" "$ssid" "$pass"
+  fi
+  sleep 1; status
+}
+
+# ── Bluetooth ────────────────────────────────────────────────────────
+bt_pick() {
+  need blueutil blueutil
+  need fzf fzf
+  local line addr name connected
+  # awk et pas sed : le sed de macOS est un BSD sed, il ne connait pas
+  # l'alternation \| en expression reguliere basique.
+  line=$(blueutil --paired 2>/dev/null | awk '
+    {
+      addr = $2; sub(/,$/, "", addr)
+      conn = (index($0, ", connected") > 0) ? "●" : "○"
+      i = index($0, "name: \"")
+      if (i == 0) next
+      rest = substr($0, i + 7)
+      j = index(rest, "\"")
+      nm = substr(rest, 1, j - 1)
+      printf "%s  %-28s %s\n", conn, nm, addr
+    }' \
+    | fzf --prompt='bluetooth ❯ ' --height=40% --reverse \
+          --header="Entrée = basculer la connexion · ● connecté") || exit 0
+  [[ -n $line ]] || exit 0
+
+  addr=$(awk '{print $NF}' <<<"$line")
+  # Le nom vient de blueutil et non d'un decoupage de la ligne : les noms
+  # contiennent des apostrophes typographiques et des espaces.
+  name=$(blueutil --info "$addr" 2>/dev/null \
+         | awk '{ i=index($0,"name: \""); if(i){ r=substr($0,i+7); print substr(r,1,index(r,"\"")-1) } }')
+  [[ -n $name ]] || name="$addr"
+  if [[ $line == ●* ]]; then
+    blueutil --disconnect "$addr" && echo "déconnecté : $name"
+  else
+    echo "connexion à $name…"
+    blueutil --connect "$addr" && echo "connecté : $name" || echo "échec — l'appareil est-il allumé ?" >&2
+  fi
+}
+
+# ── Dispatch ─────────────────────────────────────────────────────────
+case "${1:-status}" in
+  status|"")   status ;;
+  wifi)
+    case "${2:-pick}" in
+      pick|"") wifi_pick ;;
+      scan)    wifi_scan | sort -t$'\t' -k2 -r ;;
+      on)      networksetup -setairportpower "$DEV" on  && echo "wifi on" ;;
+      off)     networksetup -setairportpower "$DEV" off && echo "wifi off" ;;
+      *)       echo "net wifi [pick|scan|on|off]" >&2; exit 1 ;;
+    esac ;;
+  bt)
+    case "${2:-pick}" in
+      pick|"") bt_pick ;;
+      on)      blueutil -p 1 && echo "bluetooth on" ;;
+      off)     blueutil -p 0 && echo "bluetooth off" ;;
+      *)       echo "net bt [pick|on|off]" >&2; exit 1 ;;
+    esac ;;
+  -h|--help)   sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *)           echo "net [status|wifi|bt]" >&2; exit 1 ;;
+esac

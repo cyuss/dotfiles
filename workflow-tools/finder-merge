@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# finder-merge — replie toutes les fenetres Finder en UNE, a onglets.
+#
+# POURQUOI
+# AeroSpace tuile des FENETRES. Chaque fenetre Finder occupe donc un
+# emplacement, et Finder finit par manger la moitie du pavage.
+#
+# Les onglets, eux, vivent DANS une fenetre : dix onglets = une fenetre =
+# un emplacement. Le menu Fenetre > « Merge All Windows » fait exactement
+# cette conversion.
+#
+# CE QUI NE MARCHE PAS, et qui a ete essaye ici :
+#   defaults write -g AppleWindowTabbingMode -string always
+#   defaults write com.apple.finder FinderSpawnTab -bool true
+# Ni l'un ni l'autre ne change le comportement de Cmd+N dans Finder sur
+# cette version de macOS — verifie en comptant les fenetres avant/apres,
+# avec et sans, Finder relance entre chaque essai. Dans Finder, Cmd+N est
+# « Nouvelle fenetre » et Cmd+T « Nouvel onglet » : ce sont deux commandes
+# distinctes, pas un reglage.
+#
+# APPEL
+#   finder-merge          replie maintenant
+# Appele aussi automatiquement par AeroSpace a chaque nouvelle fenetre
+# Finder (regle on-window-detected).
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+# Rien a faire si Finder n'a pas au moins deux fenetres : le clic de menu
+# couterait une activation d'application pour rien, et volerait le focus.
+n=$(osascript -e 'tell application "Finder" to return (count of every window)' 2>/dev/null || echo 0)
+[[ ${n:-0} -ge 2 ]] || exit 0
+
+osascript <<'APPLESCRIPT' >/dev/null 2>&1
+tell application "System Events"
+  tell process "Finder"
+    -- Le menu n'est cliquable que si l'element existe : sur une seule
+    -- fenetre, macOS le grise ou le retire.
+    try
+      click menu item "Merge All Windows" of menu 1 of menu bar item "Window" of menu bar 1
+    end try
+  end tell
+end tell
+APPLESCRIPT

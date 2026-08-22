@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# herdr-nav-create — la source "creer" du navigator (prefix+w).
+#
+# Emet un tableau JSON d'entrees que herdr-navigator affiche a cote des
+# spaces, sessions et agents. Chaque entree porte :
+#   id       le sous-commande herdr-new a lancer
+#   path     son argument (repertoire, ou nom de session)
+#   kind     "session" -> l'entree se range avec les sessions (Ctrl-L),
+#            vide      -> elle se range dans les integrations (fin de liste)
+#
+# Les sessions deja existantes ne sont PAS proposees : la source native du
+# navigator les liste deja, avec attache directe.
+#
+# Presets modifiables : ~/.config/workflow-tools/herdr-session-presets
+# (un nom par ligne, # pour commenter).
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+PY=$(command -v python3.13 || command -v /opt/homebrew/bin/python3 || command -v python3)
+PRESET_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/workflow-tools/herdr-session-presets"
+
+if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
+  s="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
+  [[ -S $s ]] && export HERDR_SOCKET_PATH="$s"
+fi
+
+# Repertoire du pane focalise : c'est le "ici" de "nouveau space ici".
+CWD=$(herdr pane current 2>/dev/null | "$PY" -c '
+import json, sys
+try: print(json.load(sys.stdin)["result"]["pane"]["cwd"])
+except Exception: print("")
+' 2>/dev/null)
+[[ -n ${CWD:-} ]] || CWD="$HOME"
+
+# `herdr session list --json` rend {"sessions": [...]} A LA RACINE, sans
+# l'enveloppe {"result": ...} des autres commandes. On accepte les deux :
+# une exception silencieuse ici vidait la liste, et toutes les sessions
+# etaient reproposees a la creation, y compris celles qui tournaient deja.
+EXISTING=$(herdr session list --json 2>/dev/null | "$PY" -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    sessions = d.get("sessions") or d.get("result", {}).get("sessions") or []
+    print(" ".join(s["name"] for s in sessions))
+except Exception:
+    print("")
+' 2>/dev/null)
+
+PRESETS="perso hdj labo"
+[[ -r $PRESET_FILE ]] && PRESETS=$(grep -vE '^\s*(#|$)' "$PRESET_FILE" | tr '\n' ' ')
+
+CWD="$CWD" EXISTING="${EXISTING:-}" PRESETS="$PRESETS" "$PY" - <<'PYEOF'
+import json, os
+
+cwd      = os.environ["CWD"]
+home     = os.path.expanduser("~")
+existing = set(os.environ.get("EXISTING", "").split())
+presets  = [p for p in os.environ.get("PRESETS", "").split() if p]
+
+short = cwd.replace(home, "~", 1) if cwd.startswith(home) else cwd
+items = [
+    {"id": "scratch", "title": "⚡ scratch — space jetable",
+     "subtitle": "shell + opencode dans ~/scratch/<horodatage>",
+     "path": home, "kind": ""},
+    {"id": "space", "title": "+ space ici",
+     "subtitle": short, "path": cwd, "kind": ""},
+    # Renommer / fermer / supprimer : herdr sait le faire sur le space
+    # COURANT (prefix+/ et prefix+') et Ctrl-X ferme celui de la ligne
+    # choisie, mais rien ne couvre le renommage d'un autre space ni le
+    # versant session. Ces deux entrees ouvrent un selecteur dedie.
+    {"id": "manage-space", "title": "✎ gérer un space",
+     "subtitle": "renommer ou fermer", "path": home, "kind": ""},
+    {"id": "manage-session", "title": "✎ gérer une session",
+     "subtitle": "renommer ou supprimer", "path": home, "kind": ""},
+]
+
+# Une session ne se cree pas dans un pane : c'est un serveur separe, donc
+# une fenetre Alacritty a elle. On ne propose que celles qui manquent.
+#
+# kind = "" et non "session" : ces entrees vivent sous Ctrl-N avec les
+# autres creations, pas sous Ctrl-S avec les sessions existantes. Une
+# entree qui CREE et une entree qui ATTACHE ne se ressemblent que par le
+# mot "session" ; les melanger obligeait a lire chaque ligne pour savoir
+# laquelle faisait quoi. Ctrl-S = j'y vais, Ctrl-N = je le fabrique.
+for name in presets:
+    if name in existing:
+        continue
+    items.append({"id": "session", "title": f"+ session {name}",
+                  "subtitle": "nouvelle fenêtre Alacritty",
+                  "path": name, "kind": ""})
+
+print(json.dumps(items, ensure_ascii=False))
+PYEOF

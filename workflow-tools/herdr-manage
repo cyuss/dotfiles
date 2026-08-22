@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# herdr-manage — renommer ou supprimer un space / une session.
+#
+#   herdr-manage              menu
+#   herdr-manage space        renommer ou fermer un space
+#   herdr-manage session      renommer ou supprimer une session
+#
+# Ce que herdr sait deja faire sans ce script :
+#   prefix+/            renommer le space COURANT
+#   prefix+'            fermer le space COURANT
+#   prefix+w  Ctrl-X    fermer le space correspondant a la ligne choisie
+# Ce script couvre ce qui manque : agir sur un space QU'ON CHOISIT, et
+# tout le versant session (herdr n'a aucune commande `rename').
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+PY=$(command -v python3.13 || command -v /opt/homebrew/bin/python3 || command -v python3)
+[[ -n ${HERDR_SOCKET_PATH:-} ]] || {
+  s="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"; [[ -S $s ]] && export HERDR_SOCKET_PATH="$s"; }
+
+ask() {  # $1 = invite, $2 = valeur par defaut
+  if command -v gum >/dev/null; then gum input --value "${2:-}" --placeholder "$1"
+  else read -rp "$1 : " r; echo "${r:-${2:-}}"; fi
+}
+confirm() {
+  if command -v gum >/dev/null; then gum confirm --default=false "$1"
+  else read -rp "$1 [y/N] " a; [[ $a == y ]]; fi
+}
+
+pick_space() {
+  herdr workspace list 2>/dev/null | "$PY" -c '
+import json, re, sys
+for w in json.load(sys.stdin)["result"]["workspaces"]:
+    label = re.sub(r"^\s*\[\d+\]\s*", "", w.get("label", ""))
+    star  = "*" if w.get("focused") else " "
+    print("%s\t%s %-30s %s tabs" % (w["workspace_id"], star, label, w.get("tab_count", 0)))
+' | fzf --with-nth=2.. --delimiter='\t' --height=45% --reverse \
+        --prompt="${1:-space} ❯ " --header='* = space courant'
+}
+
+pick_session() {
+  herdr session list --json 2>/dev/null | "$PY" -c '
+import json, sys
+d = json.load(sys.stdin)
+for s in (d.get("sessions") or d.get("result", {}).get("sessions") or []):
+    if s.get("default"): continue          # la session par defaut na pas de nom
+    print("%s\t%-20s %s" % (s["name"], s["name"], "running" if s.get("running") else "stopped"))
+' | fzf --with-nth=2.. --delimiter='\t' --height=45% --reverse \
+        --prompt="${1:-session} ❯ " --header='la session `default` est exclue : elle na pas de nom'
+}
+
+do_space() {
+  local line id label new
+  line=$(pick_space "space") || exit 0; [[ -n $line ]] || exit 0
+  id=${line%%$'\t'*}
+  label=$(sed -E 's/^[^\t]*\t.//' <<<"$line" | sed -E 's/ +[0-9]+ tabs$//' | sed -E 's/ +$//')
+  case "$(printf 'renommer\nfermer' | fzf --height=20% --reverse --prompt="$label ❯ ")" in
+    renommer)
+      new=$(ask "nouveau nom" "$label"); [[ -n $new ]] || exit 0
+      herdr workspace rename "$id" "$new" >/dev/null && echo "renommé : $label -> $new" ;;
+    fermer)
+      confirm "fermer le space « $label » et tout ce qu'il contient ?" || exit 0
+      herdr workspace close "$id" >/dev/null && echo "fermé : $label" ;;
+  esac
+}
+
+do_session() {
+  local line name new
+  line=$(pick_session "session") || exit 0; [[ -n $line ]] || exit 0
+  name=${line%%$'\t'*}
+  case "$(printf 'renommer\nsupprimer' | fzf --height=20% --reverse --prompt="$name ❯ ")" in
+    renommer)
+      new=$(ask "nouveau nom" "$name"); [[ -n $new || $new == "$name" ]] || exit 0
+      # herdr n'a pas de `session rename' : le script maison arrete le
+      # serveur, deplace le dossier, et rend la commande de reattache.
+      herdr-rename-session "$name" "$new" ;;
+    supprimer)
+      confirm "supprimer la session « $name » ? Ses spaces seront perdus." || exit 0
+      herdr session stop "$name" >/dev/null 2>&1; sleep 1
+      herdr session delete "$name" >/dev/null && echo "supprimée : $name" ;;
+  esac
+}
+
+case "${1:-menu}" in
+  space)   do_space ;;
+  session) do_session ;;
+  menu|"")
+    case "$(printf 'space\nsession' | fzf --height=20% --reverse --prompt='gérer ❯ ')" in
+      space)   do_space ;;
+      session) do_session ;;
+    esac ;;
+  -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) echo "herdr-manage [space|session]" >&2; exit 1 ;;
+esac

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+osascript <<'APPLESCRIPT'
+set appList to {}
+set frontApp to ""
+
+tell application "System Events"
+  set procList to (application processes whose background only is false)
+  if (count of procList) = 0 then return
+
+  repeat with p in procList
+    set end of appList to name of p
+    if frontmost of p is true then
+      set frontApp to name of p
+    end if
+  end repeat
+end tell
+
+set chosen to choose from list appList with title "App Switcher" with prompt "Choisis une application:" default items {frontApp} OK button name "Open" cancel button name "Cancel"
+if chosen is false then return
+set targetApp to item 1 of chosen
+
+tell application targetApp to activate
+APPLESCRIPT

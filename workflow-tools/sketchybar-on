@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOOLS_DIR="${HOME}/.config/workflow-tools"
+SKETCHYBAR_CTL="${TOOLS_DIR}/sketchybarctl"
+AEROSPACE_CTL="${TOOLS_DIR}/aerospacectl"
+SYNC_TOP_GAP="${HOME}/.config/aerospace/scripts/sync_top_gap.sh"
+GAP_MODE="${TOOLS_DIR}/gap-mode"
+
+if ! "${AEROSPACE_CTL}" status >/dev/null 2>&1; then
+  "${AEROSPACE_CTL}" start >/dev/null 2>&1 || true
+fi
+
+"${SKETCHYBAR_CTL}" start >/dev/null 2>&1 || true
+"${SKETCHYBAR_CTL}" reload >/dev/null 2>&1 || true
+if [[ -x "${GAP_MODE}" ]]; then
+  "${GAP_MODE}" normal >/dev/null 2>&1 || true
+fi
+if [[ -x "${SYNC_TOP_GAP}" ]]; then
+  "${SYNC_TOP_GAP}" >/dev/null 2>&1 || true
+fi
+
+echo "SketchyBar enabled (AeroSpace kept active)."

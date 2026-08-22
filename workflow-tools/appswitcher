@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+dir="${1:-next}"
+if [[ "$dir" != "next" && "$dir" != "prev" ]]; then
+  echo "Usage: $(basename "$0") {next|prev}" >&2
+  exit 2
+fi
+
+osascript <<APPLESCRIPT "$dir"
+on run argv
+  set direction to item 1 of argv
+
+  tell application "System Events"
+    set appList to name of every application process whose background only is false
+    if (count of appList) < 2 then return
+
+    set frontApp to ""
+    repeat with p in (application processes whose frontmost is true)
+      set frontApp to name of p
+      exit repeat
+    end repeat
+
+    if frontApp is "" then return
+
+    set idx to 1
+    repeat with i from 1 to count of appList
+      if item i of appList is frontApp then
+        set idx to i
+        exit repeat
+      end if
+    end repeat
+
+    if direction is "next" then
+      set targetIdx to idx + 1
+      if targetIdx > (count of appList) then set targetIdx to 1
+    else
+      set targetIdx to idx - 1
+      if targetIdx < 1 then set targetIdx to (count of appList)
+    end if
+
+    set targetApp to item targetIdx of appList
+  end tell
+
+  tell application targetApp to activate
+end run
+APPLESCRIPT

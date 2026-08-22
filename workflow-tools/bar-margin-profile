@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROFILE_FILE="${HOME}/.config/workflow-tools/.bar_margin_profiles"
+SKETCHY_RC="${HOME}/.config/sketchybar/sketchybarrc"
+SYNC_SCRIPT="${HOME}/.config/aerospace/scripts/sync_top_gap.sh"
+SKETCHY_CTL="${HOME}/.config/workflow-tools/sketchybarctl"
+
+DEFAULT_MAC=8
+DEFAULT_EXTERNAL=12
+
+load_profiles() {
+  MAC_MARGIN="${DEFAULT_MAC}"
+  EXTERNAL_MARGIN="${DEFAULT_EXTERNAL}"
+
+  if [[ -f "${PROFILE_FILE}" ]]; then
+    # shellcheck disable=SC1090
+    source "${PROFILE_FILE}"
+  fi
+
+  [[ "${MAC_MARGIN}" =~ ^[0-9]+$ ]] || MAC_MARGIN="${DEFAULT_MAC}"
+  [[ "${EXTERNAL_MARGIN}" =~ ^[0-9]+$ ]] || EXTERNAL_MARGIN="${DEFAULT_EXTERNAL}"
+}
+
+save_profiles() {
+  cat > "${PROFILE_FILE}" <<EOC
+MAC_MARGIN=${MAC_MARGIN}
+EXTERNAL_MARGIN=${EXTERNAL_MARGIN}
+EOC
+}
+
+current_monitor_count() {
+  local bin
+  bin="$(command -v aerospace || true)"
+  if [[ -n "${bin}" ]]; then
+    "${bin}" list-monitors --count 2>/dev/null || echo 1
+  else
+    echo 1
+  fi
+}
+
+apply_margin_value() {
+  local margin="$1"
+  if [[ ! -f "${SKETCHY_RC}" ]]; then
+    echo "Missing ${SKETCHY_RC}" >&2
+    exit 1
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+  sed -E "s/^([[:space:]]*margin=).*/\\1${margin}/" "${SKETCHY_RC}" > "${tmp}"
+  mv "${tmp}" "${SKETCHY_RC}"
+
+  if [[ -x "${SYNC_SCRIPT}" ]]; then
+    "${SYNC_SCRIPT}" >/dev/null 2>&1 || true
+  fi
+
+  if [[ -x "${SKETCHY_CTL}" ]]; then
+    "${SKETCHY_CTL}" reload >/dev/null 2>&1 || true
+  else
+    sketchybar --reload >/dev/null 2>&1 || true
+  fi
+
+  echo "Applied sketchybar margin=${margin}"
+}
+
+usage() {
+  cat <<EOT
+Usage:
+  $(basename "$0") show
+  $(basename "$0") set mac <number>
+  $(basename "$0") set external <number>
+  $(basename "$0") apply mac|external|auto
+EOT
+}
+
+load_profiles
+cmd="${1:-show}"
+
+case "${cmd}" in
+  show)
+    echo "mac=${MAC_MARGIN}"
+    echo "external=${EXTERNAL_MARGIN}"
+    ;;
+  set)
+    profile="${2:-}"
+    value="${3:-}"
+    [[ "${value}" =~ ^[0-9]+$ ]] || { echo "Value must be an integer" >&2; exit 2; }
+    case "${profile}" in
+      mac) MAC_MARGIN="${value}" ;;
+      external) EXTERNAL_MARGIN="${value}" ;;
+      *) echo "Profile must be mac or external" >&2; exit 2 ;;
+    esac
+    save_profiles
+    echo "Saved ${profile}=${value}"
+    ;;
+  apply)
+    profile="${2:-}"
+    case "${profile}" in
+      mac)
+        apply_margin_value "${MAC_MARGIN}"
+        ;;
+      external)
+        apply_margin_value "${EXTERNAL_MARGIN}"
+        ;;
+      auto)
+        count="$(current_monitor_count)"
+        if [[ "${count}" =~ ^[0-9]+$ ]] && (( count >= 2 )); then
+          apply_margin_value "${EXTERNAL_MARGIN}"
+          echo "Profile used: external (monitors=${count})"
+        else
+          apply_margin_value "${MAC_MARGIN}"
+          echo "Profile used: mac (monitors=${count:-1})"
+        fi
+        ;;
+      *)
+        echo "Profile must be mac, external, or auto" >&2
+        exit 2
+        ;;
+    esac
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
