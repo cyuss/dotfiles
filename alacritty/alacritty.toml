@@ -1,0 +1,199 @@
+# ══════════════════════════════════════════════════════════════════════
+#  Alacritty — macOS · dev setup
+#  Doc : `man 5 alacritty` · `man 5 alacritty-bindings`
+# ══════════════════════════════════════════════════════════════════════
+
+[general]
+live_config_reload = true
+ipc_socket         = true          # active `alacritty msg` (create-window, config)
+import = [
+  "~/.config/alacritty/themes/premium-noir.toml",
+  # "~/.config/alacritty/themes/catppuccin-macchiato.toml",
+  # "~/.config/alacritty/themes/tokyo-night-storm.toml",
+]
+
+# ── Environnement ─────────────────────────────────────────────────────
+# terminfo `alacritty` installé dans ~/.terminfo (undercurl, soulignés
+# stylés, vraies capacités du terminal).
+# Si un serveur SSH ne le connaît pas :  infocmp -x alacritty | ssh host -- tic -x -
+# Sinon, repasser sur la ligne commentée.
+[env]
+TERM = "alacritty"
+# TERM = "xterm-256color"
+
+[terminal]
+osc52 = "CopyPaste"                # copier/coller depuis nvim & tmux distants
+
+[terminal.shell]
+program = "/bin/zsh"
+args    = ["--login"]
+
+# ── Fenêtre ───────────────────────────────────────────────────────────
+[window]
+padding                   = { x = 16, y = 14 }
+dynamic_padding           = true   # padding centré, pas de bande résiduelle
+decorations               = "buttonless"
+decorations_theme_variant = "Dark"
+startup_mode              = "Windowed"
+dynamic_title             = true
+resize_increments         = true   # redimensionnement aligné sur la cellule
+opacity                   = 0.55   # plus transparent ; blur = true compense
+                                   # la lisibilite en floutant ce qu'il y a
+                                   # derriere. En dessous de ~0.45 le texte
+                                   # commence a se battre avec le fond.
+blur                      = true
+option_as_alt             = "Both" # ⌥ = Alt/Meta → M-x, alt-maps nvim, readline
+
+# ── Scrollback ────────────────────────────────────────────────────────
+[scrolling]
+history    = 100000
+multiplier = 3
+
+# ── Typographie ───────────────────────────────────────────────────────
+[font]
+size                = 19.0
+builtin_box_drawing = true         # box-drawing net (btop, lazygit, tableaux)
+
+[font.normal]
+family = "JetBrainsMono Nerd Font"
+style  = "Regular"
+
+[font.bold]
+family = "JetBrainsMono Nerd Font"
+style  = "Bold"
+
+[font.italic]
+family = "JetBrainsMono Nerd Font"
+style  = "Italic"
+
+[font.bold_italic]
+family = "JetBrainsMono Nerd Font"
+style  = "Bold Italic"
+
+[font.offset]
+x = 1
+y = 2
+
+[font.glyph_offset]
+x = 0
+y = 1
+
+# ── Curseur ───────────────────────────────────────────────────────────
+[cursor]
+style            = { shape = "Block", blinking = "On" }
+vi_mode_style    = { shape = "Block", blinking = "Off" }
+blink_interval   = 600
+blink_timeout    = 0               # ne s'arrête jamais de clignoter
+unfocused_hollow = true
+thickness        = 0.17
+
+# ── Sélection / souris ────────────────────────────────────────────────
+[selection]
+save_to_clipboard     = false      # pas de pollution du presse-papier
+semantic_escape_chars = ",│`|:\"' ()[]{}<>\t"
+
+[mouse]
+# false : le pointeur reste visible quand on tape.
+# `true' le faisait disparaitre des la premiere frappe — c'est le
+# comportement qu'on prenait pour « le curseur devient transparent ».
+hide_when_typing = false
+
+[[mouse.bindings]]
+mouse  = "Right"
+action = "ExpandSelection"
+
+# ── Bell : discret ────────────────────────────────────────────────────
+[bell]
+animation = "EaseOutExpo"
+duration  = 60
+color     = "#e3b778"
+
+# ── Hints : ouvrir / copier sans souris ───────────────────────────────
+[hints]
+alphabet = "asdfjkl;ghqwertyuiop"
+
+# ⌃⇧O ou ⌘+clic → ouvre URL / lien OSC 8
+[[hints.enabled]]
+command         = "open"
+hyperlinks      = true
+post_processing = true
+persist         = false
+mouse           = { enabled = true, mods = "Command" }
+binding         = { key = "O", mods = "Control|Shift" }
+regex           = '''(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file:|git://|ssh:|ftp://)[^\u0000-\u001F\u007F-\u009F<>"\s{-}\^⟨⟩`\\]+'''
+
+# ⌃⇧P → copie un chemin de fichier repéré à l'écran (path:line:col inclus)
+[[hints.enabled]]
+action          = "Copy"
+post_processing = true
+persist         = false
+binding         = { key = "P", mods = "Control|Shift" }
+regex           = '(~|\.{1,2})?/[-\w./@+]+(:\d+){0,2}'
+
+# ⌃⇧Y → copie un hash git / SHA
+[[hints.enabled]]
+action  = "Copy"
+persist = false
+binding = { key = "Y", mods = "Control|Shift" }
+regex   = '\b[0-9a-f]{7,40}\b'
+
+# ══════════════════════════════════════════════════════════════════════
+#  Clavier
+#  Règle : ⌘ = terminal (macOS natif) · ⌃ et ⌥ laissés intacts aux TUI
+#  (nvim, tmux, emacs, opencode) pour ne casser aucun keybinding.
+# ══════════════════════════════════════════════════════════════════════
+[keyboard]
+bindings = [
+  # ── Presse-papier ───────────────────────────────────────────────────
+  { key = "C", mods = "Command", action = "Copy" },
+  { key = "V", mods = "Command", action = "Paste" },
+  { key = "V", mods = "Command", mode = "Vi|Search", action = "Paste" },
+
+  # ── Fenêtres & onglets natifs macOS ─────────────────────────────────
+  { key = "N", mods = "Command",         action = "CreateNewWindow" },
+  { key = "N", mods = "Command|Shift",   action = "SpawnNewInstance" },
+  { key = "T", mods = "Command",         action = "CreateNewTab" },
+  { key = "]", mods = "Command|Shift",   action = "SelectNextTab" },
+  { key = "[", mods = "Command|Shift",   action = "SelectPreviousTab" },
+  { key = "1", mods = "Command",         action = "SelectTab1" },
+  { key = "2", mods = "Command",         action = "SelectTab2" },
+  { key = "3", mods = "Command",         action = "SelectTab3" },
+  { key = "4", mods = "Command",         action = "SelectTab4" },
+  { key = "5", mods = "Command",         action = "SelectTab5" },
+  { key = "9", mods = "Command",         action = "SelectLastTab" },
+  { key = "H", mods = "Command",         action = "Hide" },
+  { key = "H", mods = "Command|Alt",     action = "HideOtherApplications" },
+  { key = "M", mods = "Command",         action = "Minimize" },
+  { key = "F", mods = "Command|Control", action = "ToggleSimpleFullscreen" },
+
+  # ── Zoom ────────────────────────────────────────────────────────────
+  { key = "=", mods = "Command", action = "IncreaseFontSize" },
+  { key = "-", mods = "Command", action = "DecreaseFontSize" },
+  { key = "0", mods = "Command", action = "ResetFontSize" },
+
+  # ── Recherche & vi mode (navigation clavier du scrollback) ──────────
+  { key = "F",      mods = "Command",       action = "SearchForward" },
+  { key = "F",      mods = "Command|Shift", action = "SearchBackward" },
+  { key = "Space",  mods = "Control|Shift", action = "ToggleViMode" },
+  { key = "Escape", mode = "Search",        action = "SearchCancel" },
+
+  # ── Scrollback ──────────────────────────────────────────────────────
+  { key = "ArrowUp",   mods = "Command", action = "ScrollHalfPageUp" },
+  { key = "ArrowDown", mods = "Command", action = "ScrollHalfPageDown" },
+  { key = "Home",      mods = "Command", action = "ScrollToTop" },
+  { key = "End",       mods = "Command", action = "ScrollToBottom" },
+
+  # ⌘K : efface l'écran ET l'historique (les 2 actions s'exécutent en série)
+  { key = "K", mods = "Command", action = "ClearHistory" },
+  { key = "K", mods = "Command", mode = "~Vi|~Search", chars = "\u000C" },
+
+  # ── Édition de ligne : réflexes macOS → contrôles readline/zsh ───────
+  { key = "ArrowLeft",  mods = "Command", mode = "~Vi|~Search", chars = "\u0001" }, # ^A début de ligne
+  { key = "ArrowRight", mods = "Command", mode = "~Vi|~Search", chars = "\u0005" }, # ^E fin de ligne
+  { key = "Backspace",  mods = "Command", mode = "~Vi|~Search", chars = "\u0015" }, # ^U efface la ligne
+  { key = "Delete",     mods = "Command", mode = "~Vi|~Search", chars = "\u000B" }, # ^K efface jusqu'à la fin
+
+  # ── Nouvelle ligne sans envoyer (Claude Code, opencode, aider…) ─────
+  { key = "Enter", mods = "Shift",   chars = "\u001B\r" },
+  { key = "Enter", mods = "Command", chars = "\u001B\r" },
+]

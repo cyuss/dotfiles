@@ -1,0 +1,84 @@
+# ─────────────────────────────────────────────────────────────
+#  Premium Noir — graphite base, muted accents, warm cursor
+#  Pensé pour opacity ~0.92 + blur et pour un nvim transparent.
+# ─────────────────────────────────────────────────────────────
+
+[colors]
+draw_bold_text_with_bright_colors = false
+transparent_background_colors     = false
+
+[colors.primary]
+background        = "#101216"
+foreground        = "#d6dae1"
+dim_foreground    = "#7d8494"
+bright_foreground = "#eef1f6"
+
+[colors.cursor]
+text   = "#101216"
+cursor = "#e3b778"
+
+[colors.vi_mode_cursor]
+text   = "#101216"
+cursor = "#8fb8e0"
+
+[colors.selection]
+text       = "CellForeground"
+background = "#2b303b"
+
+[colors.search.matches]
+foreground = "#101216"
+background = "#7d8494"
+
+[colors.search.focused_match]
+foreground = "#101216"
+background = "#e3b778"
+
+[colors.footer_bar]
+foreground = "#d6dae1"
+background = "#191c22"
+
+[colors.hints.start]
+foreground = "#101216"
+background = "#e3b778"
+
+[colors.hints.end]
+foreground = "#101216"
+background = "#7d8494"
+
+[colors.normal]
+black   = "#1b1e25"
+red     = "#d2696b"
+green   = "#8fb884"
+yellow  = "#d8ab6d"
+blue    = "#7fa5cf"
+magenta = "#ab8cc8"
+cyan    = "#79b3b6"
+white   = "#c3c8d1"
+
+[colors.bright]
+black   = "#3a404c"
+red     = "#e58a8a"
+green   = "#a9cf9c"
+yellow  = "#eec78d"
+blue    = "#9dbde3"
+magenta = "#c4a6dd"
+cyan    = "#96cbcd"
+white   = "#eef1f6"
+
+[colors.dim]
+black   = "#15181e"
+red     = "#a05253"
+green   = "#6d8d65"
+yellow  = "#a58253"
+blue    = "#617e9e"
+magenta = "#836b98"
+cyan    = "#5c888a"
+white   = "#95999f"
+
+[[colors.indexed_colors]]
+index = 16
+color = "#e0956a"
+
+[[colors.indexed_colors]]
+index = 17
+color = "#e3b778"
