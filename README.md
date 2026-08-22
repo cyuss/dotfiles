@@ -19,18 +19,63 @@ pavage AeroSpace, Emacs (Doom) en daemon, zsh.
 | `workflow-tools/` | Scripts maison (`herdr-*`, `net`, `pk`, `mdv`, …) |
 | `opencode/` | Agent CLI : agents, commandes, skills |
 | `docs/` | Sources des PDF de référence (`docs/src/build`) |
+| `zmk/` | Keymap du clavier Corne (42 touches, QWERTY) |
+| `install/` | `Brewfile` par groupe + description des groupes |
 | `lazygit/` `btop/` `broot/` `navi/` `yazi/` | TUIs |
 
 ## Installation
 
 ```sh
 git clone https://github.com/cyuss/dotfiles.git ~/.config
-~/.config/install.sh
+cd ~/.config && ./install.sh
 ```
 
-`install.sh` crée les liens symboliques depuis `$HOME` vers ce dépôt
-(`~/.zshrc`, `~/.zshenv`, `~/.zprofile`, `~/.gitconfig`, …). Il ne
-touche à rien d'autre et sauvegarde tout fichier existant.
+`install.sh` fait trois choses séparées, qu'on peut demander
+indépendamment : **relier** les dotfiles depuis `$HOME`, **installer**
+les paquets par groupes, et **annoncer** les étapes qui ne s'automatisent
+pas bien. Rien n'est détruit : tout fichier existant est sauvegardé en
+`<nom>.backup-<horodatage>`.
+
+### Selon ce que tu veux en faire
+
+| Situation | Commande |
+|---|---|
+| Je découvre le dépôt, je ne veux rien casser | `./install.sh --dry-run --all` |
+| Je veux voir ce qui existe | `./install.sh --list` |
+| Juste ma config shell sur un serveur | `./install.sh --links` |
+| Machine neuve, je veux tout | `./install.sh --all --yes` |
+| L'essentiel seulement | `./install.sh --recommended` |
+| Je choisis à la main | `./install.sh` *(interactif)* |
+| J'ai déjà mes outils, j'ajoute un groupe | `./install.sh --no-links --groups tui,data` |
+| Qu'est-ce qui me manque ? | `./install.sh --check` |
+
+Le mode interactif utilise [`gum`](https://github.com/charmbracelet/gum)
+s'il est présent, et retombe sinon sur une invite numérotée — aucune
+dépendance obligatoire.
+
+### Groupes de paquets
+
+Un `Brewfile` par groupe dans `install/brew/`, décrits dans
+`install/groups.conf`. Les cinq premiers sont préselectionnés : sans eux,
+les alias et la configuration zsh de ce dépôt ne fonctionnent pas.
+
+| Groupe | Contenu |
+|---|---|
+| `core` ★ | git, fd, ripgrep, bat, eza, delta, fzf, zoxide, atuin, jq |
+| `fonts` ★ | JetBrainsMono Nerd Font, Symbols, SF Pro |
+| `shell` ★ | antidote, oh-my-posh, carapace, complétions |
+| `term` ★ | Alacritty, herdr |
+| `dev` ★ | uv, ruff, just, watchexec, direnv, gh, lazygit, jj |
+| `editor` | Emacs (emacs-plus@30), Neovim |
+| `wm` | AeroSpace, Karabiner-Elements |
+| `tui` | btop, yazi, broot, navi, television, lazydocker, glow, gum |
+| `search` | sd, serpl, ast-grep, semgrep |
+| `data` | dasel, miller, gron, jless, yq, visidata, pgcli, litecli, lazysql |
+| `net` | trippy, gping, xh, doggo, bandwhich, nmap |
+| `prose` | languagetool, vale, typioca |
+
+`--check` distingue « absent » de « installé hors brew » : une `.app`
+téléchargée à la main n'est pas signalée comme manquante.
 
 ### Après le clonage
 

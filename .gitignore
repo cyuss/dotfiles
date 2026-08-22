@@ -47,6 +47,10 @@
 !yazi/**
 !bat/
 !bat/**
+!zmk/
+!zmk/**
+!install/
+!install/**
 
 # ── Exclusions a l'interieur des dossiers suivis ──
 # Secrets & etat runtime
