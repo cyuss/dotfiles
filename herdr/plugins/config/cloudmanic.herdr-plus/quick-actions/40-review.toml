@@ -1,0 +1,2 @@
+name = "opencode: review du diff non commite"
+command = "opencode run '/review'"

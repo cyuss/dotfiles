@@ -1,0 +1,2 @@
+name = "Réseau : choisir un Wi-Fi"
+command = "net wifi"

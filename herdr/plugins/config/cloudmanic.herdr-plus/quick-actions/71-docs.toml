@@ -1,0 +1,2 @@
+name = "Docs : parcourir ~/.config/docs"
+command = "mdv ~/.config/docs"

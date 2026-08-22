@@ -1,0 +1,9 @@
+name = "Tests: lancer la suite du projet"
+command = """
+if [ -f Makefile ] && grep -qE '^test:' Makefile; then make test; \
+elif [ -f package.json ]; then npm test; \
+elif [ -f pyproject.toml ] || [ -f pytest.ini ]; then uv run pytest || pytest; \
+elif [ -f Cargo.toml ]; then cargo test; \
+elif [ -f go.mod ]; then go test ./...; \
+else echo 'aucun runner de tests detecte'; fi
+"""

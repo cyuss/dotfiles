@@ -1,0 +1,6 @@
+name = "Config: recharger tmux + aerospace + herdr"
+command = """
+tmux source-file ~/.tmux.conf 2>/dev/null && echo 'tmux ok'
+aerospace reload-config && echo 'aerospace ok'
+herdr server reload-config && echo 'herdr ok'
+"""

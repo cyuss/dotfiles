@@ -1,0 +1,687 @@
+diff --git i/src/app.rs w/src/app.rs
+index c8f2181..35b0c3b 100644
+--- i/src/app.rs
++++ w/src/app.rs
+@@ -77,8 +77,12 @@ impl App {
+     pub(crate) fn refresh(&mut self) {
+         let mut entries = Vec::new();
+         let mut seen = HashSet::new();
++        let (tab_children, tab_children_min) = (
++            self.config.picker.tab_children,
++            self.config.picker.tab_children_min,
++        );
+         let (workspace_entries, path_to_workspaces, migrated_legacy, has_live_workspace_list) =
+-            collect_workspaces(&mut self.navigator_snapshot);
++            collect_workspaces(&mut self.navigator_snapshot, tab_children, tab_children_min);
+         let reconciled = has_live_workspace_list
+             && self.navigator_snapshot.reconcile(
+                 workspace_entries
+@@ -374,6 +378,21 @@ impl App {
+     }
+ 
+     pub(crate) fn close_selected_workspace(&mut self) -> Result<(), String> {
++        // Sur une ligne ENFANT (un tab), Ctrl-X ferme le tab, pas le space.
++        // Sans ce garde-fou, viser un tab fermerait tout le space qui le
++        // contient — c'est le genre de surprise qu'on ne pardonne qu'une fois.
++        if let Some((tab_id, title)) = self
++            .selected_entry()
++            .and_then(|e| Some((e.tab_id.clone()?, e.title.clone())))
++        {
++            run_herdr_quiet(["tab", "close", &tab_id])?;
++            self.refresh();
++            notify_done(
++                &format!("Closed{}", title.trim_start_matches([' ', '\u{251c}', '\u{2514}'])),
++                &self.config.notifications,
++            );
++            return Ok(());
++        }
+         let (id, title) = {
+             let e = self.selected_entry().ok_or("nothing selected")?;
+             let id = self
+@@ -902,6 +921,7 @@ mod tests {
+ 
+     fn entry(source: Source, path: &str, title: &str) -> Entry {
+         Entry {
++            tab_id: None,
+             source,
+             title: title.into(),
+             subtitle: String::new(),
+@@ -956,6 +976,7 @@ mod tests {
+     fn agent_entry_with_status(status: &str) -> Entry {
+         Entry {
+             source: Source::Agent,
++            tab_id: None,
+             title: "claude · Dotfiles · dotfiles".into(),
+             subtitle: format!("{status} · wF:p2 · wF:t2"),
+             path: PathBuf::from("/home/fenix/dotfiles"),
+diff --git i/src/config.rs w/src/config.rs
+index eb9e1e6..4ed5555 100644
+--- i/src/config.rs
++++ w/src/config.rs
+@@ -51,6 +51,23 @@ pub(crate) struct PickerConfig {
+     pub(crate) preview: bool,
+     #[serde(default = "yes")]
+     pub(crate) detailed_rows: bool,
++    /// Afficher les tabs d'un space comme lignes enfant, dans la source
++    /// `open`. C'est la vue arborescente facon `choose-tree` de tmux.
++    /// Dessiner le cadre titre du picker.
++    ///
++    /// Eteint par defaut : herdr encadre DEJA le pane du plugin et y
++    /// inscrit son libelle (« Herdr Navigator »). Le cadre propre au
++    /// plugin produisait donc deux boites imbriquees portant le meme
++    /// titre. A remettre a true si `ui.pane_borders = false` cote herdr.
++    #[serde(default)]
++    pub(crate) own_frame: bool,
++    #[serde(default = "yes")]
++    pub(crate) tab_children: bool,
++    /// En dessous de ce nombre de tabs, on n'affiche pas les enfants :
++    /// l'unique tab d'un space ferait doublon avec la ligne du space,
++    /// sans rien apprendre. Mettre 1 pour tout montrer.
++    #[serde(default = "default_tab_children_min")]
++    pub(crate) tab_children_min: i64,
+     #[serde(default = "yes")]
+     pub(crate) check_updates: bool,
+     #[serde(default)]
+@@ -217,6 +234,10 @@ fn default_source_order() -> Vec<String> {
+ fn default_source_priority_boost() -> i64 {
+     5
+ }
++fn default_tab_children_min() -> i64 {
++    2
++}
++
+ fn default_agent_sort() -> String {
+     "herdr".into()
+ }
+@@ -271,6 +292,9 @@ impl Default for PickerConfig {
+             agent_sort: default_agent_sort(),
+             preview: true,
+             detailed_rows: true,
++            own_frame: false,
++            tab_children: true,
++            tab_children_min: default_tab_children_min(),
+             check_updates: true,
+             directory_template: None,
+             directory_template_key: default_directory_template_key(),
+diff --git i/src/integrations/command.rs w/src/integrations/command.rs
+index 0b41124..d178fde 100644
+--- i/src/integrations/command.rs
++++ w/src/integrations/command.rs
+@@ -65,6 +65,7 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
+     };
+     Entry {
+         source,
++        tab_id: None,
+         title: item.title,
+         subtitle,
+         path,
+diff --git i/src/integrations/herdr_plus.rs w/src/integrations/herdr_plus.rs
+index cc6f557..4697f08 100644
+--- i/src/integrations/herdr_plus.rs
++++ w/src/integrations/herdr_plus.rs
+@@ -29,6 +29,7 @@ pub(crate) fn collect_projects() -> Vec<Entry> {
+         let p = expand_path(&project.working_dir);
+         out.push(Entry {
+             source: Source::Project,
++            tab_id: None,
+             title: project.name.clone(),
+             subtitle: project.description.clone(),
+             path: p,
+@@ -73,6 +74,7 @@ fn load_project_file(path: &Path) -> Result<Project, String> {
+ pub(crate) fn quick_actions_entry() -> Entry {
+     Entry {
+         source: Source::QuickAction,
++        tab_id: None,
+         title: "Herdr Plus Quick Actions".into(),
+         subtitle: "open the Herdr Plus quick-action picker".into(),
+         path: env::current_dir().unwrap_or_else(|_| home()),
+diff --git i/src/integrations/sessions.rs w/src/integrations/sessions.rs
+index 44646b6..bfa248c 100644
+--- i/src/integrations/sessions.rs
++++ w/src/integrations/sessions.rs
+@@ -81,6 +81,7 @@ fn local_session_entry(session: ListedSession) -> Entry {
+         .unwrap_or_else(|| home().join(format!(".config/herdr/sessions/{}", session.name)));
+     Entry {
+         source: Source::Session,
++        tab_id: None,
+         title: session.name.clone(),
+         subtitle,
+         path,
+@@ -105,6 +106,7 @@ fn manual_session_entry(config: &SessionEntryConfig) -> Entry {
+     search_terms.extend(config.tags.iter().cloned());
+     Entry {
+         source: Source::Session,
++        tab_id: None,
+         title: config.name.clone(),
+         subtitle: format!("local session · {session}"),
+         path,
+@@ -128,6 +130,7 @@ fn remote_entry(config: &SessionEntryConfig) -> Option<Entry> {
+     search_terms.extend(config.tags.iter().cloned());
+     Some(Entry {
+         source: Source::Server,
++        tab_id: None,
+         title: config.name.clone(),
+         subtitle: format!("remote Herdr · {target}"),
+         path: PathBuf::from(format!("remote:{target}")),
+diff --git i/src/main.rs w/src/main.rs
+index aec7b97..107db2b 100644
+--- i/src/main.rs
++++ w/src/main.rs
+@@ -78,11 +78,59 @@ fn picker_pane_decision(pane_json: &serde_json::Value) -> PickerDecision {
+         .unwrap_or(PickerDecision::Open)
+ }
+ 
++/// Le pane du picker tourne-t-il encore le navigator ?
++///
++/// C'est la question qui manquait. Quand le processus `ui` meurt sans que
++/// son pane soit ferme, herdr laisse un SHELL dans le pane — mais le pane
++/// garde son libelle « Herdr Navigator ». `picker_pane_decision` le
++/// retrouvait alors indefiniment et focalisait ce shell mort : prefix+w
++/// semblait ne plus rien faire, et il fallait la souris pour s'en sortir.
++///
++/// On interroge donc le processus au premier plan. Un pane dont le
++/// premier plan n'est pas le navigator est perime.
++fn picker_pane_is_live(pane_id: &str) -> bool {
++    let Ok(info) = herdr::herdr_json(["pane", "process-info", "--pane", pane_id]) else {
++        // Pas de reponse : on ne peut rien affirmer. On garde le
++        // comportement d'origine (focaliser) plutot que de fermer un pane
++        // peut-etre vivant.
++        return true;
++    };
++    let Some(procs) = info
++        .pointer("/result/process_info/foreground_processes")
++        .and_then(|v| v.as_array())
++    else {
++        return true;
++    };
++    procs.iter().any(|p| {
++        let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
++        let cmd = p.get("cmdline").and_then(|v| v.as_str()).unwrap_or("");
++        name.contains("herdr-navigator") || cmd.contains("herdr-navigator")
++    })
++}
++
+ fn open_picker() -> ! {
+     let json = herdr::herdr_json(["pane", "list"]).unwrap_or(serde_json::Value::Null);
+     match picker_pane_decision(&json) {
+         PickerDecision::Open => open_plugin_pane("picker", &["--focus"]),
+-        PickerDecision::Focus(id) => run_plugin_pane_cmd("focus", &id),
++        PickerDecision::Focus(id) => {
++            if picker_pane_is_live(&id) {
++                run_plugin_pane_cmd("focus", &id)
++            } else {
++                // Pane perime : on le ferme et on repart proprement, plutot
++                // que de laisser prefix+w inerte jusqu'a intervention
++                // manuelle.
++                //
++                // `pane close` et non `plugin pane close` : des que le
++                // processus du plugin meurt, herdr perd l'association
++                // plugin<->pane et `plugin pane close` repond
++                // `plugin_pane_not_found`. C'est justement le cas qu'on
++                // essaie de rattraper ici.
++                let _ = Command::new(herdr_bin())
++                    .args(["pane", "close", &id])
++                    .status();
++                open_plugin_pane("picker", &["--focus"])
++            }
++        }
+     }
+ }
+ 
+diff --git i/src/model.rs w/src/model.rs
+index 44b8e7a..9e598cf 100644
+--- i/src/model.rs
++++ w/src/model.rs
+@@ -116,6 +116,11 @@ pub(crate) struct Entry {
+     pub(crate) path: PathBuf,
+     pub(crate) workspace_id: Option<String>,
+     pub(crate) workspace_label: Option<String>,
++    /// Renseigne uniquement sur les lignes ENFANT d'un workspace : un tab.
++    /// C'est ce qui distingue une ligne de tab d'une ligne de space, alors
++    /// que les deux portent `Source::Workspace` — indispensable pour que le
++    /// rendu et Ctrl-X visent le bon objet.
++    pub(crate) tab_id: Option<String>,
+     pub(crate) agent_target: Option<String>,
+     pub(crate) project: Option<Project>,
+     pub(crate) action: EntryAction,
+@@ -211,6 +216,7 @@ mod tests {
+     fn dir_entry(path: PathBuf) -> Entry {
+         Entry {
+             source: Source::Zoxide,
++            tab_id: None,
+             title: String::new(),
+             subtitle: String::new(),
+             path,
+diff --git i/src/sources.rs w/src/sources.rs
+index 7943837..0327e91 100644
+--- i/src/sources.rs
++++ w/src/sources.rs
+@@ -18,9 +18,30 @@ use crate::{
+ 
+ pub(crate) fn collect_workspaces(
+     snapshot: &mut NavigatorSnapshot,
++    tab_children: bool,
++    tab_children_min: i64,
+ ) -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>, bool, bool) {
+     let ws_json = herdr_json(["workspace", "list"]).unwrap_or(Value::Null);
+     let pane_json = herdr_json(["pane", "list"]).unwrap_or(Value::Null);
++    // Les tabs de chaque space, pour les lignes enfant de la source `open`.
++    // Un seul appel : on regroupe ensuite par workspace_id.
++    let tab_json = if tab_children {
++        herdr_json(["tab", "list"]).unwrap_or(Value::Null)
++    } else {
++        Value::Null
++    };
++    let mut tabs_by_ws: HashMap<String, Vec<Value>> = HashMap::new();
++    if let Some(tabs) = tab_json.pointer("/result/tabs").and_then(|v| v.as_array()) {
++        for t in tabs {
++            let Some(ws) = t.get("workspace_id").and_then(|v| v.as_str()) else {
++                continue;
++            };
++            tabs_by_ws.entry(ws.into()).or_default().push(t.clone());
++        }
++    }
++    for list in tabs_by_ws.values_mut() {
++        list.sort_by_key(|t| t.get("number").and_then(|v| v.as_i64()).unwrap_or(0));
++    }
+     let mut cwd_by_ws: HashMap<String, String> = HashMap::new();
+     if let Some(panes) = pane_json
+         .pointer("/result/panes")
+@@ -40,13 +61,23 @@ pub(crate) fn collect_workspaces(
+             }
+         }
+     }
+-    workspaces_from_json(&ws_json, &cwd_by_ws, snapshot)
++    workspaces_from_json(
++        &ws_json,
++        &cwd_by_ws,
++        &tabs_by_ws,
++        snapshot,
++        tab_children,
++        tab_children_min,
++    )
+ }
+ 
+ fn workspaces_from_json(
+     ws_json: &Value,
+     cwd_by_ws: &HashMap<String, String>,
++    tabs_by_ws: &HashMap<String, Vec<Value>>,
+     snapshot: &mut NavigatorSnapshot,
++    tab_children: bool,
++    tab_children_min: i64,
+ ) -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>, bool, bool) {
+     let has_live_workspace_list = ws_json
+         .pointer("/result/workspaces")
+@@ -97,9 +128,10 @@ fn workspaces_from_json(
+             }
+             entries.push(Entry {
+                 source: Source::Workspace,
++                tab_id: None,
+                 title: label.into(),
+                 subtitle,
+-                path,
++                path: path.clone(),
+                 workspace_id: Some(id.into()),
+                 workspace_label: Some(label.into()),
+                 agent_target: None,
+@@ -109,11 +141,116 @@ fn workspaces_from_json(
+                 search_terms,
+                 canonical: OnceLock::new(),
+             });
++
++            // Les tabs du space, juste apres lui. Le tri final retombe sur
++            // l'ordre d'insertion a score egal (`app::apply_filter`), donc a
++            // requete vide l'arborescence tient : space, puis ses tabs.
++            if tab_children {
++                let kids = tabs_by_ws.get(id).map(Vec::as_slice).unwrap_or(&[]);
++                if kids.len() as i64 >= tab_children_min.max(1) {
++                    let last = kids.len() - 1;
++                    for (i, t) in kids.iter().enumerate() {
++                        entries.push(tab_entry(t, i + 1, id, label, &path, i == last));
++                    }
++                }
++            }
+         }
+     }
+     (entries, map, snapshot_changed, has_live_workspace_list)
+ }
+ 
++/// Une ligne ENFANT : un tab, sous son space, dans la source `open`.
++///
++/// Elle porte `Source::Workspace` pour apparaitre dans la meme section que
++/// les spaces (c'est ce que la vue arborescente demande) et `tab_id` pour
++/// que le rendu et Ctrl-X sachent qu'il s'agit d'un tab et pas d'un space.
++///
++/// L'action passe par `RunCommand` plutot que par une variante dediee :
++/// on focalise le space PUIS le tab. L'ordre compte — focaliser le space
++/// apres le tab ramenerait sur le tab actif du space, pas sur celui choisi.
++fn tab_entry(
++    t: &Value,
++    position: usize,
++    ws_id: &str,
++    ws_label: &str,
++    path: &Path,
++    last: bool,
++) -> Entry {
++    let tab_id = t.get("tab_id").and_then(|v| v.as_str()).unwrap_or("");
++    // POSITION d'affichage, et surtout PAS le champ `number`.
++    //
++    // `number` est un compteur de creation : il suit le tab_id (« wC:t4 »
++    // -> 4) et garde les trous laisses par les tabs fermes. herdr, lui,
++    // numerote la barre d'onglets par POSITION — un space dont on a ferme
++    // un tab affiche donc « [2] » sur un tab dont `number` vaut 4.
++    //
++    // Afficher « tab 4 » etait donc trompeur a deux titres : ca ne
++    // correspond pas a ce que montre la barre d'onglets, et `switch_tab =
++    // "prefix+1..9"` est une liaison INDEXEE, qui vise la position. Lire
++    // « tab 4 » et taper prefix+4 ne menait nulle part.
++    let panes = t.get("pane_count").and_then(|v| v.as_i64()).unwrap_or(1);
++    let status = t
++        .get("agent_status")
++        .and_then(|v| v.as_str())
++        .unwrap_or("unknown");
++    let focused = t.get("focused").and_then(|v| v.as_bool()).unwrap_or(false);
++    // herdr prefixe ses libelles du numero d'affichage (« [2] zsh ») ; le
++    // numero est deja dans `number`, on evite « ├ [2] zsh · tab 2 ».
++    let raw = t.get("label").and_then(|v| v.as_str()).unwrap_or("tab");
++    let name = strip_index_prefix(raw);
++    let branch = if last { "└" } else { "├" };
++
++    let mut meta = format!("tab {position}");
++    if panes > 1 {
++        meta.push_str(&format!(" · {panes} panes"));
++    }
++    if focused {
++        meta.push_str(" · courant");
++    }
++
++    Entry {
++        source: Source::Workspace,
++        tab_id: Some(tab_id.into()),
++        title: format!("  {branch} {name}"),
++        // Meme forme que pour un space : `entry_status` lit le prefixe
++        // `agent:` et `entry_metadata` ce qui suit le premier ` · `.
++        subtitle: format!("agent:{status} · {meta}"),
++        path: path.to_path_buf(),
++        workspace_id: Some(ws_id.into()),
++        workspace_label: Some(ws_label.into()),
++        agent_target: None,
++        project: None,
++        action: EntryAction::RunCommand {
++            command: format!(
++                "herdr workspace focus {ws_id} >/dev/null 2>&1; herdr tab focus {tab_id}"
++            ),
++            notify_success: false,
++            notify_error: true,
++        },
++        source_label: None,
++        // `ws_label` est deja dans le haystack via `workspace_label` : taper
++        // le nom du space fait donc remonter le space ET ses tabs.
++        search_terms: vec![tab_id.into(), name.to_string(), status.into()],
++        canonical: OnceLock::new(),
++    }
++}
++
++/// « [12] run » -> « run ». Laisse le texte intact s'il n'y a pas de prefixe.
++fn strip_index_prefix(label: &str) -> &str {
++    let rest = label.trim_start();
++    let Some(rest) = rest.strip_prefix('[') else {
++        return label.trim();
++    };
++    let Some((num, tail)) = rest.split_once(']') else {
++        return label.trim();
++    };
++    if num.is_empty() || !num.chars().all(|c| c.is_ascii_digit()) {
++        return label.trim();
++    }
++    let tail = tail.trim();
++    if tail.is_empty() { label.trim() } else { tail }
++}
++
+ pub(crate) fn collect_agents(
+     workspaces: &[Entry],
+     aliases: &[crate::config::AgentAliasConfig],
+@@ -186,6 +323,7 @@ fn agents_from_json(
+             search_terms.extend(alias_terms);
+             entries.push(Entry {
+                 source: Source::Agent,
++                tab_id: None,
+                 title,
+                 subtitle,
+                 path,
+@@ -258,6 +396,7 @@ pub(crate) fn collect_zoxide() -> Vec<Entry> {
+             let path = PathBuf::from(line);
+             Entry {
+                 source: Source::Zoxide,
++                tab_id: None,
+                 title: basename(&path),
+                 subtitle: line.into(),
+                 path,
+@@ -291,6 +430,7 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
+     {
+         out.push(Entry {
+             source: Source::Root,
++            tab_id: None,
+             title: basename(path),
+             subtitle: path.display().to_string(),
+             path: path.to_path_buf(),
+@@ -316,6 +456,160 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
+ 
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    fn tab_children_render_as_a_tree_under_their_workspace() {
++        let ws_json: Value = serde_json::from_str(
++            r#"{"result":{"workspaces":[
++                 {"workspace_id":"w1","label":"[1] alpha","tab_count":2,"pane_count":3,
++                  "agent_status":"idle","focused":false}]}}"#,
++        )
++        .unwrap();
++        let tabs: Vec<Value> = serde_json::from_str(
++            r#"[{"tab_id":"w1:t2","workspace_id":"w1","label":"[2] run","number":2,
++                 "pane_count":2,"agent_status":"working","focused":false},
++                {"tab_id":"w1:t1","workspace_id":"w1","label":"[1] agent","number":1,
++                 "pane_count":1,"agent_status":"idle","focused":true}]"#,
++        )
++        .unwrap();
++        let mut by_ws = HashMap::new();
++        by_ws.insert("w1".to_string(), {
++            let mut v = tabs;
++            v.sort_by_key(|t| t.get("number").and_then(|n| n.as_i64()).unwrap_or(0));
++            v
++        });
++
++        let (entries, _, _, _) = workspaces_from_json(
++            &ws_json,
++            &HashMap::new(),
++            &by_ws,
++            &mut NavigatorSnapshot::default(),
++            true,
++            2,
++        );
++
++        // Le space, puis ses tabs dans l'ordre : c'est l'ordre d'insertion
++        // qui porte l'arborescence a requete vide.
++        assert_eq!(entries.len(), 3);
++        assert_eq!(entries[0].title, "[1] alpha");
++        assert!(entries[0].tab_id.is_none());
++        assert_eq!(entries[1].title, "  \u{251c} agent");
++        assert_eq!(entries[1].tab_id.as_deref(), Some("w1:t1"));
++        assert_eq!(entries[2].title, "  \u{2514} run");
++        assert_eq!(entries[2].tab_id.as_deref(), Some("w1:t2"));
++        // Le sous-titre porte la POSITION d'affichage, pas le champ
++        // `number` : ici les deux coincident, le test suivant couvre le
++        // cas ou ils divergent.
++        assert!(entries[1].subtitle.contains("tab 1"));
++        assert!(entries[2].subtitle.contains("tab 2"));
++        // Le libelle du space est dans le haystack de l'enfant : taper
++        // « alpha » fait remonter le space ET ses tabs.
++        assert!(entries[2].haystack().contains("alpha"));
++        // L'action focalise le space PUIS le tab.
++        match &entries[2].action {
++            EntryAction::RunCommand { command, .. } => {
++                let ws = command.find("workspace focus w1").unwrap();
++                let tab = command.find("tab focus w1:t2").unwrap();
++                assert!(ws < tab, "le space doit etre focalise avant le tab");
++            }
++            other => panic!("action inattendue: {other:?}"),
++        }
++    }
++
++    #[test]
++    fn child_rows_number_by_position_not_by_creation_counter() {
++        // Un space dont on a ferme des tabs : les `number` gardent les
++        // trous (1 puis 7), mais herdr affiche « [1] » et « [2] ». C'est
++        // la position que la ligne enfant doit montrer — `switch_tab` est
++        // une liaison indexee, qui vise elle aussi la position.
++        let ws_json: Value = serde_json::from_str(
++            r#"{"result":{"workspaces":[
++                 {"workspace_id":"w1","label":"alpha","tab_count":2,"pane_count":2,
++                  "agent_status":"idle","focused":false}]}}"#,
++        )
++        .unwrap();
++        let mut by_ws = HashMap::new();
++        by_ws.insert(
++            "w1".to_string(),
++            serde_json::from_str::<Vec<Value>>(
++                r#"[{"tab_id":"w1:t1","workspace_id":"w1","label":"[1] agent","number":1,
++                     "pane_count":1,"agent_status":"idle","focused":false},
++                    {"tab_id":"w1:t7","workspace_id":"w1","label":"[2] run","number":7,
++                     "pane_count":1,"agent_status":"idle","focused":false}]"#,
++            )
++            .unwrap(),
++        );
++
++        let (entries, _, _, _) = workspaces_from_json(
++            &ws_json,
++            &HashMap::new(),
++            &by_ws,
++            &mut NavigatorSnapshot::default(),
++            true,
++            2,
++        );
++
++        assert!(entries[1].subtitle.contains("tab 1"));
++        assert!(
++            entries[2].subtitle.contains("tab 2"),
++            "attendu la position 2, obtenu: {}",
++            entries[2].subtitle
++        );
++        assert!(
++            !entries[2].subtitle.contains("tab 7"),
++            "le compteur interne ne doit pas fuir dans l'affichage"
++        );
++    }
++
++    #[test]
++    fn single_tab_workspaces_get_no_children() {
++        let ws_json: Value = serde_json::from_str(
++            r#"{"result":{"workspaces":[
++                 {"workspace_id":"w1","label":"solo","tab_count":1,"pane_count":1,
++                  "agent_status":"idle","focused":false}]}}"#,
++        )
++        .unwrap();
++        let mut by_ws = HashMap::new();
++        by_ws.insert(
++            "w1".to_string(),
++            vec![serde_json::from_str::<Value>(
++                r#"{"tab_id":"w1:t1","workspace_id":"w1","label":"zsh","number":1,
++                    "pane_count":1,"agent_status":"idle","focused":true}"#,
++            )
++            .unwrap()],
++        );
++
++        // Seuil par defaut : 2. L'unique tab ferait doublon avec le space.
++        let (entries, _, _, _) = workspaces_from_json(
++            &ws_json,
++            &HashMap::new(),
++            &by_ws,
++            &mut NavigatorSnapshot::default(),
++            true,
++            2,
++        );
++        assert_eq!(entries.len(), 1);
++
++        // Seuil a 1 : on le montre quand meme.
++        let (entries, _, _, _) = workspaces_from_json(
++            &ws_json,
++            &HashMap::new(),
++            &by_ws,
++            &mut NavigatorSnapshot::default(),
++            true,
++            1,
++        );
++        assert_eq!(entries.len(), 2);
++    }
++
++    #[test]
++    fn index_prefix_is_stripped_only_when_it_is_one() {
++        assert_eq!(strip_index_prefix("[2] run"), "run");
++        assert_eq!(strip_index_prefix("  [12]  make dev "), "make dev");
++        assert_eq!(strip_index_prefix("run"), "run");
++        assert_eq!(strip_index_prefix("[wip] run"), "[wip] run");
++        assert_eq!(strip_index_prefix("[3]"), "[3]");
++    }
++
+     use super::*;
+ 
+     // ponytail: fixtures captured verbatim from `herdr workspace list` / `herdr agent list` on 0.7.3
+@@ -325,7 +619,14 @@ mod tests {
+             {"active_tab_id":"w41:t1","agent_status":"unknown","focused":false,"label":"~","number":1,"pane_count":1,"tab_count":1,"workspace_id":"w41"},
+             {"active_tab_id":"w43:t1","agent_status":"working","focused":true,"label":"dir: picker","number":3,"pane_count":1,"tab_count":1,"workspace_id":"w43"}]}});
+         let (entries, _, _, _) =
+-            workspaces_from_json(&ws_json, &HashMap::new(), &mut NavigatorSnapshot::default());
++            workspaces_from_json(
++                &ws_json,
++                &HashMap::new(),
++                &HashMap::new(),
++                &mut NavigatorSnapshot::default(),
++                false,
++                2,
++            );
+         assert_eq!(entries.len(), 2);
+         assert_eq!(entries[0].subtitle, "agent:unknown · w41 tabs:1 panes:1");
+         assert!(entries[0].search_terms.contains(&"unknown".to_string()));
+@@ -360,7 +661,7 @@ mod tests {
+         snapshot.record("w1", crate::model::WorkspaceKind::Dir);
+ 
+         let (_, workspaces, migrated, live) =
+-            workspaces_from_json(&ws_json, &cwd_by_ws, &mut snapshot);
++            workspaces_from_json(&ws_json, &cwd_by_ws, &HashMap::new(), &mut snapshot, false, 2);
+ 
+         assert!(live);
+ 
+diff --git i/src/tui.rs w/src/tui.rs
+index 42ab234..4f83430 100644
+--- i/src/tui.rs
++++ w/src/tui.rs
+@@ -311,11 +311,16 @@ fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
+ fn draw(f: &mut Frame, app: &App) -> ListHits {
+     let area = f.area();
+     f.render_widget(Clear, area);
+-    let mut outer = Block::default()
+-        .style(Style::default().bg(app.theme.panel_bg))
+-        .title(" Herdr Navigator ")
+-        .borders(Borders::ALL)
+-        .border_style(Style::default().fg(app.theme.accent));
++    // herdr encadre deja le pane du plugin et y ecrit son libelle. Redessiner
++    // ici un cadre titre du meme nom donnait deux boites imbriquees, dont
++    // l'interieure n'apportait rien. Voir `picker.own_frame`.
++    let mut outer = Block::default().style(Style::default().bg(app.theme.panel_bg));
++    if app.config.picker.own_frame {
++        outer = outer
++            .title(" Herdr Navigator ")
++            .borders(Borders::ALL)
++            .border_style(Style::default().fg(app.theme.accent));
++    }
+     if let Some(version) = &app.update_available {
+         outer = outer.title_top(
+             Line::from(Span::styled(
+@@ -975,6 +980,7 @@ mod tests {
+     fn entry(source: Source, title: &str) -> Entry {
+         Entry {
+             source,
++            tab_id: None,
+             title: title.into(),
+             subtitle: String::new(),
+             path: PathBuf::from(title),

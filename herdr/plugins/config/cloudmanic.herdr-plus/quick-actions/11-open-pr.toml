@@ -1,0 +1,2 @@
+name = "GitHub: PR de la branche courante"
+command = "gh pr view --web 2>/dev/null || gh pr create --web"

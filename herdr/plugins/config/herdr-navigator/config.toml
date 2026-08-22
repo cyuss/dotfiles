@@ -1,0 +1,304 @@
+# Herdr Navigator default config
+# Location after first run:
+#   $(herdr plugin config-dir herdr-navigator)/config.toml
+
+[picker]
+# What happens after selecting an entry:
+# - true: focus an already-open workspace for the selected path
+# - false: always use create_missing behavior
+reuse_existing = true
+
+# Create a new Herdr workspace when the selected path is not open yet.
+create_missing = true
+
+# Prefix new workspace labels with their Navigator kind (project: / dir:).
+#
+# Passe a false : dans une sidebar de 28 colonnes, « project: » mangeait
+# 9 caracteres sur chaque libelle pour une information que l'icone et le
+# contexte donnent deja. « mon-garage-auto » se lit, « project: mon-gar… »
+# non. Navigator continue de memoriser le kind de son cote.
+prefix_workspace_labels = false
+
+# Search engine: "nucleo" | "skim" | "simple"
+# - nucleo: best default; fast, fzf-like scoring, good Unicode support
+# - skim: skim/fzf-style matcher via fuzzy-matcher crate
+# - simple: tiny built-in ordered-character matcher for debugging
+engine = "nucleo"
+
+# Source priority controls initial ordering and tie/near-tie ranking.
+# Accepted names: agent, server/remote, workspace/open, project, session, zoxide, root, quick, plugin.
+# Trois etages, dans cet ordre :
+#   1. ce qui EXISTE et tourne     workspace, agent, session, server
+#   2. ce qui se CREE              plugin (les entrees de herdr-nav-create)
+#   3. ce qui n'est qu'un MODELE   project
+# Les 28 projets restent accessibles (Ctrl-P) mais ne peuvent plus occuper
+# le haut de la liste.
+source_order = ["workspace", "agent", "session", "server", "plugin", "project", "zoxide", "root", "quick"]
+
+# How strongly source_order influences search ranking.
+# Set 0 for pure matcher score.
+source_priority_boost = 5
+
+# Agent view sorting for `@` and Ctrl-A:
+# - herdr: read Herdr's agent_panel_sort setting
+# - priority: blocked/error, attention/request, done, working, then idle
+# - spaces: keep Herdr/pane order
+agent_sort = "herdr"
+
+# Show the right-side preview pane on open. Ctrl-O toggles it at runtime.
+preview = true
+
+# Use Herdr-style source-aware rows: metadata aligns right, while zoxide/root
+# entries expand to a second full-path line. Set false for the compact list.
+detailed_rows = true
+
+# ── Vue arborescente : les tabs sous leur space ──────────────────────
+# Les tabs d'un space apparaissent comme lignes enfant, dans la section
+# « open », juste sous lui :
+#
+#   [3] project: mon-garage-auto        2 tabs · 3 panes
+#     ├ agent                           tab 1
+#     └ run                             tab 4 · 2 panes
+#
+# C'est l'equivalent de `choose-tree` dans tmux. L'ordre tient parce que
+# le tri du picker retombe sur l'ordre d'insertion a score egal.
+# Ctrl-X sur une ligne enfant ferme le TAB, pas le space.
+tab_children = true
+
+# En dessous de ce nombre de tabs, pas d'enfants : l'unique tab d'un space
+# ferait doublon avec la ligne du space sans rien apprendre. Mettre 1 pour
+# tout afficher malgre tout.
+tab_children_min = 2
+
+# Check GitHub releases in the background at most once per day. Network errors
+# are ignored; a newer version appears as a badge in the Navigator header.
+check_updates = true
+
+# Optional Herdr Plus project filename. Alt-Enter applies its tabs/panes to the
+# selected zoxide/root dir, appending new tabs if its workspace already exists.
+# directory_template = "default.toml"
+# directory_template_key = "alt-enter" # also accepts Ctrl forms such as "ctrl-g"
+
+# Vim-style normal mode: j/k move, source keys filter, and / starts searching.
+vim_mode = false
+
+# Start searching immediately after a Vim source-filter key.
+vim_filter_search = false
+
+# Source filter shortcuts. Defaults: server=ctrl-s, agent=ctrl-a, quick=ctrl-q,
+# workspace=ctrl-w, project=ctrl-p, zoxide=ctrl-z, root=ctrl-r, session=ctrl-l.
+#
+# Une lettre = l'initiale de ce qu'elle filtre. Les defauts melangeaient
+# des initiales (w, a, p, q) et des touches arbitraires (l pour session,
+# s pour server) : impossible a retenir sans consulter l'aide.
+#
+#   Ctrl-W  Workspaces        les spaces ouverts
+#   Ctrl-A  Agents            les agents qui tournent
+#   Ctrl-L  Sessions          defaut du plugin
+#   Ctrl-G  Gateways          serveurs herdr distants
+#   Ctrl-N  Nouveau           tout ce qui se cree
+#   Ctrl-P  Projets           les modeles herdr-plus
+#
+# CTRL-S EST INTERDIT, et ce n'est pas une preference.
+# `stty -a' sur ce terminal donne `ixon' actif et `stop = ^S' : Ctrl-S est
+# le XOFF du controle de flux logiciel. Il GELE la sortie du terminal —
+# on tape, plus rien ne s'affiche, l'ecran semble casse. (Ctrl-Q degele.)
+# Une precedente version mettait les sessions sur ctrl-s pour l'initiale ;
+# c'etait un bug. Le defaut du plugin lui-meme place les serveurs sur
+# ctrl-s : meme piege, jamais declenche ici faute de serveur configure.
+#
+# Sont a eviter pour la meme raison : ^Q (start), ^Z (susp), ^C (intr),
+# ^D (eof), ^H (backspace). Ctrl-C/U/X/B/O/H restent au picker lui-meme.
+[picker.filter_keys]
+workspace = "ctrl-w"
+agent     = "ctrl-a"
+session   = "ctrl-l"
+server    = "ctrl-g"
+plugin    = "ctrl-n"
+project   = "ctrl-p"
+
+[notifications]
+# Show Navigator success/error notifications.
+enabled = true
+# Enable notification audio. Notifications remain visible when this is false.
+audio = false
+# Audio mode when enabled: "default" uses Herdr's done/request sounds;
+# "custom" plays custom_sound with afplay (macOS) or pw-play/paplay/aplay (Linux).
+sound = "default"
+custom_sound = "" # Example: "~/sounds/navigator.wav"
+
+[jump_back]
+# Master switch for Jump Back.
+# - true: remember successful local workspace changes and enable the jump-back action
+# - false: do not record, pin, or jump; any saved history is kept for later re-enabling
+# The global keybinding itself belongs in Herdr's main config; see README.md.
+enabled = true
+
+# Put the previous workspace first when the picker opens with no query or source filter.
+# This only changes the initial view; typed searches and Ctrl source filters keep normal ranking.
+pin_previous = true
+
+[sources]
+# Existing Herdr workspaces. Selecting focuses the workspace.
+open_workspaces = true
+
+# Herdr Plus project templates from:
+# ~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects/*.toml
+#
+# ACTIF, mais classe APRES le vivant dans source_order : Ctrl-P les isole,
+# comme Ctrl-W isole les spaces et Ctrl-L les sessions.
+# Picker dedie et groupe : prefix+p.
+herdr_plus_projects = true
+
+# zoxide history from `zoxide query -l`.
+#
+# DESACTIVE : 37 entrees, soit plus de la moitie de l'index. zoxide a deja
+# son picker dedie avec preview : prefix+alt+z.
+zoxide = false
+
+# Direct filesystem scan of [[roots]] below.
+#
+# DESACTIVE : les [[roots]] par defaut (~/workspace, ~/projects) n'existent
+# pas sur cette machine — la source ne rendait rien. Tes projets sont dans
+# ~/Desktop/projects et sont couverts par prefix+alt+o.
+roots = false
+
+# Agent panes from Herdr pane metadata. Selecting focuses the agent.
+agents = true
+
+# Remote Herdr targets from remote entries in [sessions] below.
+servers = true
+# Local Herdr sessions from `herdr session list --json` and local [sessions] entries below.
+sessions = true
+
+# Herdr Plus Quick Actions.
+#
+# DESACTIVE : cette source n'apportait qu'UNE entree, dont l'action etait
+# d'ouvrir un autre picker. Un picker dans un picker n'est pas un chemin,
+# c'est un detour. Les quick actions ont leur touche : prefix+alt+a.
+herdr_plus_quick_actions = false
+
+[theme]
+# Optional Navigator base palette. Supports the same named palettes as Herdr,
+# for example "dracula", "nord", and "tokyo-night".
+# name = "dracula"
+#
+# Read ~/.config/herdr/config.toml theme and [theme.custom] tokens when name is unset.
+# If name is set and inheritance remains enabled, inherited Herdr custom tokens
+# layer over that base; Navigator [theme.custom] tokens below win over both.
+inherit_herdr = true
+#
+# [theme.custom]
+# accent = "#ff00ff"
+
+# Keep roots short; zoxide should handle most frequent directories.
+[[roots]]
+path = "~/workspace"
+max_depth = 3
+
+[[roots]]
+path = "~/projects"
+max_depth = 3
+
+# Optional agent aliases. All match fields are optional and matched as text contains.
+# Aliases become extra search terms for matching agent panes.
+#
+# [[agent_aliases]]
+# alias = "main ai dot"
+# agent = "claude"
+# workspace = "Dotfiles"
+# path = "dotfiles"
+
+[sessions]
+# Include local named sessions from `herdr session list --json`.
+local = true
+
+# Manual remote targets. Selecting runs: herdr --remote <remote> --handoff.
+# [[sessions.entries]]
+# name = "prod"
+# remote = "prod-api"
+# tags = ["prod", "api"]
+
+# Optional command/JSON integrations. A plugin only needs:
+# - collect: command that prints JSON array
+# - open: command to run when the item is selected
+#
+# [[integrations]]
+# id = "demo"
+# label = "Bookmarks"
+# enabled = true
+# collect = "bookmarks list --json"
+# open = "bookmarks open {{id}}"
+# notify_success = true
+# notify_error = true
+#
+
+# ── Creer, depuis le navigator ────────────────────────────────────────
+# herdr-nav-create emet les entrees ; herdr-new execute l'action.
+#   ⚡ scratch      space jetable (shell + opencode) dans ~/scratch/<date>
+#   ＋ space ici    space sur le repertoire du pane focalise, calcule a
+#                   chaque ouverture du picker
+#   ＋ session X    nouvelle fenetre Alacritty sur une session nommee ;
+#                   kind = "session" -> l'entree apparait sous Ctrl-L,
+#                   a cote des sessions qui existent deja
+[[integrations]]
+id = "create"
+label = "créer"
+enabled = true
+collect = "/Users/youcef/.config/workflow-tools/herdr-nav-create"
+open = "/Users/youcef/.config/workflow-tools/herdr-new {{id}} {{path}}"
+notify_success = true
+notify_error = true
+
+# ── Les tabs, sous leur space ─────────────────────────────────────────
+# DESACTIVE — remplace par la vraie vue arborescente, cote plugin.
+#
+# Cette integration marchait, mais elle rangeait ses entrees dans une
+# section « tabs » a part. La raison est dans le code du plugin
+# (src/integrations/command.rs) : le champ `kind` d'une entree
+# d'integration n'est interprete que pour trois valeurs —
+#   "server" | "remote-terminal"  ->  Source::Server
+#   "session"                     ->  Source::Session
+#   tout le reste                 ->  Source::Integration
+# Il n'existe AUCUN chemin vers Source::Workspace, c'est-a-dire vers la
+# section « open ». Une integration ne peut donc pas, par construction,
+# poser des lignes sous les spaces.
+#
+# La vue arborescente est maintenant native : voir [picker].tab_children
+# plus haut. Les tabs sont des lignes enfant de la source `open`, dans
+# l'ordre space -> ses tabs, comme `choose-tree` de tmux.
+#
+# Remettre `enabled = true` ci-dessous ferait apparaitre chaque tab DEUX
+# fois : une fois sous son space, une fois dans la section « tabs ».
+[[integrations]]
+id = "tabs"
+label = "tabs"
+enabled = false
+collect = "/Users/youcef/.config/workflow-tools/herdr-nav-tabs"
+open = "/Users/youcef/.config/workflow-tools/herdr-nav-goto-tab {{id}} {{path}}"
+notify_success = false
+notify_error = true
+
+# ── Toutes les actions de plugin ──────────────────────────────────────
+# Le filtre Ctrl-N s'appelle « plugin » mais montre la source
+# `Source::Integration`, c'est-a-dire les blocs [[integrations]] de CE
+# fichier — pas les plugins herdr. D'ou l'impression qu'il n'y a que la
+# gestion des spaces.
+#
+# Cette integration y verse les 61 actions reellement exposees par les
+# 20 plugins installes (`herdr plugin action list`). Ctrl-N devient donc
+# le catalogue complet : creations maison + toutes les actions.
+#
+# Les actions du navigator lui-meme sont retirees de la liste : les
+# invoquer depuis le navigator ouvrirait un navigator dans le navigator.
+#
+# Autre chemin vers la meme chose, deja en place : prefix+a
+# (jt.command-palette), qui liste tout ce qui est bindable.
+[[integrations]]
+id = "actions"
+label = "action"
+enabled = true
+collect = "/Users/youcef/.config/workflow-tools/herdr-nav-actions"
+open = "/Users/youcef/.config/workflow-tools/herdr-nav-invoke {{id}}"
+notify_success = false
+notify_error = true

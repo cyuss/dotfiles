@@ -1,0 +1,2 @@
+name = "Réseau : connecter un appareil Bluetooth"
+command = "net bt"

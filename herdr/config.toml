@@ -1,0 +1,486 @@
+# ~/.config/herdr/config.toml
+# Recharger : herdr server reload-config   (ou prefix+shift+r)
+
+onboarding = false
+
+# ─────────────────────────────────────────────────────────────
+# Thème — minimal, quasi monochrome, un seul accent chaud
+# ─────────────────────────────────────────────────────────────
+[theme]
+name = "vesper"
+auto_switch = false
+
+[theme.custom]
+# Transparence : les panneaux herdr héritent du fond du terminal
+panel_bg = "reset"
+accent = "#ffc799"
+
+# ── Sélection dans la sidebar ────────────────────────────────────────
+# Le fond de la ligne sélectionnée était un noir franc, qui se découpait
+# durement sur le fond du terminal (#101216). Ces deux valeurs sont
+# posées JUSTE au-dessus de ce fond : la sélection se lit encore, mais
+# comme un voile, plus comme un bloc.
+#
+#   active_row_bg  la ligne du space/agent courant
+#   selection_bg   la ligne survolée au clavier dans les sélecteurs
+#
+# Note : herdr ne sait pas arrondir les angles d'une ligne de sidebar.
+# Ce n'est pas une boîte dessinée mais un fond de ligne — il n'y a ni
+# bordure ni rayon à régler. Les seuls angles arrondis de l'interface
+# sont ceux des bordures de panes.
+active_row_bg = "#181c24"
+selection_bg  = "#222833"
+
+[terminal]
+shell_mode = "auto"
+new_cwd = "follow"
+
+# ─────────────────────────────────────────────────────────────
+# UI — moins de chrome, plus de contenu
+# ─────────────────────────────────────────────────────────────
+[ui]
+accent = "#ffc799"
+
+sidebar_width = 28
+sidebar_min_width = 22
+sidebar_max_width = 32
+sidebar_collapsed_mode = "compact"
+
+pane_borders = true
+pane_gaps = true
+pane_scrollbars = false              # récupère une colonne, moins de bruit visuel
+hide_tab_bar_when_single_tab = true  # pas de barre d'onglets inutile
+tab_bar_position = "top"
+show_agent_labels_on_pane_borders = true
+
+agent_panel_sort = "spaces"          # "priority" = file d'attente par urgence
+prompt_new_tab_name = false          # les onglets se nomment tout seuls (cf. plugin rename)
+prompt_new_workspace_name = false
+confirm_close = true
+
+mouse_capture = true
+copy_on_select = true
+mouse_scroll_lines = 3
+
+# Lignes de la sidebar : compactes, 2 lignes max, zéro respiration inutile
+[ui.sidebar.spaces]
+row_gap = 0
+rows = [["state_icon", "workspace"], ["branch", "git_status"]]
+
+# ══════════════════════════════════════════════════════════════════════
+#  Panneau AGENTS
+#
+#  Defaut precedent : ["state_icon", "workspace", "tab"] sur UNE ligne.
+#  Trois informations dans 24 colonnes : tout etait tronque, et on ne
+#  savait justement pas de quel projet venait l'agent — l'information la
+#  plus utile etait la premiere sacrifiee.
+#
+#  Regle appliquee ici : UNE idee par ligne, et la plus importante en
+#  premier. Quatre lignes courtes se lisent mieux qu'une ligne coupee.
+#
+#    ligne 1   etat + quel agent            ◐ claude
+#    ligne 2   DANS QUEL PROJET             mon-garage-auto
+#    ligne 3   ou exactement dedans         run
+#    ligne 4   ce qu'il consomme            ⛁ 13%   5h 72%
+#
+#  Jetons disponibles pour les agents (built-ins herdr) :
+#    state_icon  state_text  workspace  tab  pane  agent
+#    terminal_title  terminal_title_stripped
+#
+#  Les jetons en $ viennent des METADONNEES DE PANE, publiees par un
+#  plugin via `herdr pane report-metadata`. Ceux-ci viennent d'usagebar :
+#    $context   contexte consomme par le pane      ⛁ 13% (130k)
+#    $limit     fenetre de quota la plus courte    5h 72%
+#               ou, sur une cle API a l'usage      Σ 425k $0.04
+#    $provider  le backend qui repond              anthropic, ollama…
+#    $title     le titre du terminal, deja nettoye
+#
+#  Mis a jour quand l'agent s'est POSE (pas pendant qu'il travaille) :
+#  les chiffres correspondent donc toujours au dernier tour termine.
+#
+#  Style en ligne : { token = "x", fg = "#RRGGBB", bold = true, dim = true }
+#  Seuls #RGB / #RRGGBB sont acceptes — pas de noms de couleur ici.
+# ══════════════════════════════════════════════════════════════════════
+[ui.sidebar.agents]
+row_gap = 0
+rows = [
+  ["state_icon", { token = "agent", bold = true }],
+  [{ token = "workspace", fg = "#ffc799" }],
+  [{ token = "tab", dim = true }],
+  [{ token = "$context", dim = true }, { token = "$limit", dim = true }],
+]
+
+# Claude annonce sa tache en cours dans le titre du terminal. C'est plus
+# parlant que le mot « claude », qu'on lit deja a l'icone d'etat — donc on
+# remplace la premiere ligne, et on garde le projet juste dessous.
+[ui.sidebar.agents.rows_by_agent]
+claude = [
+  ["state_icon", { token = "terminal_title_stripped", bold = true }],
+  [{ token = "workspace", fg = "#ffc799" }],
+  [{ token = "tab", dim = true }],
+  [{ token = "$context", dim = true }, { token = "$limit", dim = true }],
+]
+
+# ─────────────────────────────────────────────────────────────
+# Notifications — l'intérêt principal de herdr : savoir quel agent t'attend
+# ─────────────────────────────────────────────────────────────
+[ui.toast]
+delivery = "system"                  # notif macOS native ; "terminal" ou "herdr" si tu préfères
+delay_seconds = 2
+
+[ui.toast.herdr]
+position = "bottom-right"
+
+[ui.toast.clipboard]
+enabled = true
+position = "bottom-center"
+
+[ui.sound]
+enabled = true
+
+[session]
+resume_agents_on_restore = true      # reprend les conversations après restart du serveur
+
+[worktrees]
+directory = "~/.herdr/worktrees"
+
+# ─────────────────────────────────────────────────────────────
+# Keybindings
+# ─────────────────────────────────────────────────────────────
+[keys]
+prefix = "ctrl+b"
+
+switch_tab = "prefix+1..9"
+
+# Splits facon nvim (:sp / :vs) — s dessous, v a cote
+split_horizontal = "prefix+s"
+split_vertical   = "prefix+v"
+
+# ══════════════════════════════════════════════════════════════════════
+#  Navigation SANS MAJUSCULE
+#
+#  Probleme corrige : par defaut herdr met `next_tab` sur prefix+n et
+#  `new_workspace` sur prefix+shift+n. Deux actions tres differentes sur
+#  la meme lettre, dont une qui exige Shift.
+#
+#  Nouveau schema, tout en minuscules :
+#    n         nouveau space      c       nouveau tab
+#    [  ]      space prec/suiv    ,  .    tab prec/suiv
+#    /         renommer space     ;       renommer tab
+#    '         fermer space       x       fermer pane
+#    h j k l   focus entre panes  1..9    aller au tab N
+# ══════════════════════════════════════════════════════════════════════
+
+# ── Spaces ────────────────────────────────────────────────────────────
+# w et g echanges par rapport aux defauts herdr :
+#   g = go to space  (etait le picker sur w)
+#   w = goto         (etait sur g)
+workspace_picker   = "prefix+g"
+goto               = "prefix+shift+w"   # w minuscule est passe au navigator (plus bas)
+
+new_workspace      = "prefix+n"      # n = new  (etait next_tab)
+rename_workspace   = "prefix+/"      # etait prefix+shift+w
+close_workspace    = "prefix+'"      # etait prefix+shift+d
+previous_workspace = "prefix+["      # sequentiel, sans picker
+next_workspace     = "prefix+]"
+
+# ── Tabs ──────────────────────────────────────────────────────────────
+new_tab      = "prefix+c"            # c = create (defaut, inchange)
+previous_tab = "prefix+,"            # < et > sur les memes touches
+next_tab     = "prefix+."
+rename_tab   = "prefix+;"            # etait prefix+shift+t
+
+# ── Agents : meme logique que les tabs, un cran plus loin ────────────
+# (prefix+9/0 impossible : switch_tab occupe prefix+1..9)
+previous_agent = "prefix+alt+,"
+next_agent     = "prefix+alt+."
+
+# ══════════════════════════════════════════════════════════════════════
+#  Panes — DEUX schemas, un par reflexe. Aucun Shift.
+#
+#  1. prefix + i/j/k/l  =  exactement AeroSpace (Hyper i/j/k/l).
+#     Meme cluster, meme sens : i haut, j gauche, k bas, l droite.
+#     Le geste est identique, seul le modificateur change.
+#
+#  2. alt + h/j/k/l     =  exactement nvim, SANS prefix.
+#     Traverse les panes herdr ET les splits Neovim de facon continue
+#     (plugin vim-herdr-navigation). C'est le schema de tous les jours.
+# ══════════════════════════════════════════════════════════════════════
+focus_pane_up    = "prefix+i"
+focus_pane_left  = "prefix+j"
+focus_pane_down  = "prefix+k"
+focus_pane_right = "prefix+l"
+switch_workspace = "prefix+shift+1..9"
+focus_agent = "prefix+alt+1..9"      # saute direct sur l'agent n°N
+last_pane = "prefix+backtick"        # aller-retour entre deux panes
+
+# Mode navigate : mouvements locaux facon vim
+navigate_pane_left  = "h"
+navigate_pane_down  = "j"
+navigate_pane_up    = "k"
+navigate_pane_right = "l"
+
+# Popups outils — s'ouvrent au-dessus, se ferment à la sortie du process
+[[keys.command]]
+key = "prefix+alt+g"
+type = "popup"
+command = "lazygit"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+alt+d"
+type = "popup"
+command = "lazydocker"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+alt+b"
+type = "popup"
+command = "btop"
+width = "90%"
+height = "90%"
+
+# alt+k = kill — chercher un process par son nom et le tuer.
+# btop (alt+b) sait aussi tuer, mais c'est un moniteur : on y arrive pour
+# regarder. pk fait l'inverse — on y arrive pour agir, et la recherche
+# floue porte sur le nom ET la ligne de commande complete.
+[[keys.command]]
+key = "prefix+alt+k"
+type = "popup"
+command = "pk"
+width = "92%"
+height = "88%"
+
+# alt+e = edit — renommer ou supprimer un space / une session.
+# Chemin garanti : un popup a un vrai terminal, donc fzf et gum y sont
+# chez eux. Les memes actions existent dans le navigator (prefix+w,
+# Ctrl-N) ; la, elles s'executent dans le pane du picker.
+[[keys.command]]
+key = "prefix+alt+e"
+type = "popup"
+command = "herdr-manage"
+width = "70%"
+height = "60%"
+
+# alt+f = floating — un shell d'appoint qui flotte au-dessus du travail,
+# un par space, et qui garde son etat entre deux ouvertures. C'est le
+# geste « j'ai une commande a taper » sans casser la disposition en cours.
+[[keys.command]]
+key = "prefix+alt+f"
+type = "plugin_action"
+command = "herdr-floax.toggle"
+description = "shell flottant (floax)"
+
+# alt+m = markdown — parcourir ~/.config/docs en Markdown rendu.
+# `mdv` est le wrapper autour de glow : dans glow 3.0.0 le fichier de
+# config et GLAMOUR_STYLE sont ignores, seul le drapeau -s l'est.
+[[keys.command]]
+key = "prefix+alt+m"
+type = "popup"
+command = "mdv ~/.config/docs"
+width = "88%"
+height = "86%"
+
+# ── Actions de plugins ────────────────────────────────────────
+
+# vim-herdr-navigation : alt+h/j/k/l traverse panes herdr ET splits nvim.
+# PAS ctrl+h/j/k/l : herdr capte ces touches SANS prefix, donc
+#   ctrl+l n'atteignait plus le shell (clear-screen)
+#   ctrl+h n'atteignait plus tmux (mode HELP) — et c'est aussi backspace
+[[keys.command]]
+key = "alt+h"
+type = "plugin_action"
+command = "vim-herdr-navigation.left"
+description = "navigate left (vim/herdr)"
+
+[[keys.command]]
+key = "alt+j"
+type = "plugin_action"
+command = "vim-herdr-navigation.down"
+description = "navigate down (vim/herdr)"
+
+[[keys.command]]
+key = "alt+k"
+type = "plugin_action"
+command = "vim-herdr-navigation.up"
+description = "navigate up (vim/herdr)"
+
+[[keys.command]]
+key = "alt+l"
+type = "plugin_action"
+command = "vim-herdr-navigation.right"
+description = "navigate right (vim/herdr)"
+
+# a = actions — palette fzf de TOUT ce qui est bindable
+[[keys.command]]
+key = "prefix+a"
+type = "plugin_action"
+command = "jt.command-palette.open"
+description = "command palette"
+
+# f = files — explorateur git-aware en split
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer"
+description = "file viewer (split)"
+
+# d = diff — review du travail de l'agent
+[[keys.command]]
+key = "prefix+d"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"
+description = "reviewr (toggle)"
+
+# w = where — le navigator, jump fuzzy vers space / agent / projet / session.
+# C'est le point d'entree universel : quand on ne sait pas ou est la chose, w.
+# (prefix+i sert au focus pane vers le HAUT comme AeroSpace ; goto est passe
+#  sur prefix+shift+w.)
+[[keys.command]]
+key = "prefix+w"
+type = "plugin_action"
+command = "herdr-navigator.open"
+description = "navigator"
+
+# alt+w = le meme, en pane lateral au lieu du plein ecran
+[[keys.command]]
+key = "prefix+alt+w"
+type = "plugin_action"
+command = "herdr-navigator.open-side"
+description = "navigator (pane lateral)"
+
+# alt+i = revenir d'ou l'on vient apres un saut du navigator
+[[keys.command]]
+key = "prefix+alt+i"
+type = "plugin_action"
+command = "herdr-navigator.jump-back"
+description = "navigator: revenir en arriere"
+
+# m = memex — recherche dans les transcripts d'agents
+[[keys.command]]
+key = "prefix+m"
+type = "plugin_action"
+command = "nicosuave.memex.palette"
+description = "memex (sessions)"
+
+# t / u = termscope — ouvrir un fichier / un lien visible à l'écran
+[[keys.command]]
+key = "prefix+t"
+type = "plugin_action"
+command = "termscope.open"
+description = "termscope: fichiers visibles"
+
+[[keys.command]]
+key = "prefix+u"
+type = "plugin_action"
+command = "termscope.open-links"
+description = "termscope: liens visibles"
+
+# h = home — le space hors-projet : depots, systeme, fichiers, mises a jour.
+# Template : projects/00-quotidien.toml.
+#
+# Passe par herdr-open-project et non par `herdr-plus open` directement :
+# ce dernier cree TOUJOURS un nouveau space (workspaceCreate), donc appuyer
+# deux fois donnait deux "quotidien". Le script focalise l'existant.
+#
+# Chemin absolu : un binding `type = "shell"` tourne detache et n'herite pas
+# forcement du PATH du shell de login.
+[[keys.command]]
+key = "prefix+h"
+type = "shell"
+command = "/Users/youcef/.config/workflow-tools/herdr-open-project quotidien"
+description = "space quotidien (hors projet)"
+
+# p = projects — monte tout le workspace d'un projet (tabs + commandes).
+# prefix+p etait libre : le defaut herdr y mettait `previous_tab`, deplace
+# sur prefix+, plus haut. La lettre colle au mot, et c'est un accord de moins
+# que l'ancien prefix+alt+o.
+#
+# Deux chemins vers les projets, volontairement :
+#   prefix+p         picker dedie, groupe par `group` (python / node / systeme)
+#   prefix+w Ctrl+P  filtre `project` dans le navigator, a cote des spaces
+[[keys.command]]
+key = "prefix+p"
+type = "plugin_action"
+command = "cloudmanic.herdr-plus.projects"
+description = "herdr-plus: projects"
+
+# alt+a = quick Actions — lanceur flou, dans le repertoire courant
+[[keys.command]]
+key = "prefix+alt+a"
+type = "plugin_action"
+command = "cloudmanic.herdr-plus.quick-actions"
+description = "herdr-plus: quick actions"
+
+# ══════════════════════════════════════════════════════════════════════
+#  Plugins ajoutes le 2026-08-20
+#  Schema mnemonique : la lettre = le mot. Majuscule = variante/gestion.
+# ══════════════════════════════════════════════════════════════════════
+
+# alt+v = lazygit en pane lateral (v comme « version control »).
+# prefix+g = goto, prefix+shift+g = new_worktree : intouchables.
+# prefix+alt+g reste ton popup lazygit existant.
+[[keys.command]]
+key = "prefix+alt+v"
+type = "plugin_action"
+command = "herdr-lazygit.open"
+description = "lazygit (pane)"
+
+# alt+z = zoxide (prefix+z est `zoom` chez herdr)
+[[keys.command]]
+key = "prefix+alt+z"
+type = "plugin_action"
+command = "herdr-zoxide.browse"
+description = "zoxide -> workspace"
+
+# y = yazi — explorateur de fichiers
+[[keys.command]]
+key = "prefix+y"
+type = "plugin_action"
+command = "ray.file-explorer.open"
+description = "yazi (explorateur)"
+
+# alt+u = usage — jauges de contexte et limites de taux des agents
+[[keys.command]]
+key = "prefix+alt+u"
+type = "plugin_action"
+command = "usagebar.open-limits"
+description = "usage & limites des agents"
+
+# alt+t = tokens — depense en direct (prefix+shift+t = rename_tab chez herdr)
+[[keys.command]]
+key = "prefix+alt+t"
+type = "plugin_action"
+command = "dave.token-dashboard.open-dashboard"
+description = "dashboard tokens"
+
+# alt+l = llmtrim (prefix+shift+l est deja next_workspace)
+[[keys.command]]
+key = "prefix+alt+l"
+type = "plugin_action"
+command = "llmtrim.proxy.summary"
+description = "llmtrim (economie de contexte)"
+
+# alt+p = plugins (prefix+shift+p est rename_pane chez herdr)
+[[keys.command]]
+key = "prefix+alt+p"
+type = "plugin_action"
+command = "ray.plugin-manager.open"
+description = "gestionnaire de plugins"
+
+# alt+r = retry (prefix+r est resize_mode chez herdr)
+[[keys.command]]
+key = "prefix+alt+r"
+type = "plugin_action"
+command = "claude-auto-retry.status"
+description = "claude auto-retry (statut)"
+
+[experimental]
+kitty_graphics = false               # Alacritty n'implemente PAS le protocole graphique
+                                     # kitty (Ghostty oui). A repasser a true si tu
+                                     # reviens sur Ghostty/kitty.
+
+[advanced]
+scrollback_limit_bytes = 10000000

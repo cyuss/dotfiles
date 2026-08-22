@@ -1,0 +1,6 @@
+name = "Chercher sur DevDocs"
+type = "form"
+command = "open 'https://devdocs.io/#q={{.Value | urlquery}}'"
+
+[form]
+prompt = "DevDocs"

@@ -1,0 +1,2 @@
+name = "GitHub: ouvrir le repo courant"
+command = "gh repo view --web 2>/dev/null || echo 'pas un repo GitHub'"
