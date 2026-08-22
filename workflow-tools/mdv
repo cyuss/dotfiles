@@ -7,6 +7,10 @@
 #   mdv ~/.config/docs    parcourt un dossier
 #   cat x.md | mdv        depuis un tuyau
 #   mdv -w 120 f.md       forcer une largeur
+#   mdv -b fichier.md     NAVIGUER : sommaire lateral, liens cliquables,
+#                         historique, signets  (frogmouth)
+#   mdv -l fichier.md     APERCU VIF : re-rend a chaque sauvegarde
+#                         (watchexec) — l'ecran d'a cote pendant qu'on ecrit
 #
 # Nomme `mdv' et pas `md' : `md' est deja un alias vers `mkdir -p' dans
 # ~/.config/zsh/aliases.zsh, et c'est un reflexe qu'on ne remplace pas.
@@ -16,6 +20,12 @@
 # IGNORES — verifie, la largeur et le style declares n'ont aucun effet.
 # Seul le drapeau `-s' est honore. Ce script porte donc le theme, et en
 # profite pour adapter la largeur a la fenetre.
+#
+# IMAGES : impossible ici, et ce n'est pas glow. Alacritty (0.16.1) n'a
+# aucun protocole graphique — ni sixel, ni le protocole kitty. Les
+# visionneuses qui affichent des images en terminal (mdcat, timg, chafa
+# en mode pixel) ont toutes besoin de l'un des deux. Rien a configurer
+# tant qu'on reste sur Alacritty ; kitty ou WezTerm le permettraient.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -28,14 +38,38 @@ cols=$(tput cols 2>/dev/null || echo 100)
 WIDTH=$(( cols - 6 )); [[ $WIDTH -gt 100 ]] && WIDTH=100
 [[ $WIDTH -lt 40 ]] && WIDTH=40
 
-args=()
+args=(); MODE=render
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -w|--width) WIDTH="$2"; shift 2 ;;
-    -h|--help)  sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *)          args+=("$1"); shift ;;
+    -w|--width)  WIDTH="$2"; shift 2 ;;
+    -b|--browse) MODE=browse; shift ;;
+    -l|--live)   MODE=live;   shift ;;
+    -h|--help)   sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *)           args+=("$1"); shift ;;
   esac
 done
+
+# ── Mode navigation : frogmouth ─────────────────────────────────────
+# Ce que glow ne sait pas faire : un sommaire lateral, des liens qu'on
+# suit, un historique avant/arriere et des signets. Pour un dossier de
+# documentation qu'on PARCOURT plutot qu'on lit d'un trait.
+#   t  sommaire   /  recherche   ,/.  historique   b  signets   q  quitter
+if [[ $MODE == browse ]]; then
+  command -v frogmouth >/dev/null 2>&1 || {
+    echo "mdv: frogmouth absent — uv tool install frogmouth" >&2; exit 1; }
+  exec frogmouth "${args[@]}"
+fi
+
+# ── Mode apercu vif : re-rend a chaque sauvegarde ───────────────────
+# On surveille le FICHIER, pas le dossier : sinon chaque fichier
+# temporaire d'Emacs (#truc.md#, .#truc.md) declencherait un re-rendu.
+if [[ $MODE == live ]]; then
+  command -v watchexec >/dev/null 2>&1 || {
+    echo "mdv: watchexec absent — brew install watchexec" >&2; exit 1; }
+  [[ ${#args[@]} -eq 0 ]] && { echo "mdv -l : indique un fichier" >&2; exit 1; }
+  exec watchexec --clear --no-vcs-ignore --watch "${args[0]}" -- \
+       glow -s "$STYLE" -w "$WIDTH" "${args[0]}"
+fi
 
 # Depuis un tuyau : glow lit stdin avec `-`.
 if [[ ! -t 0 && ${#args[@]} -eq 0 ]]; then
