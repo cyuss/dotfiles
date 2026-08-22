@@ -1,0 +1,107 @@
+# ══════════════════════════════════════════════════════════════
+#  ~/.config — on versionne la CONFIGURATION, pas les caches,
+#  les binaires, les etats runtime ni les secrets.
+# ══════════════════════════════════════════════════════════════
+
+# ── Tout ignorer par defaut, puis reautoriser explicitement ──
+# C'est le seul modele sur pour un dossier ou des outils tiers
+# ecrivent en permanence : un nouvel outil n'est jamais commite
+# par accident (il pourrait contenir un token).
+*
+!.gitignore
+!README.md
+!install.sh
+
+# ── Configs suivies ──
+!alacritty/
+!alacritty/**
+!aerospace/
+!aerospace/**
+!opencode/
+!opencode/**
+!doom/
+!doom/**
+!nvim/
+!nvim/**
+!herdr/
+!herdr/**
+!tmux/
+!tmux/**
+!workflow-tools/
+!workflow-tools/**
+!lazygit/
+!lazygit/**
+!btop/
+!btop/**
+!git/
+!git/**
+!broot/
+!broot/**
+!zsh/
+!zsh/**
+!docs/
+!docs/**
+!navi/
+!navi/**
+!yazi/
+!yazi/**
+!bat/
+!bat/**
+
+# ── Exclusions a l'interieur des dossiers suivis ──
+# Secrets & etat runtime
+**/auth.json
+**/*.key
+**/*.pem
+**/*token*
+**/*secret*
+**/.env
+**/.env.*
+
+# Sockets, logs, bases, caches
+**/*.sock
+**/*.log
+**/*.db
+**/*.db-*
+**/node_modules/
+**/.local/
+**/cache/
+**/.cache/
+**/plugins/github/
+**/plugins.json
+**/.plugins.lock
+**/session.json
+
+# ── Donnees personnelles ─────────────────────────────────────────
+# Identite (nom, e-mail) : le depot est public. Modele versionne a cote.
+doom/private.el
+
+# Fichiers de projets herdr : GENERES par `herdr-sync-projects', ils
+# listent le nom, le chemin absolu et le dernier message de commit de
+# chaque depot local — donc la liste complete des projets prives. Ils se
+# regenerent tout seuls, il n'y a rien a versionner.
+herdr/plugins/config/cloudmanic.herdr-plus/projects/
+
+# Etat runtime des plugins herdr. `jump-back-workspace' change a CHAQUE
+# navigation : le versionner rendrait le depot sale en permanence.
+herdr/plugins/config/usagebar/update-check-state.json
+herdr/plugins/config/**/state.json
+herdr/plugins/config/herdr-navigator/jump-back-workspace
+herdr/plugins/config/herdr-navigator/pinned-entries.json
+herdr/plugins/config/herdr-lazy/bootstrapped
+herdr/release-notes.json
+
+# Doom : tout ce qui est genere
+doom/backup/
+doom/.local/
+nvim/lazy-lock.json.bak
+
+# docs : les PDF sont des ARTEFACTS (4,6 Mo), regenerables par docs/src/build
+docs/*.pdf
+
+# zsh : cache genere par antidote a partir de .zsh_plugins.txt
+zsh/.zsh_plugins.zsh
+zsh/.zcompdump*
+
+# macOS
+.DS_Store
