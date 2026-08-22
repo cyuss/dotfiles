@@ -1,0 +1,229 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8><title>Naviguer &amp; coder</title><style>
+@page { size: A4; margin: 16mm 14mm 16mm 14mm; }
+@page :first { margin: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  margin: 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 8.6pt;
+  line-height: 1.45;
+  color: #14171c;
+  background: #ffffff;
+}
+
+/* ---------- palette ---------- */
+:root {
+  --ink:      #14171c;
+  --ink-2:    #454c59;
+  --ink-3:    #7d8494;
+  --rule:     #dfe2e8;
+  --rule-2:   #eef0f4;
+  --graphite: #101216;
+  --amber:    #a9702a;
+  --amber-lt: #fdf5e9;
+  --teal:     #3d7d80;
+  --blue:     #4a6f9c;
+  --plum:     #79619b;
+  --moss:     #4f7a46;
+  --brick:    #a34e50;
+}
+
+/* ---------- couverture ---------- */
+.cover {
+  background: var(--graphite);
+  color: #d6dae1;
+  height: 297mm; width: 210mm;
+  padding: 30mm 22mm 20mm;
+  display: flex; flex-direction: column;
+  page-break-after: always;
+}
+.cover .eyebrow {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 8pt; letter-spacing: .28em; text-transform: uppercase;
+  color: #e3b778;
+}
+.cover h1 {
+  font-size: 46pt; line-height: 1.02; margin: 7mm 0 0; font-weight: 700;
+  letter-spacing: -.025em; color: #eef1f6;
+}
+.cover .sub {
+  font-size: 13pt; line-height: 1.45; color: #a9aeb9;
+  margin: 6mm 0 0; max-width: 128mm; font-weight: 300;
+}
+.cover .hr { height: 2px; background: #e3b778; width: 26mm; margin: 9mm 0 0; }
+.cover .spacer { flex: 1; }
+.cover .stats { display: flex; gap: 14mm; margin: 14mm 0 0; }
+.cover .stats > div { display: flex; flex-direction: column; gap: 1.5mm; }
+.cover .stats .fig {
+  font-size: 20pt; font-weight: 300; color: #eef1f6; letter-spacing: -.02em;
+  line-height: 1;
+}
+.cover .stats .lab {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 6.6pt; letter-spacing: .16em; text-transform: uppercase; color: #5b6272;
+}
+.cover .toc { column-count: 2; column-gap: 12mm; margin-bottom: 12mm; }
+.cover .toc div {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 8pt; color: #a9aeb9; padding: 1.1mm 0;
+  break-inside: avoid; border-bottom: 1px solid #22262e;
+}
+.cover .toc div b { color: #e3b778; font-weight: 500; margin-right: 3mm; }
+.cover .meta {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7.4pt; color: #5b6272; border-top: 1px solid #2b303b; padding-top: 4mm;
+  display: flex; justify-content: space-between;
+}
+
+/* ---------- titres ---------- */
+h2 {
+  font-size: 15pt; letter-spacing: -.02em; margin: 0 0 3mm;
+  padding-bottom: 2mm; border-bottom: 2px solid var(--graphite);
+  display: flex; align-items: baseline; gap: 4mm; break-after: avoid;
+}
+h2 .num {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 9pt; color: var(--amber); font-weight: 700;
+}
+h3 {
+  font-size: 10pt; margin: 6mm 0 2.2mm; letter-spacing: -.01em;
+  color: var(--graphite); break-after: avoid;
+}
+h3::before {
+  content: ""; display: inline-block; width: 2.4mm; height: 2.4mm;
+  background: var(--amber); margin-right: 2.4mm; border-radius: 1px;
+}
+h4 {
+  font-size: 8.6pt; margin: 4mm 0 1.6mm; color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: .1em; break-after: avoid;
+}
+section { break-before: page; }
+section.cont { break-before: auto; }
+p { margin: 0 0 2.4mm; }
+p.lede { color: var(--ink-2); font-size: 9pt; margin-bottom: 4mm; max-width: 165mm; }
+.dash { color: var(--ink-3); }
+b, strong { font-weight: 600; }
+a { color: var(--blue); text-decoration: none; }
+
+/* ---------- touches ---------- */
+kbd {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7.4pt; line-height: 1;
+  border: 1px solid var(--rule); border-bottom-width: 2px;
+  border-radius: 3px; padding: 1.1mm 1.5mm; background: #f7f8fa;
+  color: var(--graphite); white-space: nowrap; font-weight: 500;
+}
+.or { color: var(--ink-3); font-size: 7pt; padding: 0 .6mm; }
+code, .mono {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7.6pt; background: #f4f5f8; padding: .3mm 1.1mm;
+  border-radius: 2px; color: #2a2f38;
+}
+
+/* ---------- tables ---------- */
+table { width: 100%; border-collapse: collapse; margin: 0 0 3.5mm; }
+table.tight { font-size: 8pt; }
+th {
+  text-align: left; font-size: 6.9pt; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ink-3); font-weight: 600;
+  padding: 0 2mm 1.4mm 0; border-bottom: 1px solid var(--graphite);
+}
+td {
+  padding: 1.5mm 2mm 1.5mm 0; border-bottom: 1px solid var(--rule-2);
+  vertical-align: top;
+}
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+tbody tr:last-child { break-before: avoid; }
+tbody tr:nth-last-child(2) { break-after: avoid; }
+td.k { white-space: nowrap; width: 1%; }
+td.c { font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace; font-size: 7.5pt; white-space: nowrap; }
+td.d { color: var(--ink-2); }
+td.n { color: var(--ink-3); font-size: 7.6pt; }
+
+/* ---------- colonnes ---------- */
+.cols2 { column-count: 2; column-gap: 8mm; }
+.cols2 > * { break-inside: avoid; }
+.cols3 { column-count: 3; column-gap: 6mm; }
+
+/* ---------- cartes ---------- */
+.card {
+  border: 1px solid var(--rule); border-left: 3px solid var(--amber);
+  border-radius: 3px; padding: 3mm 3.5mm; margin: 0 0 3mm;
+  break-inside: avoid; background: #fdfdfe;
+}
+.card h5 {
+  margin: 0 0 1.2mm; font-size: 9.4pt; letter-spacing: -.01em;
+  display: flex; align-items: baseline; gap: 3mm; justify-content: space-between;
+}
+.card h5 .key { font-weight: 400; }
+.card .role { color: var(--ink-2); margin: 0 0 2mm; font-size: 8.2pt; }
+.card table { margin: 1.5mm 0 0; }
+.card td { padding: .9mm 2mm .9mm 0; border-bottom: 1px solid var(--rule-2); }
+.card table tr:last-child td { border-bottom: none; }
+.card .tag {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 6.6pt; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--ink-3); border: 1px solid var(--rule); border-radius: 2px;
+  padding: .5mm 1.4mm; white-space: nowrap;
+}
+
+/* ---------- encarts ---------- */
+.note, .warn, .tip {
+  border-radius: 3px; padding: 2.6mm 3.2mm; margin: 0 0 3.5mm;
+  font-size: 8.2pt; break-inside: avoid; border: 1px solid var(--rule);
+}
+.note { background: #f7f8fa; border-left: 3px solid var(--ink-3); }
+.warn { background: #fdf3f3; border-left: 3px solid var(--brick); border-color: #f0dcdc; }
+.tip  { background: var(--amber-lt); border-left: 3px solid var(--amber); border-color: #f2e5d0; }
+.note .lbl, .warn .lbl, .tip .lbl {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 6.8pt; text-transform: uppercase; letter-spacing: .14em;
+  display: block; margin-bottom: 1.1mm; font-weight: 700;
+}
+.note .lbl { color: var(--ink-3); }
+.warn .lbl { color: var(--brick); }
+.tip  .lbl { color: var(--amber); }
+
+/* ---------- code ---------- */
+pre {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7.3pt; line-height: 1.5; background: #f7f8fa;
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 2.6mm 3mm; margin: 0 0 3.5mm; overflow: hidden;
+  white-space: pre-wrap; break-inside: avoid; color: #2a2f38;
+}
+pre .c { color: #8b93a3; }
+pre .s { color: var(--moss); }
+pre .k { color: var(--plum); }
+
+/* ---------- flux / recettes ---------- */
+ol.steps { margin: 0 0 3.5mm; padding-left: 0; list-style: none; counter-reset: s; }
+ol.steps li {
+  counter-increment: s; padding: 0 0 2.4mm 8mm; position: relative; break-inside: avoid;
+}
+ol.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: -.2mm;
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7pt; font-weight: 700; color: #fff; background: var(--graphite);
+  width: 4.6mm; height: 4.6mm; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+ul.plain { margin: 0 0 3mm; padding-left: 4mm; }
+ul.plain li { margin-bottom: 1.2mm; }
+
+/* ---------- index compact ---------- */
+.idx { column-count: 3; column-gap: 6mm; font-size: 7.6pt; }
+.idx .row {
+  break-inside: avoid; display: flex; gap: 2mm; align-items: baseline;
+  padding: .9mm 0; border-bottom: 1px solid var(--rule-2);
+}
+.idx .row .kk {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7pt; color: var(--graphite); font-weight: 600; white-space: nowrap;
+  min-width: 22mm;
+}
+.idx .row .vv { color: var(--ink-2); }
+.idx h4 { column-span: all; margin-top: 3mm; }
+</style></head><body><div class="cover"><div class="eyebrow">Étude de poste</div><h1>Naviguer & coder</h1><div class="hr"></div><div class="sub">Ce que 28 dépôts et 328 commits disent de ta façon de travailler,<br>et ce qu'on peut en faire.</div><div class="stats"><div><span class="fig">328</span><span class="lab">commits analysés</span></div><div><span class="fig">93 %</span><span class="lab">conventional</span></div><div><span class="fig">35 %</span><span class="lab">dépôts testés</span></div><div><span class="fig">3 %</span><span class="lab">avec pre-commit</span></div></div><div class="spacer"></div><div class="toc"><div><b>01</b>Ce que disent tes dépôts</div><div><b>02</b>Naviguer, échelle par échelle</div><div><b>03</b>Mises en situation</div><div><b>04</b>La boucle de dev</div><div><b>05</b>Ce que je propose</div><div><b>06</b>Outils</div><div><b>07</b>Index</div></div><div class="meta"><span>youcef · analyse du 21 août 2026</span><span>Doom Emacs · herdr · opencode</span></div></div></body></html>

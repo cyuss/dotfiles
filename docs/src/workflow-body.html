@@ -1,0 +1,274 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8><title>Naviguer &amp; coder</title><style>
+@page { size: A4; margin: 16mm 14mm 16mm 14mm; }
+@page :first { margin: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  margin: 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 8.6pt;
+  line-height: 1.45;
+  color: #14171c;
+  background: #ffffff;
+}
+
+/* ---------- palette ---------- */
+:root {
+  --ink:      #14171c;
+  --ink-2:    #454c59;
+  --ink-3:    #7d8494;
+  --rule:     #dfe2e8;
+  --rule-2:   #eef0f4;
+  --graphite: #101216;
+  --amber:    #a9702a;
+  --amber-lt: #fdf5e9;
+  --teal:     #3d7d80;
+  --blue:     #4a6f9c;
+  --plum:     #79619b;
+  --moss:     #4f7a46;
+  --brick:    #a34e50;
+}
+
+/* ---------- couverture ---------- */
+.cover {
+  background: var(--graphite);
+  color: #d6dae1;
+  height: 297mm; width: 210mm;
+  padding: 30mm 22mm 20mm;
+  display: flex; flex-direction: column;
+  page-break-after: always;
+}
+.cover .eyebrow {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 8pt; letter-spacing: .28em; text-transform: uppercase;
+  color: #e3b778;
+}
+.cover h1 {
+  font-size: 46pt; line-height: 1.02; margin: 7mm 0 0; font-weight: 700;
+  letter-spacing: -.025em; color: #eef1f6;
+}
+.cover .sub {
+  font-size: 13pt; line-height: 1.45; color: #a9aeb9;
+  margin: 6mm 0 0; max-width: 128mm; font-weight: 300;
+}
+.cover .hr { height: 2px; background: #e3b778; width: 26mm; margin: 9mm 0 0; }
+.cover .spacer { flex: 1; }
+.cover .stats { display: flex; gap: 14mm; margin: 14mm 0 0; }
+.cover .stats > div { display: flex; flex-direction: column; gap: 1.5mm; }
+.cover .stats .fig {
+  font-size: 20pt; font-weight: 300; color: #eef1f6; letter-spacing: -.02em;
+  line-height: 1;
+}
+.cover .stats .lab {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 6.6pt; letter-spacing: .16em; text-transform: uppercase; color: #5b6272;
+}
+.cover .toc { column-count: 2; column-gap: 12mm; margin-bottom: 12mm; }
+.cover .toc div {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 8pt; color: #a9aeb9; padding: 1.1mm 0;
+  break-inside: avoid; border-bottom: 1px solid #22262e;
+}
+.cover .toc div b { color: #e3b778; font-weight: 500; margin-right: 3mm; }
+.cover .meta {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7.4pt; color: #5b6272; border-top: 1px solid #2b303b; padding-top: 4mm;
+  display: flex; justify-content: space-between;
+}
+
+/* ---------- titres ---------- */
+h2 {
+  font-size: 15pt; letter-spacing: -.02em; margin: 0 0 3mm;
+  padding-bottom: 2mm; border-bottom: 2px solid var(--graphite);
+  display: flex; align-items: baseline; gap: 4mm; break-after: avoid;
+}
+h2 .num {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 9pt; color: var(--amber); font-weight: 700;
+}
+h3 {
+  font-size: 10pt; margin: 6mm 0 2.2mm; letter-spacing: -.01em;
+  color: var(--graphite); break-after: avoid;
+}
+h3::before {
+  content: ""; display: inline-block; width: 2.4mm; height: 2.4mm;
+  background: var(--amber); margin-right: 2.4mm; border-radius: 1px;
+}
+h4 {
+  font-size: 8.6pt; margin: 4mm 0 1.6mm; color: var(--ink-2);
+  text-transform: uppercase; letter-spacing: .1em; break-after: avoid;
+}
+section { break-before: page; }
+section.cont { break-before: auto; }
+p { margin: 0 0 2.4mm; }
+p.lede { color: var(--ink-2); font-size: 9pt; margin-bottom: 4mm; max-width: 165mm; }
+.dash { color: var(--ink-3); }
+b, strong { font-weight: 600; }
+a { color: var(--blue); text-decoration: none; }
+
+/* ---------- touches ---------- */
+kbd {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7.4pt; line-height: 1;
+  border: 1px solid var(--rule); border-bottom-width: 2px;
+  border-radius: 3px; padding: 1.1mm 1.5mm; background: #f7f8fa;
+  color: var(--graphite); white-space: nowrap; font-weight: 500;
+}
+.or { color: var(--ink-3); font-size: 7pt; padding: 0 .6mm; }
+code, .mono {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7.6pt; background: #f4f5f8; padding: .3mm 1.1mm;
+  border-radius: 2px; color: #2a2f38;
+}
+
+/* ---------- tables ---------- */
+table { width: 100%; border-collapse: collapse; margin: 0 0 3.5mm; }
+table.tight { font-size: 8pt; }
+th {
+  text-align: left; font-size: 6.9pt; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ink-3); font-weight: 600;
+  padding: 0 2mm 1.4mm 0; border-bottom: 1px solid var(--graphite);
+}
+td {
+  padding: 1.5mm 2mm 1.5mm 0; border-bottom: 1px solid var(--rule-2);
+  vertical-align: top;
+}
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+tbody tr:last-child { break-before: avoid; }
+tbody tr:nth-last-child(2) { break-after: avoid; }
+td.k { white-space: nowrap; width: 1%; }
+td.c { font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace; font-size: 7.5pt; white-space: nowrap; }
+td.d { color: var(--ink-2); }
+td.n { color: var(--ink-3); font-size: 7.6pt; }
+
+/* ---------- colonnes ---------- */
+.cols2 { column-count: 2; column-gap: 8mm; }
+.cols2 > * { break-inside: avoid; }
+.cols3 { column-count: 3; column-gap: 6mm; }
+
+/* ---------- cartes ---------- */
+.card {
+  border: 1px solid var(--rule); border-left: 3px solid var(--amber);
+  border-radius: 3px; padding: 3mm 3.5mm; margin: 0 0 3mm;
+  break-inside: avoid; background: #fdfdfe;
+}
+.card h5 {
+  margin: 0 0 1.2mm; font-size: 9.4pt; letter-spacing: -.01em;
+  display: flex; align-items: baseline; gap: 3mm; justify-content: space-between;
+}
+.card h5 .key { font-weight: 400; }
+.card .role { color: var(--ink-2); margin: 0 0 2mm; font-size: 8.2pt; }
+.card table { margin: 1.5mm 0 0; }
+.card td { padding: .9mm 2mm .9mm 0; border-bottom: 1px solid var(--rule-2); }
+.card table tr:last-child td { border-bottom: none; }
+.card .tag {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 6.6pt; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--ink-3); border: 1px solid var(--rule); border-radius: 2px;
+  padding: .5mm 1.4mm; white-space: nowrap;
+}
+
+/* ---------- encarts ---------- */
+.note, .warn, .tip {
+  border-radius: 3px; padding: 2.6mm 3.2mm; margin: 0 0 3.5mm;
+  font-size: 8.2pt; break-inside: avoid; border: 1px solid var(--rule);
+}
+.note { background: #f7f8fa; border-left: 3px solid var(--ink-3); }
+.warn { background: #fdf3f3; border-left: 3px solid var(--brick); border-color: #f0dcdc; }
+.tip  { background: var(--amber-lt); border-left: 3px solid var(--amber); border-color: #f2e5d0; }
+.note .lbl, .warn .lbl, .tip .lbl {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 6.8pt; text-transform: uppercase; letter-spacing: .14em;
+  display: block; margin-bottom: 1.1mm; font-weight: 700;
+}
+.note .lbl { color: var(--ink-3); }
+.warn .lbl { color: var(--brick); }
+.tip  .lbl { color: var(--amber); }
+
+/* ---------- code ---------- */
+pre {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7.3pt; line-height: 1.5; background: #f7f8fa;
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 2.6mm 3mm; margin: 0 0 3.5mm; overflow: hidden;
+  white-space: pre-wrap; break-inside: avoid; color: #2a2f38;
+}
+pre .c { color: #8b93a3; }
+pre .s { color: var(--moss); }
+pre .k { color: var(--plum); }
+
+/* ---------- flux / recettes ---------- */
+ol.steps { margin: 0 0 3.5mm; padding-left: 0; list-style: none; counter-reset: s; }
+ol.steps li {
+  counter-increment: s; padding: 0 0 2.4mm 8mm; position: relative; break-inside: avoid;
+}
+ol.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: -.2mm;
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7pt; font-weight: 700; color: #fff; background: var(--graphite);
+  width: 4.6mm; height: 4.6mm; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+ul.plain { margin: 0 0 3mm; padding-left: 4mm; }
+ul.plain li { margin-bottom: 1.2mm; }
+
+/* ---------- index compact ---------- */
+.idx { column-count: 3; column-gap: 6mm; font-size: 7.6pt; }
+.idx .row {
+  break-inside: avoid; display: flex; gap: 2mm; align-items: baseline;
+  padding: .9mm 0; border-bottom: 1px solid var(--rule-2);
+}
+.idx .row .kk {
+  font-family: "JetBrainsMono Nerd Font", ui-monospace, Menlo, monospace;
+  font-size: 7pt; color: var(--graphite); font-weight: 600; white-space: nowrap;
+  min-width: 22mm;
+}
+.idx .row .vv { color: var(--ink-2); }
+.idx h4 { column-span: all; margin-top: 3mm; }
+</style></head><body><section class="cont"><h2><span class="num">01</span>Ce que disent tes dépôts</h2>
+<p class=lede>Ce qui suit n'est pas une impression : ce sont tes 28 dépôts,
+tes 328 commits signés de ta main, et l'état de ton disque au moment
+d'écrire ces lignes.</p>
+
+<h3>Le rythme</h3>
+<table class=""><thead><tr><th>Mesure</th><th>Valeur</th><th>Lecture</th></tr></thead><tbody><tr><td class="d">Commits à toi</td><td class="c"><b>328</b>, sur 48 jours distincts</td><td class="d">Tu travailles par sessions denses, pas en filet continu</td></tr><tr><td class="d">Répartition</td><td class="c">270 en 2026, 28 en 2023, le reste avant</td><td class="d"><b>2026 est ton année</b> — 82 % de ton historique</td></tr><tr><td class="d">Conventional commits</td><td class="c"><b>93 %</b></td><td class="d">Discipline réelle et rare. Rien à corriger ici</td></tr><tr><td class="d">Longueur médiane du sujet</td><td class="c">59 caractères</td><td class="d">Sous la limite de 72. Rien à corriger non plus</td></tr><tr><td class="d">Préfixes dominants</td><td class="c"><code>config</code> 31 · <code>fix</code> 24 · <code>feat</code> 23 · <code>docs</code> 20</td><td class="d">Un tiers de ton activité est de l'outillage</td></tr></tbody></table>
+<h3>La taille des changements</h3>
+<table class=""><thead><tr><th>Mesure</th><th>Valeur</th><th>Lecture</th></tr></thead><tbody><tr><td class="d">Lignes ajoutées, médiane</td><td class="c"><b>72</b></td><td class="d">La moitié de tes commits sont petits et lisibles</td></tr><tr><td class="d">Lignes ajoutées, p90</td><td class="c"><b>1 613</b></td><td class="d">Mais la queue est longue</td></tr><tr><td class="d">Commits de plus de 300 lignes</td><td class="c"><b>55 sur 196</b> (28 %)</td><td class="d">Un commit sur quatre est irrelisible en relecture</td></tr><tr><td class="d">Dépôts non commités <i>maintenant</i></td><td class="c"><b>15 sur 28</b></td><td class="d">Le travail stationne avant d'atterrir en bloc</td></tr></tbody></table><div class="note"><span class="lbl">Ces deux chiffres racontent la même chose</span>Un p90 à 1 613 lignes et 15 dépôts sales au même instant ne sont pas deux problèmes : c'est le même. Le travail reste dans l'arbre de travail, s'accumule, puis part en un seul commit. La section 06 propose le seul outil qui attaque ça sans rien changer à tes habitudes.</div>
+
+<h3>L'équipement</h3>
+<table class=""><thead><tr><th>Pratique</th><th>Couverture</th><th>Lecture</th></tr></thead><tbody><tr><td class="d">Makefile ou justfile</td><td class="c"><b>15 / 28</b> (53 %)</td><td class="d">Bonne habitude — tu normalises tes commandes</td></tr><tr><td class="d">README</td><td class="c">21 / 28 (75 %)</td><td class="d"></td></tr><tr><td class="d">Tests présents</td><td class="c"><b>10 / 28</b> (35 %)</td><td class="d">Et le détail ci-dessous est plus dur</td></tr><tr><td class="d">Intégration continue</td><td class="c">8 / 28 (28 %)</td><td class="d"></td></tr><tr><td class="d"><code>ruff</code> configuré</td><td class="c">9 / 28 (32 %)</td><td class="d">Alors que ruff est installé sur la machine</td></tr><tr><td class="d"><code>mypy</code> configuré</td><td class="c">9 / 28 (32 %)</td><td class="d"></td></tr><tr><td class="d"><code>pre-commit</code></td><td class="c"><b>1 / 28</b> (3 %)</td><td class="d">Le trou le plus large, et le moins cher à combler</td></tr></tbody></table>
+<h3>Les tests, dépôt par dépôt</h3>
+<table class=""><thead><tr><th>Dépôt</th><th>Fichiers source</th><th>Fichiers de test</th></tr></thead><tbody><tr><td class="c"><code>stats_hdj</code></td><td class="c">26</td><td class="c"><b>0</b></td></tr><tr><td class="c"><code>target-cx</code></td><td class="c">23</td><td class="c">5</td></tr><tr><td class="c"><code>fastapi-template</code></td><td class="c">13</td><td class="c">1</td></tr><tr><td class="c"><code>planning_hdj</code></td><td class="c">12</td><td class="c"><b>0</b></td></tr><tr><td class="c"><code>ml-utils</code></td><td class="c">10</td><td class="c"><b>0</b></td></tr><tr><td class="c"><code>footy-hub</code></td><td class="c">5</td><td class="c"><b>0</b></td></tr></tbody></table><div class="warn"><span class="lbl">Le constat qui compte</span>Ton <code>AGENTS.md</code> dit, mot pour mot : « Bug corrigé = test qui échouait avant et passe après. » Tu as écrit la règle, tu as un subagent <code>tester</code> dans opencode, des snippets pytest dans Doom, et hypothesis dans tes dépendances. <b>Quatre projets Python sur six n'ont aucun test.</b> Ce n'est pas un manque d'outils — c'est le seul endroit où l'outillage ne peut rien pour toi.</div></section><section><h2><span class="num">02</span>Naviguer, échelle par échelle</h2>
+<p class=lede>La bonne façon de choisir un geste de navigation, c'est la
+<b>distance</b>. Chaque échelle a son outil ; utiliser celui de l'échelle
+au-dessus coûte du temps, celui de l'échelle en dessous coûte des
+répétitions.</p>
+<table class=""><thead><tr><th>Distance</th><th>L'outil</th><th>Le geste</th></tr></thead><tbody><tr><td class="d"><b>Dans la ligne</b></td><td class="d">Vim natif</td><td class="k"><kbd>f</kbd><kbd>x</kbd> jusqu'au caractère · <kbd>;</kbd> répéter · <kbd>t</kbd> juste avant</td></tr><tr><td class="d"><b>Dans l'écran</b></td><td class="d"><b>avy</b></td><td class="k"><kbd>g</kbd> <kbd>a</kbd> puis tape les lettres de la cible, puis l'étiquette</td></tr><tr><td class="d"><b>Dans le fichier</b></td><td class="d">imenu · combobulate</td><td class="k"><kbd>SPC</kbd> <kbd>s</kbd> <kbd>i</kbd> les symboles · <kbd>C-c</kbd> <kbd>o</kbd> par nœud syntaxique</td></tr><tr><td class="d"><b>Dans le fichier, par sens</b></td><td class="d">LSP</td><td class="k"><kbd>g</kbd> <kbd>d</kbd> définition · <kbd>g</kbd> <kbd>D</kbd> références · <kbd>C-o</kbd> revenir</td></tr><tr><td class="d"><b>Dans le projet</b></td><td class="d">projectile · ripgrep</td><td class="k"><kbd>SPC</kbd> <kbd>SPC</kbd> un fichier · <kbd>SPC</kbd> <kbd>/</kbd> une chaîne · <kbd>SPC</kbd> <kbd>c</kbd> <kbd>j</kbd> un symbole</td></tr><tr><td class="d"><b>Entre projets</b></td><td class="d">herdr</td><td class="k"><kbd>Ctrl+B</kbd> <kbd>p</kbd> monter un projet · <kbd>Ctrl+B</kbd> <kbd>w</kbd> sauter n'importe où</td></tr><tr><td class="d"><b>Entre univers</b></td><td class="d">sessions herdr</td><td class="k"><kbd>Ctrl+B</kbd> <kbd>w</kbd> puis <kbd>Ctrl+S</kbd></td></tr></tbody></table>
+
+<h3>avy en détail — l'échelle la plus rentable</h3>
+<p>Deux réglages viennent d'être changés et ils comptent : avy étiquette
+maintenant <b>toutes les fenêtres</b> (tu peux sauter dans l'autre split, et
+le focus suit), et il saute directement quand il n'y a qu'un candidat.</p>
+<table class=""><thead><tr><th>Geste</th><th>Effet</th></tr></thead><tbody><tr><td class="k"><kbd>g</kbd> <kbd>a</kbd></td><td class="d"><b>Le geste principal.</b> Tape ce que tu vois, autant de lettres qu'il faut, puis choisis l'étiquette</td></tr><tr><td class="k"><kbd>SPC</kbd> <kbd>j</kbd> <kbd>c</kbd></td><td class="d">Deux caractères exactement, plus rapide quand la cible est évidente</td></tr><tr><td class="k"><kbd>SPC</kbd> <kbd>j</kbd> <kbd>l</kbd> · <kbd>SPC</kbd> <kbd>j</kbd> <kbd>w</kbd></td><td class="d">Une ligne · un début de mot</td></tr><tr><td class="k"><kbd>SPC</kbd> <kbd>j</kbd> <kbd>r</kbd></td><td class="d">Reprendre le dernier saut · <kbd>SPC</kbd> <kbd>j</kbd> <kbd>b</kbd> revenir d'où tu venais</td></tr></tbody></table><div class="tip"><span class="lbl">Ce que presque personne ne découvre</span>Pendant que les étiquettes sont affichées, tu peux taper une <b>action</b> au lieu d'une étiquette, puis désigner la cible :<br><kbd>x</kbd> tuer la ligne visée · <kbd>X</kbd> tuer la région · <kbd>t</kbd> la téléporter ici · <kbd>m</kbd> la déplacer ici · <kbd>y</kbd> la copier · <kbd>z</kbd> zapper jusque-là.<br>C'est ce qui fait passer avy de « un saut » à « un opérateur qui agit à distance ». Ce sont ses réglages d'origine : rien à configurer, seulement à se rappeler une fois.</div>
+
+<h3>combobulate — naviguer par la syntaxe</h3>
+<p class=lede>Nouveau. Il lit l'arbre tree-sitter, donc il comprend qu'un
+bloc Python est un bloc — ce que <code>puni</code>, qui raisonne sur les
+délimiteurs, ne peut pas faire dans un langage sans accolades.</p>
+<table class=""><thead><tr><th>Geste</th><th>Effet</th></tr></thead><tbody><tr><td class="k"><kbd>C-c</kbd> <kbd>o</kbd> <kbd>n</kbd> / <kbd>p</kbd></td><td class="d">Nœud frère suivant / précédent — la fonction d'à côté, la clé d'à côté</td></tr><tr><td class="k"><kbd>C-c</kbd> <kbd>o</kbd> <kbd>u</kbd> / <kbd>d</kbd></td><td class="d">Remonter au parent · descendre dans l'enfant</td></tr><tr><td class="k"><kbd>C-c</kbd> <kbd>o</kbd> <kbd>t</kbd></td><td class="d">Afficher l'arbre syntaxique du buffer — pour comprendre ce qu'on manipule</td></tr><tr><td class="k"><kbd>C-c</kbd> <kbd>o</kbd> <kbd>m</kbd></td><td class="d">Marquer le nœud courant, puis étendre à chaque appui</td></tr><tr><td class="k">Actif sur</td><td class="d">python · js · typescript · tsx · json · yaml · toml · css · html</td></tr></tbody></table></section><section><h2><span class="num">03</span>Mises en situation</h2><p class=lede>Six situations réelles, du premier geste au dernier.</p><div class="card"><h5><span>Un bug remonte, tu n'as que le message d'erreur</span></h5><div class="role">Le réflexe coûteux est d'ouvrir le projet et de lire. Le bon réflexe est de laisser la machine localiser.</div><ol class=steps><li><kbd>Ctrl+B</kbd> <kbd>p</kbd> → le projet se monte : agent, code, git, run.</li><li><kbd>SPC</kbd> <kbd>/</kbd> la chaîne exacte du message d'erreur. ripgrep sur tout le dépôt.</li><li><kbd>Entrée</kbd> sur le résultat, puis <kbd>g</kbd> <kbd>d</kbd> pour remonter aux définitions et <kbd>C-o</kbd> pour revenir. L'historique de sauts est ton fil d'Ariane.</li><li><code>/fix</code> dans opencode — le subagent <code>debugger</code> est en lecture seule et sa consigne est de <b>reproduire avant de corriger</b>.</li><li>Le test qui échoue d'abord : <code>/test</code>. C'est ta propre règle, écrite dans ton <code>AGENTS.md</code>.</li><li><kbd>SPC</kbd> <kbd>d</kbd> <kbd>b</kbd> sur la ligne suspecte puis <kbd>SPC</kbd> <kbd>d</kbd> <kbd>d</kbd> si la lecture ne suffit pas. <code>uv add --dev debugpy</code> une fois par projet.</li></ol></div><div class="card"><h5><span>Explorer un dépôt que tu ne connais pas</span></h5><div class="role">Le piège est de lire des fichiers au hasard. Il faut une carte avant un texte.</div><ol class=steps><li><code>/scout</code> dans opencode. C'est la seule commande marquée <code>subtask: true</code> : elle explore dans un contexte <b>isolé</b> et ne te rend que la carte. Trente fichiers lus, dix lignes rendues.</li><li><kbd>SPC</kbd> <kbd>s</kbd> <kbd>i</kbd> sur les fichiers qu'elle nomme — les symboles avant le code.</li><li><kbd>C-c</kbd> <kbd>o</kbd> <kbd>n</kbd> pour parcourir les définitions de haut niveau sans lire les corps.</li><li><kbd>Ctrl+B</kbd> <kbd>f</kbd> (file viewer) avec <kbd>]</kbd> <kbd>[</kbd> pour voir <b>ce qui a bougé récemment</b> : c'est là qu'est le code vivant.</li><li><code>tokei</code> pour le volume, <code>serie</code> pour la forme de l'historique.</li></ol></div><div class="card"><h5><span>Une idée à tester en trois minutes</span></h5><div class="role">Le coût réel n'est pas le code : c'est de décider où le mettre.</div><ol class=steps><li><kbd>Ctrl+B</kbd> <kbd>w</kbd> puis <kbd>Ctrl+N</kbd> → <b>⚡ scratch</b>. Un space jetable, un shell, un opencode, dans <code>~/scratch/&lt;horodatage&gt;</code>. <b>Aucun nom à choisir</b> — c'est le point : une décision de nommage en moins, c'est un essai de plus.</li><li><code>uv init &amp;&amp; uv add pandas</code>. Trois secondes.</li><li>Si ça vaut quelque chose : <code>git init</code>, et le dossier devient un projet. Sinon tu le laisses mourir là.</li></ol></div><div class="card"><h5><span>Trois agents en parallèle</span></h5><div class="role">Le régime pour lequel herdr existe. Toute la difficulté est de ne pas regarder.</div><ol class=steps><li><kbd>Ctrl+B</kbd> <kbd>Shift+G</kbd> trois fois — <b>un worktree par tâche</b>. Trois branches, trois répertoires, aucun conflit d'index possible.</li><li>Brief les trois, puis <b>pars</b>. Un agent qui travaille est un agent qu'on ne regarde pas.</li><li>Notification macOS → <kbd>Ctrl+B</kbd> <kbd>o</kbd> saute sur le pane qui t'attend.</li><li><kbd>Ctrl+B</kbd> <kbd>d</kbd> (reviewr) : lis le diff, <kbd>v</kbd> sélectionne, <kbd>c</kbd> commente, <b><kbd>s</kbd> renvoie tout à l'agent</b>. Tu ne lis jamais le code dans le chat.</li><li><kbd>Ctrl+B</kbd> <kbd>Alt+G</kbd> lazygit, commit, retour. Le suivant t'attend déjà.</li><li>Surveille <kbd>Ctrl+B</kbd> <kbd>Alt+U</kbd> : le contexte consommé par pane. Un agent à 90 % raconte n'importe quoi bien avant de le dire.</li></ol></div><div class="card"><h5><span>Ajouter une fonctionnalité à un projet existant</span></h5><div class="role">Là où la taille de tes commits se joue.</div><ol class=steps><li>Cadrer d'abord : <kbd>Tab</kbd> vers l'agent <code>plan</code> d'opencode, ou <code>/explain</code>. Un modèle de raisonnement sur la conception, un modèle de code sur l'exécution.</li><li>Écrire. <kbd>SPC</kbd> <kbd>w</kbd> <kbd>V</kbd> pour ouvrir le test à côté du code — <b>la majuscule</b>, qui splitte <i>et</i> y va.</li><li><b>Committer en cours de route</b>, pas à la fin. C'est le point qui change tes chiffres : médiane 72 lignes, p90 1 613.</li><li>Un oubli sur un commit déjà fait ? <code>git absorb</code> — il est installé chez toi et range la correction dans le bon commit tout seul.</li><li><code>/review</code> avant de pousser. Le subagent <code>reviewer</code> est en lecture seule et ne remonte que les vrais défauts.</li></ol></div><div class="card"><h5><span>Relire et livrer</span></h5><div class="role"></div><ol class=steps><li><kbd>Ctrl+B</kbd> <kbd>d</kbd> reviewr, portée <kbd>b</kbd> (toute la branche) pour voir ce que tu livres vraiment, pas seulement le dernier tour.</li><li><code>make test</code> — ou <code>Ctrl+B Alt+A</code> → « Tests », qui détecte le runner tout seul.</li><li><code>/commit</code> puis <code>/pr</code>. Le <code>git push</code> demandera confirmation : c'est voulu, c'est dans tes règles de permission.</li><li><code>repos-status</code> de temps en temps : ce qui traîne, en une seconde, sur les 28 dépôts.</li></ol></div></section><section><h2><span class="num">04</span>La boucle de dev, en couches</h2>
+<p class=lede>Ton outillage est déjà organisé en couches. Les nommer aide à
+savoir où ajouter quelque chose — et où ne surtout rien ajouter.</p>
+<table class=""><thead><tr><th>Couche</th><th>Ce qu'elle porte</th><th>Chez toi</th></tr></thead><tbody><tr><td class="d"><b>Fenêtres</b></td><td class="d">Où vivent les applications</td><td class="d">AeroSpace, 9 spaces nommés, assignation par app</td></tr><tr><td class="d"><b>Terminal</b></td><td class="d">Où vivent les processus</td><td class="d">Alacritty + herdr : spaces, tabs, panes, agents</td></tr><tr><td class="d"><b>Agents</b></td><td class="d">Qui écrit le code avec toi</td><td class="d">opencode (local, Ollama) · Claude Code · Copilot inline</td></tr><tr><td class="d"><b>Éditeur</b></td><td class="d">Où tu lis et corriges</td><td class="d">Doom Emacs en daemon, basedpyright, dape</td></tr><tr><td class="d"><b>Projet</b></td><td class="d">Ce qui rend une commande reproductible</td><td class="d"><code>Makefile</code>, <code>pyproject.toml</code>, <code>uv</code></td></tr><tr><td class="d"><b>Historique</b></td><td class="d">Ce qui reste quand tu fermes tout</td><td class="d">git, lazygit, <code>gh</code></td></tr></tbody></table>
+<h3>La règle qui traverse les couches</h3>
+<p>Chaque couche a un <b>point d'entrée unique</b>, et c'est ce qui rend
+l'ensemble tenable :</p>
+<table class=""><thead><tr><th>Question</th><th>Le geste</th></tr></thead><tbody><tr><td class="d">Où est-ce ?</td><td class="k"><kbd>Ctrl+B</kbd> <kbd>w</kbd> (navigator) — spaces, agents, sessions, projets</td></tr><tr><td class="d">Quelle est cette touche ?</td><td class="k"><kbd>SPC</kbd> <kbd>h</kbd> <kbd>k</kbd> dans Doom · <kbd>Ctrl+B</kbd> <kbd>?</kbd> dans herdr</td></tr><tr><td class="d">Que puis-je faire ici ?</td><td class="k"><kbd>Ctrl+B</kbd> <kbd>a</kbd> (palette) · <kbd>C-c</kbd> <kbd>o</kbd> (combobulate) · <kbd>SPC</kbd> <kbd>c</kbd> <kbd>a</kbd> (LSP)</td></tr><tr><td class="d">Qu'est-ce qui a changé ?</td><td class="k"><kbd>Ctrl+B</kbd> <kbd>d</kbd> (reviewr) · <kbd>Ctrl+B</kbd> <kbd>f</kbd> <kbd>]</kbd> · <code>repos-status</code></td></tr><tr><td class="d">Combien ça coûte ?</td><td class="k"><kbd>Ctrl+B</kbd> <kbd>Alt+U</kbd> contexte · <kbd>Ctrl+B</kbd> <kbd>Alt+T</kbd> dépense</td></tr></tbody></table><div class="tip"><span class="lbl">Ce que tu as déjà et qui vaut d'être conscient</span>170 formules Homebrew, 21 plugins herdr, 51 modules Doom, un daemon Emacs à 1,4 s, des agents locaux qui ne sortent rien de la machine, et une convention de commit tenue à 93 %. L'outillage n'est pas ton facteur limitant — c'est pour ça que les propositions qui suivent portent toutes sur la <b>méthode</b>, et une seule sur le confort.</div></section><section><h2><span class="num">05</span>Ce que je propose, et pourquoi</h2>
+<p class=lede>Quatre propositions, classées par rapport entre l'effort et ce
+que les chiffres de la section 01 disent. Aucune n'est un gadget.</p>
+<div class="card"><h5><span>1 · pre-commit — 3 % de tes dépôts</span><span class="key"></span></h5><div class="role"><b>Le meilleur rapport de tout ce document.</b> Tu as <code>ruff</code> sur la machine et configuré dans 9 dépôts sur 28. Un hook le fait tourner <b>avant</b> que le code entre dans l'historique, au lieu d'espérer que tu y penses.</div><table class="tight"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td class="k">Installer</td><td class="d"><code>brew install pre-commit</code> puis <code>pre-commit install</code> par dépôt</td></tr><tr><td class="k">Le fichier</td><td class="d">Tu as déjà le snippet : <code>pc</code> dans Doom (ruff + ruff-format + mypy + hooks de base)</td></tr><tr><td class="k">Alternative</td><td class="d"><code>lefthook</code> — même service, écrit en Go, pas de venv à gérer, démarre plus vite</td></tr><tr><td class="k">Ce que ça change</td><td class="d">Le formatage cesse d'être un commit <code>style:</code> — tu en as 13</td></tr></tbody></table></div><div class="card"><h5><span>2 · jj (Jujutsu) — pour ta queue de gros commits</span><span class="key"></span></h5><div class="role">C'est le changement de fond de 2026 côté VCS, et il vise <b>exactement</b> ton problème : p90 à 1 613 lignes, 15 dépôts sales. jj s'installe <b>par-dessus</b> git — même dépôt, même remote, tes collègues ne voient rien.</div><table class="tight"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td class="k">Le modèle</td><td class="d">Ton travail est <b>toujours</b> dans un commit ; il n'y a pas d'index ni de <i>stash</i>. On ne « pense pas à committer », c'est déjà fait</td></tr><tr><td class="k"><code>jj split</code></td><td class="d">Découper après coup un gros changement en commits lisibles — le geste qui manque à git</td></tr><tr><td class="k"><code>jj undo</code></td><td class="d">Annuler <b>n'importe quelle</b> opération, y compris un rebase raté</td></tr><tr><td class="k">Adoption</td><td class="d"><code>jj git init --colocate</code> dans un dépôt existant. lazygit et <code>gh</code> continuent de fonctionner</td></tr><tr><td class="k">Bonus herdr</td><td class="d">Le plugin <code>NathanFlurry/herdr-plugin-jj-workspace</code> crée des workspaces jj comme tes worktrees git</td></tr></tbody></table></div><div class="card"><h5><span>3 · mise — remplacer quatre gestionnaires par un</span><span class="key"></span></h5><div class="role">Tu as <b>pyenv, nvm, jenv et chruby</b> installés simultanément. Ce n'est pas théorique : les shims pyenv ont causé <b>deux pannes réelles</b> cette semaine — un <code>uv</code> 0.5.11 qui masquait le 0.12.5, et un <code>pyright-langserver</code> qui passait par un shim à chaque démarrage de serveur LSP.</div><table class="tight"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td class="k">Ce que ça fait</td><td class="d">Un seul outil pour python, node, java, ruby, go — et les variables d'environnement par projet</td></tr><tr><td class="k">Pourquoi c'est plus sûr</td><td class="d">Pas de shims : mise modifie le PATH à l'entrée du répertoire. Rien ne peut masquer un binaire global</td></tr><tr><td class="k">En prime</td><td class="d">Il remplace aussi <code>direnv</code>, que tu as déjà</td></tr><tr><td class="k">Migration</td><td class="d"><code>brew install mise</code>, un <code>mise.toml</code> par projet, puis retirer pyenv en dernier — pas avant</td></tr></tbody></table></div><div class="card"><h5><span>4 · La boucle de test — le seul point sans outil</span><span class="key"></span></h5><div class="role">Quatre projets Python sur six n'ont aucun test. Aucun outil ne corrige ça ; seule la <b>friction</b> peut être réduite.</div><table class="tight"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td class="k"><code>pytest-watcher</code></td><td class="d"><code>uv add --dev pytest-watcher</code> puis <code>ptw .</code> — les tests se relancent à chaque sauvegarde. La boucle rouge/vert sans quitter l'éditeur</td></tr><tr><td class="k">La cible <code>make test</code></td><td class="d">Tu as 15 Makefiles. Une cible <code>test</code> dans chacun, et <code>Ctrl+B Alt+A</code> la trouve toute seule</td></tr><tr><td class="k">Commencer par le bug</td><td class="d">Pas de couverture rétroactive. La prochaine correction, un test qui échoue d'abord — c'est déjà ta règle écrite</td></tr><tr><td class="k"><code>ty</code></td><td class="d">Le vérificateur de types d'Astral, en Rust, bien plus rapide que mypy. <b>Encore en 0.0.x</b> : à essayer, pas à mettre en CI</td></tr></tbody></table></div></section><section><h2><span class="num">06</span>Outils, sans discours</h2>
+<p class=lede>Les outils qui n'ont pas besoin d'une justification longue :
+ils font une chose, tu la fais déjà à la main.</p>
+<table class=""><thead><tr><th>Outil</th><th>Ce qu'il remplace</th><th>Quand</th></tr></thead><tbody><tr><td class="c"><b><code>vd</code></b> (visidata)</td><td class="d">Ouvrir un CSV dans pandas juste pour le regarder</td><td class="d">CSV, Excel, Parquet, SQLite — tu manipules du xlsx dans <code>stats_hdj</code></td></tr><tr><td class="c"><b><code>posting</code></b></td><td class="d"><code>curl</code> recopié depuis l'historique</td><td class="d">Tester une route FastAPI, garder les requêtes dans le dépôt</td></tr><tr><td class="c"><b><code>lnav</code></b></td><td class="d"><code>tail -f | grep</code></td><td class="d">Il comprend les formats et sait faire du SQL sur un log</td></tr><tr><td class="c"><code>jnv</code></td><td class="d">Réécrire un filtre <code>jq</code> dix fois</td><td class="d">Explorer un JSON inconnu, interactivement</td></tr><tr><td class="c"><code>dive</code></td><td class="d">Deviner pourquoi l'image pèse 2 Go</td><td class="d">Couche par couche, ce qui pèse</td></tr><tr><td class="c"><code>act</code></td><td class="d">Pousser pour voir si la CI passe</td><td class="d">Faire tourner le workflow GitHub en local</td></tr><tr><td class="c"><code>serie</code></td><td class="d"><code>git log --graph</code> illisible</td><td class="d">Voir la forme réelle de l'historique</td></tr><tr><td class="c"><code>git absorb</code></td><td class="d"><code>rebase -i</code> pour un oubli</td><td class="d"><b>Déjà installé chez toi</b>, et ton p90 dit que tu ne l'utilises pas</td></tr><tr><td class="c"><code>gping</code> · <code>trip</code></td><td class="d"><code>ping</code> et <code>traceroute</code></td><td class="d">Quand « le réseau est bizarre »</td></tr></tbody></table>
+<h3>Ce que je ne recommande pas, et pourquoi</h3>
+<table class=""><thead><tr><th>Outil</th><th>Verdict</th></tr></thead><tbody><tr><td class="c"><code>pulsar</code></td><td class="d">Doublon. <code>:ui nav-flash</code> est actif et fait la même chose, avec le même <code>pulse.el</code></td></tr><tr><td class="c"><code>treemacs</code></td><td class="d">Tu l'as, mais tu as aussi yazi, dirvish et le file viewer de herdr. Trois de trop</td></tr><tr><td class="c">Un client HTTP en plus</td><td class="d"><code>posting</code> suffit. <code>httpie</code> et <code>xh</code> sont déjà là pour le non interactif</td></tr><tr><td class="c">Un nouveau thème</td><td class="d">Le sujet est réglé : Horizon, et <code>horizon-noir</code> en réserve</td></tr></tbody></table></section><section><h2><span class="num">07</span>Index de navigation</h2><p class=lede>Les gestes de navigation, du plus proche au plus lointain.</p><div class="idx"><h4>Dans la ligne</h4><div class="row"><span class="kk">f x  ;  ,</span><span class="vv">jusqu'au caractère</span></div><div class="row"><span class="kk">t x</span><span class="vv">juste avant</span></div><div class="row"><span class="kk">0  ^  $</span><span class="vv">début / premier mot / fin</span></div><div class="row"><span class="kk">w  b  e</span><span class="vv">par mot</span></div><h4>Dans l'écran</h4><div class="row"><span class="kk">g a</span><span class="vv">avy — n'importe où</span></div><div class="row"><span class="kk">SPC j c</span><span class="vv">deux caractères</span></div><div class="row"><span class="kk">SPC j l</span><span class="vv">une ligne</span></div><div class="row"><span class="kk">SPC j w</span><span class="vv">un mot</span></div><div class="row"><span class="kk">x X t m y z</span><span class="vv">actions avy pendant les étiquettes</span></div><div class="row"><span class="kk">SPC j r</span><span class="vv">reprendre</span></div><div class="row"><span class="kk">SPC j b</span><span class="vv">revenir</span></div><h4>Dans le fichier</h4><div class="row"><span class="kk">SPC s i</span><span class="vv">symboles (imenu)</span></div><div class="row"><span class="kk">SPC s s</span><span class="vv">chercher</span></div><div class="row"><span class="kk">C-c o n / p</span><span class="vv">nœud frère</span></div><div class="row"><span class="kk">C-c o u / d</span><span class="vv">parent / enfant</span></div><div class="row"><span class="kk">g d</span><span class="vv">définition</span></div><div class="row"><span class="kk">g D</span><span class="vv">références</span></div><div class="row"><span class="kk">C-o  C-i</span><span class="vv">retour / avance</span></div><h4>Dans le projet</h4><div class="row"><span class="kk">SPC SPC</span><span class="vv">un fichier</span></div><div class="row"><span class="kk">SPC /</span><span class="vv">une chaîne</span></div><div class="row"><span class="kk">SPC c j</span><span class="vv">un symbole LSP</span></div><div class="row"><span class="kk">SPC ,</span><span class="vv">un buffer</span></div><div class="row"><span class="kk">SPC p p</span><span class="vv">changer de projet</span></div><h4>Entre projets (herdr)</h4><div class="row"><span class="kk">Ctrl+B p</span><span class="vv">monter un projet</span></div><div class="row"><span class="kk">Ctrl+B h</span><span class="vv">le space quotidien</span></div><div class="row"><span class="kk">Ctrl+B w</span><span class="vv">navigator</span></div><div class="row"><span class="kk">Ctrl+B w Ctrl+W</span><span class="vv">spaces</span></div><div class="row"><span class="kk">Ctrl+B w Ctrl+A</span><span class="vv">agents</span></div><div class="row"><span class="kk">Ctrl+B w Ctrl+S</span><span class="vv">sessions</span></div><div class="row"><span class="kk">Ctrl+B w Ctrl+N</span><span class="vv">créer</span></div><div class="row"><span class="kk">Ctrl+B o</span><span class="vv">aller à la notif</span></div><h4>Fenêtres</h4><div class="row"><span class="kk">SPC w V</span><span class="vv">split vertical + focus</span></div><div class="row"><span class="kk">SPC w S</span><span class="vv">horizontal + focus</span></div><div class="row"><span class="kk">C-w h j k l</span><span class="vv">circuler</span></div><div class="row"><span class="kk">SPC w m m</span><span class="vv">plein écran</span></div><div class="row"><span class="kk">SPC w u</span><span class="vv">annuler la disposition</span></div><h4>Agir</h4><div class="row"><span class="kk">SPC c a</span><span class="vv">actions de code</span></div><div class="row"><span class="kk">SPC c r</span><span class="vv">renommer</span></div><div class="row"><span class="kk">SPC d d</span><span class="vv">déboguer</span></div><div class="row"><span class="kk">SPC t f</span><span class="vv">diagnostics</span></div><div class="row"><span class="kk">Ctrl+B d</span><span class="vv">reviewer un diff</span></div><div class="row"><span class="kk">Ctrl+B Alt+K</span><span class="vv">tuer un process</span></div></div></section></body></html>

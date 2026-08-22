@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Regenere les references PDF depuis les sources Python.
+#   ./build              tout
+#   ./build doom         une seule
+#
+# Chaine : Python -> HTML (couverture + corps separes) -> Chrome/CDP -> pdfunite.
+# La couverture est rendue SANS pied de page, le corps AVEC numerotation ; les
+# deux sont recolles pour que la pagination commence a la section 01.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+PY=$(command -v python3.13 || command -v /opt/homebrew/bin/python3 || command -v python3)
+OUT="$(cd "$(dirname "$0")/.." && pwd)"   # ~/.config/docs
+mkdir -p "$OUT" && tmp=$(mktemp -d) && trap 'rm -rf "$tmp"' EXIT
+
+one() {
+  local name=$1 title=$2
+  "$PY" "${name}_doc.py" >/dev/null
+  node topdf.mjs "${name}-cover.html" "$tmp/c.pdf" "" --no-footer >/dev/null
+  node topdf.mjs "${name}-body.html"  "$tmp/b.pdf" "$title"        >/dev/null
+  pdfunite "$tmp/c.pdf" "$tmp/b.pdf" "$OUT/${name}-reference.pdf"
+  printf '%-11s %s  (%s pages)\n' "$name" "$OUT/${name}-reference.pdf" \
+    "$(pdfinfo "$OUT/${name}-reference.pdf" | awk '/^Pages/{print $2}')"
+}
+
+export DOOM_VER="Doom Emacs 2.2.3 · Emacs $(emacs --version 2>/dev/null | head -1 | cut -d' ' -f3)"
+export HERDR_VER="$(herdr --version 2>/dev/null | head -1)"
+export AS_VER="AeroSpace $(aerospace --version 2>/dev/null | head -1 | sed 's/.*version: //;s/ .*//')"
+export ZSH_VER="zsh $(zsh --version | cut -d' ' -f2)"
+export DOC_DATE="$(date +%Y-%m-%d)"
+
+# Controle exhaustif des marges apres generation. Une inspection a l'oeil
+# de quelques pages avait laisse passer une page 2 sans marges laterales,
+# identique dans les quatre documents.
+check() {
+  echo
+  ./check-margins "$@" || {
+    echo "  -> corriger avant de diffuser." >&2
+    exit 1
+  }
+}
+
+case "${1:-all}" in
+  doom)      one doom      "Doom Emacs — usage approfondi" ; check doom ;;
+  herdr)     one herdr     "herdr — usage approfondi" ; check herdr ;;
+  aerospace) one aerospace "AeroSpace — usage approfondi" ; check aerospace ;;
+  terminal)  one terminal  "Terminal & zsh — usage approfondi" ; check terminal ;;
+  *)         one doom      "Doom Emacs — usage approfondi"
+             one herdr     "herdr — usage approfondi"
+             one aerospace "AeroSpace — usage approfondi"
+             one terminal  "Terminal & zsh — usage approfondi"
+             check ;;
+esac

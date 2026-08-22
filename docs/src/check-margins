@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Verifie la marge laterale reelle de CHAQUE page de CHAQUE PDF genere.
+
+Pourquoi ce script existe : `@page :first { margin: 0 }` vivait dans le CSS
+partage. Il visait la couverture, mais la couverture et le corps sont deux
+documents HTML separes rendus en deux PDF puis recolles — `:first` frappait
+donc aussi la premiere page du corps, qui devient la page 2 du PDF final.
+Resultat : une page sans aucune marge laterale, au meme endroit dans les
+quatre documents, invisible tant qu'on ne regarde pas precisement la page 2.
+
+Une inspection a l'oeil de quelques pages ne pouvait pas l'attraper. Un
+controle exhaustif, si. Il tourne maintenant a chaque `./build`.
+
+Methode : chaque page est rendue en PNG, on mesure la boite englobante de
+l'encre et on compare a la marge attendue.
+"""
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+DOCS = Path(__file__).resolve().parent.parent
+A4_MM = 210.0
+MARGIN_MM = 14.0          # doit suivre `@page` dans lib.py
+TOLERANCE_MM = 1.5        # l'encre ne remplit jamais la justification au pixel
+DPI = 50
+
+
+def bbox(png: Path):
+    """(largeur_page, x_min, largeur_encre) en pixels."""
+    out = subprocess.run(
+        ["magick", str(png), "-fuzz", "15%", "-format", "%w %@", "info:"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    width, geom = out.split(" ", 1)
+    wh, xy = geom.split("+", 1)
+    ink_w = int(wh.split("x")[0])
+    x = int(xy.split("+")[0])
+    return int(width), x, ink_w
+
+
+def check(pdf: Path):
+    problems = []
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(["pdftoppm", "-png", "-r", str(DPI), str(pdf), f"{tmp}/p"],
+                       check=True)
+        pages = sorted(Path(tmp).glob("p-*.png"))
+        for i, png in enumerate(pages, start=1):
+            page_w, x, ink_w = bbox(png)
+            left = x * A4_MM / page_w
+            right = (page_w - x - ink_w) * A4_MM / page_w
+            # La couverture est pleine page par construction.
+            if i == 1:
+                continue
+            if min(left, right) < MARGIN_MM - TOLERANCE_MM:
+                problems.append((i, left, right))
+    return len(pages), problems
+
+
+def main():
+    names = sys.argv[1:] or ["doom", "herdr", "aerospace", "terminal"]
+    bad = 0
+    for name in names:
+        pdf = DOCS / f"{name}-reference.pdf"
+        if not pdf.exists():
+            continue
+        total, problems = check(pdf)
+        if problems:
+            bad += len(problems)
+            print(f"  {name:<10} {total} pages — {len(problems)} HORS NORME")
+            for page, left, right in problems:
+                print(f"      page {page:>3} : gauche {left:5.1f} mm · droite {right:5.1f} mm"
+                      f"   (attendu {MARGIN_MM:.0f} mm)")
+        else:
+            print(f"  {name:<10} {total} pages — marges OK")
+    if bad:
+        print(f"\n  {bad} page(s) sans marge correcte.")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

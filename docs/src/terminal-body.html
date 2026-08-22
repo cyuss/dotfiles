@@ -1,0 +1,427 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8><title>Terminal — référence</title><style>
+/* ══════════════════════════════════════════════════════════════════
+   GRILLE
+   ══════════════════════════════════════════════════════════════════ */
+@page { size: A4; margin: 16mm 14mm 16mm 14mm; }
+/* PAS de `@page :first { margin: 0 }` ici.
+   La couverture et le corps sont deux documents HTML SEPARES, rendus en
+   deux PDF puis recolles. Une regle `:first` dans ce CSS partage frappe
+   donc AUSSI la premiere page du corps — qui devient la page 2 du PDF
+   final, et se retrouvait sans aucune marge laterale.
+   La regle est injectee uniquement dans la couverture, par page(). */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+:root {
+  /* encres */
+  --ink:      #16191f;
+  --ink-2:    #464e5c;
+  --ink-3:    #7b8394;
+  --ink-4:    #a8aeba;
+  /* filets */
+  --rule:     #d9dde4;
+  --rule-2:   #edeff3;
+  --rule-3:   #f5f6f9;
+  /* fonds */
+  --paper:    #ffffff;
+  --panel:    #f7f8fa;
+  --panel-2:  #fbfcfd;
+  --graphite: #0e1014;
+  /* accents */
+  --amber:    #9d6a22;
+  --amber-lt: #fdf6ea;
+  --amber-br: #f0e2c9;
+  --teal:     #2f6f73;
+  --blue:     #40628c;
+  --plum:     #6f5590;
+  --moss:     #47703f;
+  --brick:    #9a4749;
+  /* typo */
+  --sans: "SF Pro Text", "SF Pro", -apple-system, "Helvetica Neue", Helvetica, sans-serif;
+  --disp: "SF Pro Display", "SF Pro", -apple-system, "Helvetica Neue", Helvetica, sans-serif;
+  --code: "JetBrainsMono Nerd Font Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 8.5pt;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   COUVERTURE
+   ══════════════════════════════════════════════════════════════════ */
+.cover {
+  background: var(--graphite);
+  color: #ced4de;
+  height: 297mm; width: 210mm;
+  padding: 26mm 20mm 16mm;
+  display: flex; flex-direction: column;
+  page-break-after: always;
+  position: relative;
+}
+.cover::after {          /* filet vertical d'accent, cale sur la marge */
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3mm; background: linear-gradient(#e0b374, #9d6a22);
+}
+.cover .eyebrow {
+  font-family: var(--code);
+  font-size: 7.6pt; letter-spacing: .3em; text-transform: uppercase;
+  color: #e0b374;
+}
+.cover h1 {
+  font-family: var(--disp);
+  font-size: 48pt; line-height: .98; margin: 8mm 0 0; font-weight: 600;
+  letter-spacing: -.022em; color: #f2f4f8;
+}
+.cover h1 em {
+  font-style: normal; font-weight: 200; color: #8d95a4; display: block;
+  font-size: 26pt; letter-spacing: -.02em; margin-top: 2mm;
+}
+.cover .rule { height: 1.5px; background: #e0b374; width: 24mm; margin: 8mm 0 0; }
+.cover .sub {
+  font-size: 12pt; line-height: 1.5; color: #9aa2b1;
+  margin: 7mm 0 0; max-width: 124mm; font-weight: 300;
+}
+.cover .spacer { flex: 1; }
+
+/* statistiques : grille reelle, chiffres alignes en bas */
+.cover .stats {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  gap: 6mm; margin: 0 0 10mm; padding-bottom: 8mm;
+  border-bottom: 1px solid #22262f;
+}
+.cover .stats .fig {
+  font-family: var(--disp);
+  font-size: 21pt; font-weight: 250; color: #f2f4f8; letter-spacing: -.02em;
+  line-height: 1; display: block;
+}
+.cover .stats .lab {
+  font-family: var(--code);
+  font-size: 6.2pt; letter-spacing: .16em; text-transform: uppercase;
+  color: #666e7e; display: block; margin-top: 2mm;
+}
+
+/* sommaire : grille 2 colonnes, numeros alignes */
+.cover .toc {
+  display: grid; grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;              /* 01..08 a gauche, 09..15 a droite */
+  column-gap: 12mm; margin-bottom: 10mm;
+}
+.cover .toc .r {
+  display: grid; grid-template-columns: 7mm 1fr;
+  font-size: 8pt; color: #9aa2b1; padding: 1.35mm 0;
+  border-bottom: 1px solid #1e222a; align-items: baseline;
+}
+.cover .toc .r b {
+  font-family: var(--code); font-size: 7pt;
+  color: #e0b374; font-weight: 500;
+}
+.cover .meta {
+  font-family: var(--code);
+  font-size: 7pt; color: #666e7e; border-top: 1px solid #22262f; padding-top: 4mm;
+  display: flex; justify-content: space-between; letter-spacing: .04em;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TITRES  — un seul axe vertical, tout part de x=0
+   ══════════════════════════════════════════════════════════════════ */
+/* Les sections COULENT au lieu de commencer chacune sur une page neuve.
+   Avec un saut force, une section qui deborde d'une ligne laissait une
+   page presque blanche derriere elle — le defaut le plus visible d'un
+   document de reference. Le titre reste solidaire de ce qui le suit
+   grace aux `break-after: avoid` en cascade (h2 -> filet -> chapeau),
+   donc un titre ne peut pas rester seul en bas de page.
+   `section.newpage` force le saut quand on le veut vraiment. */
+section { break-before: auto; margin-top: 9mm; }
+section:first-of-type { margin-top: 0; }
+section.newpage { break-before: page; margin-top: 0; }
+section.cont { break-before: auto; }
+
+h2 {
+  font-family: var(--disp);
+  font-size: 17pt; font-weight: 600; letter-spacing: -.025em;
+  margin: 0 0 1.5mm; padding: 0; color: var(--graphite);
+  display: grid; grid-template-columns: 11mm 1fr; align-items: baseline;
+  break-after: avoid;
+}
+h2 .num {
+  font-family: var(--code); font-size: 8.5pt; color: var(--amber);
+  font-weight: 700; letter-spacing: .04em;
+}
+h2 + .lede { margin-left: 11mm; break-after: avoid; }
+.h2rule {
+  height: 1.5px; background: var(--graphite); margin: 0 0 4mm;
+  break-after: avoid; break-before: avoid;
+}
+
+h3 {
+  font-family: var(--disp);
+  font-size: 10.5pt; font-weight: 600; margin: 6.5mm 0 2.4mm;
+  letter-spacing: -.015em; color: var(--graphite); break-after: avoid;
+  padding-bottom: 1.4mm; border-bottom: 1px solid var(--rule);
+}
+h4 {
+  font-size: 7.4pt; margin: 4.5mm 0 1.8mm; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: .13em; font-weight: 600;
+  break-after: avoid;
+}
+h3 + h4 { margin-top: 2.5mm; }
+
+p { margin: 0 0 2.6mm; }
+p.lede {
+  color: var(--ink-2); font-size: 9.2pt; line-height: 1.5;
+  margin-bottom: 5mm; max-width: 158mm; font-weight: 300;
+}
+p:last-child { margin-bottom: 0; }
+.dash { color: var(--ink-4); }
+b, strong { font-weight: 600; color: var(--graphite); }
+em { font-style: italic; color: var(--ink-2); }
+a { color: var(--blue); text-decoration: none; }
+
+/* ══════════════════════════════════════════════════════════════════
+   TOUCHES ET CODE
+   ══════════════════════════════════════════════════════════════════ */
+kbd {
+  font-family: var(--code);
+  font-size: 6.9pt; line-height: 1;
+  border: 1px solid var(--rule); border-bottom-width: 1.6px;
+  border-radius: 2.5px; padding: 1.15mm 1.4mm .95mm;
+  background: linear-gradient(#ffffff, #f4f5f8);
+  color: var(--graphite); white-space: nowrap; font-weight: 500;
+  display: inline-block; vertical-align: baseline;
+}
+.or { color: var(--ink-4); font-size: 7pt; padding: 0 1.1mm; }
+code, .mono {
+  font-family: var(--code);
+  font-size: 7.4pt; background: var(--rule-3); padding: .35mm 1.05mm;
+  border-radius: 2px; color: #2b313b; white-space: nowrap;
+}
+.card code, td code { background: #eef0f4; }
+
+/* ══════════════════════════════════════════════════════════════════
+   TABLEAUX  — largeurs FIXES, imposees par colgroup
+   ══════════════════════════════════════════════════════════════════ */
+table {
+  width: 100%; border-collapse: collapse; margin: 0 0 3.8mm;
+  table-layout: fixed;
+}
+th {
+  text-align: left; font-size: 6.4pt; text-transform: uppercase;
+  letter-spacing: .13em; color: var(--ink-3); font-weight: 600;
+  padding: 0 2.5mm 1.5mm 0; border-bottom: 1.2px solid var(--graphite);
+  vertical-align: bottom;
+}
+th:last-child, td:last-child { padding-right: 0; }
+td {
+  padding: 1.55mm 2.5mm 1.55mm 0; border-bottom: 1px solid var(--rule-2);
+  vertical-align: top; overflow-wrap: break-word;
+}
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+tbody tr:last-child td { border-bottom: 1px solid var(--rule); }
+
+/* roles de cellule */
+td.k  { line-height: 1.75; }                       /* touches */
+td.c  { font-family: var(--code); font-size: 7.2pt; color: #2b313b; }
+td.d  { color: var(--ink-2); }
+td.n  { color: var(--ink-3); font-size: 7.4pt; }
+td.t  { font-weight: 600; color: var(--graphite); }
+td.num{ font-family: var(--code); font-size: 7pt; color: var(--amber); font-weight: 700; }
+table.zebra tbody tr:nth-child(even) { background: var(--rule-3); }
+table.zebra td { padding-left: 1.6mm; }
+/* tableau scinde en deux moities : un filet marque la separation */
+table.split td:nth-child(3), table.split th:nth-child(3) {
+  border-left: 1px solid var(--rule-2); padding-left: 4mm;
+}
+table.split th:nth-child(3) { border-left-color: var(--graphite); }
+table.split td:empty { border-bottom-color: transparent; }
+table.zebra td:first-child { padding-left: 1.6mm; }
+
+/* ══════════════════════════════════════════════════════════════════
+   GRILLES  — grid, pas column-count : les colonnes restent alignees
+   ══════════════════════════════════════════════════════════════════ */
+/* Mise en colonnes par TABLEAU, et non par `display:grid` ni par
+   `column-count`. Les trois ont ete essayees ; seule celle-ci se
+   fragmente correctement en impression :
+     - grid          : une grille ne se coupe pas. Un couple de tableaux
+                       qui ne tient pas dans la place restante saute
+                       ENTIER a la page suivante -> demi-page blanche.
+     - column-count  : Chrome coule bien d'une page a l'autre, mais la
+                       reprise se fait en colonne 1 de la page suivante :
+                       la colonne 2 de la page courante reste vide.
+     - table         : Chrome coupe une ligne de tableau plus haute
+                       qu'une page, et CHAQUE cellule reprend dans SA
+                       colonne sur la page suivante. C'est le seul
+                       comportement correct.
+   `break-inside: auto` est indispensable ici : la regle globale
+   `tr { break-inside: avoid }` empecherait justement cette coupure. */
+table.lay {
+  width: 100%; table-layout: fixed; border-collapse: separate;
+  border-spacing: 0; margin: 0 0 1mm;
+}
+table.lay > tbody > tr { break-inside: auto; }
+table.lay > tbody > tr > td {
+  vertical-align: top; padding: 0; border: none; background: none;
+}
+table.lay.c2 > tbody > tr > td { padding-right: 8mm; }
+table.lay.c3 > tbody > tr > td { padding-right: 6mm; }
+table.lay > tbody > tr > td:last-child { padding-right: 0; }
+table.lay h4:first-child { margin-top: 0; }
+table.lay table { margin-bottom: 3mm; }
+
+/* ══════════════════════════════════════════════════════════════════
+   CARTES
+   ══════════════════════════════════════════════════════════════════ */
+.card {
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 3mm 3.4mm; margin: 0 0 3.2mm;
+  break-inside: avoid; background: var(--panel-2);
+}
+.card > .hd {
+  display: grid; grid-template-columns: 1fr auto; gap: 3mm;
+  align-items: baseline; margin: 0 0 1.4mm;
+  padding-bottom: 1.4mm; border-bottom: 1px solid var(--rule-2);
+}
+.card > .hd .nm {
+  font-family: var(--disp); font-size: 9.6pt; font-weight: 600;
+  letter-spacing: -.015em; color: var(--graphite);
+}
+.card .role { color: var(--ink-2); margin: 0 0 1.8mm; font-size: 8pt; }
+.card table { margin: 1.6mm 0 0; }
+.card td { padding: .95mm 2mm .95mm 0; border-bottom: 1px solid var(--rule-2); }
+.card table tbody tr:last-child td { border-bottom: none; }
+.card:last-child { margin-bottom: 0; }
+.tag {
+  font-family: var(--code);
+  font-size: 6.2pt; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--ink-3); border: 1px solid var(--rule); border-radius: 2px;
+  padding: .55mm 1.4mm; white-space: nowrap; background: #fff;
+}
+.tag.on { color: var(--moss); border-color: #cfe0cb; background: #f5faf4; }
+.tag.off{ color: var(--ink-4); }
+
+/* ══════════════════════════════════════════════════════════════════
+   ENCARTS
+   ══════════════════════════════════════════════════════════════════ */
+.note, .warn, .tip, .key {
+  border-radius: 3px; padding: 2.7mm 3.2mm 2.7mm 3.4mm; margin: 0 0 3.6mm;
+  font-size: 8.1pt; break-inside: avoid; border: 1px solid var(--rule);
+  border-left-width: 2.5px;
+}
+.note { background: var(--panel);   border-left-color: var(--ink-3); }
+.warn { background: #fdf4f4; border-color: #f0dedf; border-left-color: var(--brick); }
+.tip  { background: var(--amber-lt); border-color: var(--amber-br); border-left-color: var(--amber); }
+.key  { background: #f4f8f8; border-color: #d8e6e6; border-left-color: var(--teal); }
+.note .lbl, .warn .lbl, .tip .lbl, .key .lbl {
+  font-family: var(--code);
+  font-size: 6.3pt; text-transform: uppercase; letter-spacing: .15em;
+  display: block; margin-bottom: 1.3mm; font-weight: 700;
+}
+.note .lbl { color: var(--ink-3); }
+.warn .lbl { color: var(--brick); }
+.tip  .lbl { color: var(--amber); }
+.key  .lbl { color: var(--teal); }
+.note p:last-child, .warn p:last-child, .tip p:last-child, .key p:last-child { margin-bottom: 0; }
+
+/* ══════════════════════════════════════════════════════════════════
+   CODE EN BLOC
+   ══════════════════════════════════════════════════════════════════ */
+pre {
+  font-family: var(--code);
+  font-size: 7.1pt; line-height: 1.55; background: var(--panel);
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 2.7mm 3mm; margin: 0 0 3.6mm; overflow: hidden;
+  white-space: pre-wrap; break-inside: avoid; color: #2b313b;
+  tab-size: 2;
+}
+pre.dark {
+  background: var(--graphite); color: #c8cede; border-color: var(--graphite);
+}
+pre.dark .c { color: #6b7385; }
+pre.dark .s { color: #9fbf8f; }
+pre.dark .k { color: #c3a4de; }
+pre.dark .a { color: #e0b374; }
+pre .c { color: var(--ink-3); }                 /* commentaire */
+pre .s { color: var(--moss); }                  /* chaine      */
+pre .k { color: var(--plum); }                  /* mot-cle     */
+pre .a { color: var(--amber); }                 /* accent      */
+pre .p { color: var(--brick); }                 /* prompt      */
+
+/* ══════════════════════════════════════════════════════════════════
+   LISTES ET FLUX
+   ══════════════════════════════════════════════════════════════════ */
+ol.steps { margin: 0 0 3.6mm; padding: 0; list-style: none; counter-reset: s; }
+ol.steps li {
+  counter-increment: s; padding: 0 0 2.6mm 8mm; position: relative;
+  break-inside: avoid;
+}
+ol.steps li::before {
+  content: counter(s, decimal-leading-zero); position: absolute; left: 0; top: .1mm;
+  font-family: var(--code); font-size: 6.6pt; font-weight: 700;
+  color: var(--amber); letter-spacing: .04em;
+}
+ol.steps li::after {
+  content: ""; position: absolute; left: 5.4mm; top: 1.4mm; bottom: 1mm;
+  width: 1px; background: var(--rule);
+}
+ol.steps li:last-child::after { display: none; }
+
+ul.plain { margin: 0 0 3.2mm; padding-left: 4.2mm; }
+ul.plain li { margin-bottom: 1.3mm; }
+ul.plain li::marker { color: var(--ink-4); }
+
+/* chaine d'etapes horizontale */
+.flow {
+  display: flex; align-items: stretch; gap: 0; margin: 0 0 3.6mm;
+  break-inside: avoid; border: 1px solid var(--rule); border-radius: 3px;
+  overflow: hidden;
+}
+.flow > div {
+  flex: 1; padding: 2.4mm 2.6mm; border-right: 1px solid var(--rule);
+  background: var(--panel-2);
+}
+.flow > div:last-child { border-right: none; }
+.flow .st {
+  font-family: var(--code); font-size: 6.2pt; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--amber); display: block;
+  margin-bottom: 1.2mm; font-weight: 700;
+}
+.flow .tx { font-size: 7.6pt; color: var(--ink-2); line-height: 1.42; }
+.flow .tx b { display: block; color: var(--graphite); font-size: 8.2pt; margin-bottom: .6mm; }
+
+/* ══════════════════════════════════════════════════════════════════
+   INDEX FINAL
+   ══════════════════════════════════════════════════════════════════ */
+.idx { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 6mm; font-size: 7.4pt; }
+.idx .grp { break-inside: avoid; margin-bottom: 3mm; }
+.idx h4 { margin-top: 0; }
+.idx .row {
+  display: grid; grid-template-columns: 24mm 1fr; gap: 1.5mm;
+  align-items: baseline; padding: .95mm 0; border-bottom: 1px solid var(--rule-2);
+}
+.idx .row .kk {
+  font-family: var(--code); font-size: 6.6pt; color: var(--graphite);
+  font-weight: 600; overflow-wrap: break-word;
+}
+.idx .row .vv { color: var(--ink-2); line-height: 1.35; }
+
+/* index large : 2 colonnes, cle plus longue */
+.idx.w2 { grid-template-columns: 1fr 1fr; gap: 0 9mm; }
+.idx.w2 .row { grid-template-columns: 36mm 1fr; }
+
+/* ══════════════════════════════════════════════════════════════════
+   DIVERS
+   ══════════════════════════════════════════════════════════════════ */
+.spacer-s { height: 2mm; }
+.hr { height: 1px; background: var(--rule); margin: 5mm 0; }
+.small { font-size: 7.6pt; color: var(--ink-2); }
+.center { text-align: center; }
+.right { text-align: right; }
+.nowrap { white-space: nowrap; }
+</style></head><body><section><h2><span class="num">01</span><span>L'architecture du shell</span></h2><div class="h2rule"></div><p class="lede">Le principe directeur : <b>rien de coûteux au démarrage</b>. Sur une machine où l'on ouvre un pane herdr par tâche, chaque milliseconde du <code>.zshrc</code> est payée des dizaines de fois par jour.</p><h3>Qui lit quoi</h3><table class=""><colgroup><col style="width:24%"><col style="width:30%"><col style="width:46%"></colgroup><thead><tr><th>fichier</th><th>lu par</th><th>contenu</th></tr></thead><tbody><tr><td class="c"><code>~/.zshenv</code></td><td class="d"><b>tous</b> les shells, y compris non interactifs — scripts Emacs, herdr, launchd, <code>zsh -c</code></td><td class="d">PATH et variables d'environnement. <b>Rien d'autre ne doit y aller</b>, et rien de tout cela ne doit être ailleurs</td></tr><tr><td class="c"><code>~/.zshrc</code></td><td class="d">les shells interactifs</td><td class="d">prompt, plugins, complétion, raccourcis, intégrations</td></tr><tr><td class="c"><code>~/.config/zsh/aliases.zsh</code></td><td class="d">sourcé par <code>.zshrc</code></td><td class="d">alias et fonctions — versionné avec le reste de la config</td></tr><tr><td class="c"><code>~/.config/zsh/completion.zsh</code></td><td class="d">sourcé par <code>.zshrc</code>, <b>après</b> compinit</td><td class="d">les trois couches de complétion (section 03)</td></tr><tr><td class="c"><code>~/.config/zsh/completions/</code></td><td class="d">ajouté au <code>fpath</code> <b>avant</b> compinit</td><td class="d">complétions générées par les outils eux-mêmes</td></tr></tbody></table><h3>L'ordre de chargement — il est contraignant</h3><ol class=steps><li><b>Prompt</b> — <code>oh-my-posh</code>, thème <code>amro</code></li><li><b>antidote (fpath)</b> — les plugins qui n'apportent que des complétions. <b>Obligatoirement avant compinit</b></li><li><b>fpath des complétions générées</b> — <code>~/.config/zsh/completions</code>. Même contrainte : <b>compinit ne relit pas le fpath une fois passé</b></li><li><b>compinit</b> — le dump n'est revérifié qu'une fois par jour ; sinon <code>compinit -C</code>, qui saute la vérification de sécurité</li><li><b>antidote (plugins)</b> — les plugins normaux. <b>Après</b> compinit : fzf-tab l'exige</li><li><b>completion.zsh</b> — carapace, fzf-tab, autosuggestions. Après compinit <b>et</b> après les plugins</li></ol><div class="warn"><span class="lbl">l'erreur qui coûte le plus cher</span>Placer le <code>fpath=(…)</code> des complétions générées dans <code>completion.zsh</code> plutôt que dans <code>.zshrc</code>. <code>completion.zsh</code> est sourcé <b>après</b> <code>compinit</code> : les fichiers <code>_uv</code>, <code>_ruff</code>, <code>_herdr</code> sont bien là, mais plus personne ne les regarde. Aucun message d'erreur — juste une complétion qui ne répond pas.</div><div class="note"><span class="lbl">antidote plutôt qu'antigen</span>antigen n'est plus maintenu depuis 2021. antidote génère un fichier <b>statique</b> (<code>~/.zsh_plugins.zsh</code>), régénéré uniquement si la liste a changé : le coût au démarrage est celui d'un simple <code>source</code>, pas d'une résolution de dépendances.</div></section><section><h2><span class="num">02</span><span>Le démarrage</span></h2><div class="h2rule"></div><p class="lede">Environ <b>310–340 ms</b>. Ce chiffre est le résultat d'un travail précis : les gestionnaires de versions coûtaient à eux seuls 750 ms par shell.</p><h3>Chargement paresseux</h3><table class=""><colgroup><col style="width:14%"><col style="width:18%"><col style="width:68%"></colgroup><thead><tr><th>outil</th><th>coût évité</th><th>mécanisme</th></tr></thead><tbody><tr><td class=""><b>nvm</b></td><td class="d">593 ms par shell</td><td class="d"><code>node</code>, <code>npm</code>, <code>npx</code>, <code>yarn</code>, <code>pnpm</code>, <code>corepack</code> sont des <em>fonctions</em> qui, au premier appel, se suppriment, sourcent nvm et se relancent. Le binaire est dans le PATH tout de suite</td></tr><tr><td class=""><b>jenv</b></td><td class="d">153 ms par shell</td><td class="d">même schéma ; les shims Java sont déjà dans le PATH</td></tr><tr><td class=""><b>chruby</b></td><td class="d">—</td><td class="d">même schéma, sur <code>ruby</code>, <code>gem</code>, <code>bundle</code>, <code>rake</code></td></tr><tr><td class=""><b>carapace</b></td><td class="d">un sous-processus par shell</td><td class="d">l'initialisation est écrite dans <code>~/.cache/carapace-init.zsh</code> et régénérée <b>seulement si le binaire est plus récent</b></td></tr><tr><td class=""><b>pyenv</b></td><td class="d">—</td><td class="d">chargé normalement : un seul <code>eval</code>, qui gère aussi le PATH</td></tr><tr><td class=""><b>conda</b></td><td class="d">retiré</td><td class="d"><code>uv</code> fait le travail. L'installation existe toujours (<code>~/miniconda3</code>, 7,9 Go)</td></tr></tbody></table><h3>Mesurer</h3><table class=""><colgroup><col style="width:38%"><col style="width:62%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>time zsh -i -c exit</code></td><td class="d">temps de démarrage d'un shell interactif</td></tr><tr><td class="c"><code>bench 'zsh -i -c exit'</code></td><td class="d"><code>hyperfine --warmup 3</code> — une mesure statistique, pas un tirage</td></tr><tr><td class="c"><code>zsh -xv -i -c exit 2&gt;&amp;1 | head -100</code></td><td class="d">voir ce qui est réellement exécuté, dans l'ordre</td></tr><tr><td class="c"><code>zr</code></td><td class="d"><code>exec zsh</code> — recharger le shell dans la même fenêtre</td></tr></tbody></table><div class="tip"><span class="lbl">la bannière</span><code>fastfetch</code> ne s'affiche qu'<b>une fois par fenêtre de terminal</b> : la variable <code>FASTFETCH_SHOWN</code> est exportée, donc les sous-shells et les panes ouverts depuis cette session ne la réaffichent pas.</div></section><section><h2><span class="num">03</span><span>La complétion</span></h2><div class="h2rule"></div><p class="lede">Trois couches distinctes, souvent confondues. Les séparer est ce qui permet de diagnostiquer quand quelque chose ne complète pas.</p><div class="flow"><div><span class="st">1</span><div class="tx"><b>les données</b>Ce que zsh <em>sait</em> proposer. zsh-completions couvre le classique ; carapace ajoute 653 commandes modernes ; les outils absents génèrent la leur.</div></div><div><span class="st">2</span><div class="tx"><b>la présentation</b>Comment le menu s'affiche. fzf-tab remplace le menu natif par fzf, avec un aperçu à droite.</div></div><div><span class="st">3</span><div class="tx"><b>les suggestions</b>La ligne grisée qui devine la suite depuis l'historique. zsh-autosuggestions.</div></div></div><h3>1 · Les données</h3><table class=""><colgroup><col style="width:18%"><col style="width:32%"><col style="width:50%"></colgroup><thead><tr><th>source</th><th>couvre</th><th>note</th></tr></thead><tbody><tr><td class=""><b>zsh-completions</b></td><td class="d">le classique — git, ssh, tar, brew…</td><td class="d">via antidote, dans le <code>fpath</code></td></tr><tr><td class=""><b>carapace</b></td><td class="d"><b>653 commandes</b> modernes : gh, docker, jj, aws, cargo, ollama…</td><td class="d">ponts <code>zsh,fish,bash</code> : il délègue aux systèmes existants quand il n'a pas de spec, au lieu de faire disparaître la complétion. <code>kubectl</code> est exclu — la complétion zsh native est meilleure</td></tr><tr><td class=""><b>générées</b></td><td class="d">uv · uvx · ruff · herdr · jj · just · glow · atuin</td><td class="d">les outils qui savent produire leur propre <code>_nom</code>. Régénérables par <code>zsh-completions-refresh</code></td></tr></tbody></table><h3>2 · La présentation — fzf-tab</h3><p>fzf-tab était chargé mais <b>sans aucun zstyle</b> : il tournait donc sans aperçu, et n'était qu'un menu un peu plus joli. Vingt règles lui donnent maintenant un aperçu adapté à chaque nature de complétion.</p><table class=""><colgroup><col style="width:30%"><col style="width:70%"></colgroup><thead><tr><th>on complète…</th><th>l'aperçu montre</th></tr></thead><tbody><tr><td class="">un <b>fichier</b></td><td class="d">les 80 premières lignes, coloriées par <code>bat</code></td></tr><tr><td class="">un <b>dossier</b></td><td class="d">l'arborescence sur 2 niveaux, par <code>eza</code></td></tr><tr><td class=""><code>cd</code> · <code>z</code></td><td class="d">l'arborescence seulement — jamais de fichiers</td></tr><tr><td class=""><code>git add</code> · <code>diff</code> · <code>restore</code> · <code>checkout</code></td><td class="d">le diff réel du fichier, passé dans <code>delta</code></td></tr><tr><td class=""><code>git log</code> · <code>show</code> · <code>branch</code></td><td class="d">les 20 derniers commits de la ref</td></tr><tr><td class="">une <b>variable</b></td><td class="d">sa valeur</td></tr><tr><td class=""><code>kill</code> · <code>ps</code></td><td class="d">la ligne de commande <b>complète</b>, pas le nom tronqué</td></tr><tr><td class=""><code>brew install</code> · <code>info</code></td><td class="d">les 30 premières lignes de <code>brew info</code></td></tr><tr><td class="">une cible <code>make</code></td><td class="d">la description <code>##</code>, la recette, <b>et la valeur des variables</b></td></tr><tr><td class="">une recette <code>just</code></td><td class="d"><code>just --show</code> — la recette et ses dépendances</td></tr></tbody></table><table class=""><colgroup><col style="width:20%"><col style="width:80%"></colgroup><thead><tr><th>touche</th><th>action</th></tr></thead><tbody><tr><td class="k"><kbd>Tab</kbd></td><td class="d">ouvrir le menu de complétion</td></tr><tr><td class="k"><kbd>Ctrl+/</kbd></td><td class="d">afficher / masquer l'aperçu</td></tr><tr><td class="k"><kbd>/</kbd></td><td class="d">descendre dans le dossier sélectionné, sans quitter le menu</td></tr><tr><td class="k"><kbd>&lt;</kbd><span class="or">·</span><kbd>&gt;</kbd></td><td class="d">changer de groupe de complétion</td></tr><tr><td class="k"><kbd>Ctrl+u</kbd><span class="or">·</span><kbd>Ctrl+d</kbd></td><td class="d">faire défiler l'aperçu</td></tr></tbody></table><h3>3 · Les suggestions</h3><table class=""><colgroup><col style="width:24%"><col style="width:20%"><col style="width:56%"></colgroup><thead><tr><th>réglage</th><th>valeur</th><th>pourquoi</th></tr></thead><tbody><tr><td class="c"><code>STRATEGY</code></td><td class="c"><code>history completion</code></td><td class="d">l'historique d'abord — précis, jamais surprenant. La complétion prend le relais sur une commande neuve</td></tr><tr><td class="c"><code>BUFFER_MAX_SIZE</code></td><td class="c">60</td><td class="d">au-delà, la suggestion est plus longue que la ligne et gêne la lecture</td></tr><tr><td class="c"><code>MANUAL_REBIND</code></td><td class="c">1</td><td class="d">ne suggère pas pendant un collage : la surbrillance recalculée à chaque caractère collé fait ramer un gros <em>paste</em></td></tr><tr><td class="c"><code>HIGHLIGHT_STYLE</code></td><td class="c"><code>fg=#5b6272</code></td><td class="d">gris accordé au fond du terminal</td></tr></tbody></table><table class=""><colgroup><col style="width:20%"><col style="width:80%"></colgroup><thead><tr><th>touche</th><th>action</th></tr></thead><tbody><tr><td class="k"><kbd>→</kbd></td><td class="d">accepter toute la suggestion (en fin de ligne)</td></tr><tr><td class="k"><kbd>Ctrl+Espace</kbd></td><td class="d">accepter la suggestion</td></tr><tr><td class="k"><kbd>Ctrl+→</kbd></td><td class="d">accepter <b>un mot</b> de la suggestion</td></tr></tbody></table></section><section><h2><span class="num">04</span><span>fzf — les widgets</span></h2><div class="h2rule"></div><p class="lede">C'est ici que la souris devient inutile. Cinq touches, cinq gestes qui remplacent chacun une série de <code>ls</code> / <code>cd</code> / copier-coller.</p><table class=""><colgroup><col style="width:13%"><col style="width:12%"><col style="width:47%"><col style="width:28%"></colgroup><thead><tr><th>touche</th><th>widget</th><th>ce qu'il fait</th><th>aperçu</th></tr></thead><tbody><tr><td class="k"><kbd>Ctrl+o</kbd></td><td class="c"><code>fe</code></td><td class="d">chercher un fichier n'importe où → l'ouvrir dans l'éditeur</td><td class="d">son contenu</td></tr><tr><td class="k"><kbd>Ctrl+f</kbd></td><td class="c"><code>fcd</code></td><td class="d">chercher un dossier → <code>cd</code> dedans</td><td class="d">son arborescence</td></tr><tr><td class="k"><kbd>Ctrl+g</kbd></td><td class="c"><code>fbr</code></td><td class="d">chercher une branche git → <code>switch</code></td><td class="d">ses 20 derniers commits</td></tr><tr><td class="k"><kbd>Ctrl+p</kbd></td><td class="c"><code>fpj</code></td><td class="d">chercher un projet dans <code>~/Desktop/projects</code> → <code>cd</code></td><td class="d">son contenu, avec statut git</td></tr><tr><td class="k"><kbd>Ctrl+n</kbd></td><td class="c"><code>fmod</code></td><td class="d">chercher un fichier <b>modifié</b> → l'ouvrir</td><td class="d">son diff</td></tr></tbody></table><h3>Les fonctions sans raccourci</h3><table class=""><colgroup><col style="width:28%"><col style="width:72%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>fshow</code></td><td class="d">chercher un commit dans les 300 derniers → afficher son diff complet</td></tr><tr><td class="c"><code>fkill</code></td><td class="d">chercher un processus (via <code>procs</code>) → le tuer</td></tr><tr><td class="c"><code>tve_</code></td><td class="d">television : chercher un fichier → l'ouvrir</td></tr><tr><td class="c"><code>tvcd</code></td><td class="d">television : chercher un dossier → <code>cd</code></td></tr></tbody></table><h3>Les réglages fzf</h3><table class=""><colgroup><col style="width:30%"><col style="width:70%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>FZF_DEFAULT_COMMAND</code></td><td class="d"><code>fd --type f --hidden --follow --exclude .git</code> — respecte le <code>.gitignore</code></td></tr><tr><td class="c"><code>FZF_ALT_C_COMMAND</code></td><td class="d">idem, sur les dossiers</td></tr><tr><td class="c"><code>--height 60%</code></td><td class="d">n'occupe jamais tout l'écran : le contexte reste visible au-dessus</td></tr><tr><td class="c"><code>--preview-window</code></td><td class="d"><code>right:55%:wrap:hidden</code> — <b>masqué par défaut</b>, révélé par <kbd>Ctrl+/</kbd></td></tr><tr><td class="c"><code>--bind</code></td><td class="d"><code>ctrl-/</code> bascule l'aperçu, <code>ctrl-u</code> / <code>ctrl-d</code> le font défiler</td></tr></tbody></table><div class="tip"><span class="lbl">l'aperçu masqué par défaut</span>C'est délibéré : dans la majorité des cas on sait déjà ce qu'on cherche, et l'aperçu ne fait que ralentir l'affichage sur un gros dépôt. <kbd>Ctrl+/</kbd> le fait apparaître au moment où on hésite — c'est-à-dire au moment où il sert vraiment.</div></section><section><h2><span class="num">05</span><span>L'historique — atuin</span></h2><div class="h2rule"></div><p class="lede">atuin remplace l'historique zsh par une base SQLite : recherche plein texte, contexte (dossier, hôte, code de sortie, durée) et synchronisation entre machines.</p><table class="split"><colgroup><col style="width:17%"><col style="width:33%"><col style="width:22%"><col style="width:28%"></colgroup><thead><tr><th>Dans le shell</th><th></th><th>En commande</th><th></th></tr></thead><tbody><tr><td class="k"><kbd>↑</kbd></td><td class="d">recherche atuin, filtrée sur le dossier courant</td><td class="c"><code>hist</code></td><td class="d"><code>atuin search -i</code> — l'interface complète</td></tr><tr><td class="k"><kbd>Ctrl+r</kbd></td><td class="d">recherche atuin, sur tout l'historique</td><td class="c"><code>hstats</code></td><td class="d"><code>atuin stats</code> — les commandes les plus utilisées</td></tr></tbody></table><div class="key"><span class="lbl">l'historique comme source de vérité</span>Les alias de cette configuration ne sont pas devinés : ils sont construits à partir des statistiques atuin réelles. <code>brew</code> 517 appels, <code>make</code> 220, <code>ll</code> 215, <code>cd</code> 189, <code>doom</code> 149, <code>nvim</code> 67, <code>git</code> 57. C'est pourquoi <code>brew</code> a dix alias et que <code>mk</code> existe.</div><table class=""><colgroup><col style="width:36%"><col style="width:64%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>atuin search &lt;mot&gt;</code></td><td class="d">chercher dans tout l'historique</td></tr><tr><td class="c"><code>atuin search --cwd . &lt;mot&gt;</code></td><td class="d">restreindre au dossier courant</td></tr><tr><td class="c"><code>atuin search --exit 0 &lt;mot&gt;</code></td><td class="d">seulement les commandes qui ont réussi</td></tr><tr><td class="c"><code>atuin stats --count 20</code></td><td class="d">le classement des commandes</td></tr><tr><td class="c"><code>hsync</code></td><td class="d"><code>atuin sync</code> — synchroniser entre machines</td></tr></tbody></table></section><section><h2><span class="num">06</span><span>Se déplacer</span></h2><div class="h2rule"></div><table class="split"><colgroup><col style="width:22%"><col style="width:28%"><col style="width:22%"><col style="width:28%"></colgroup><thead><tr><th>Navigation</th><th></th><th>Lister</th><th></th></tr></thead><tbody><tr><td class="c"><code>j &lt;mot&gt;</code></td><td class="d">zoxide — saute vers un dossier déjà visité</td><td class="c"><code>ls</code></td><td class="d">eza avec icônes, dossiers d'abord, statut git</td></tr><tr><td class="c"><code>ji</code></td><td class="d">zoxide interactif (fzf)</td><td class="c"><code>ll</code></td><td class="d">détaillé</td></tr><tr><td class="c"><code>..  ...  ....</code></td><td class="d">remonter d'un, deux, trois niveaux</td><td class="c"><code>la</code></td><td class="d">détaillé, fichiers cachés compris</td></tr><tr><td class="c"><code>-</code></td><td class="d">revenir au dossier précédent</td><td class="c"><code>l</code></td><td class="d">une colonne</td></tr><tr><td class="c"><code>pj</code></td><td class="d"><code>~/Desktop/projects</code></td><td class="c"><code>lt · lt3</code></td><td class="d">arborescence sur 2 · 3 niveaux</td></tr><tr><td class="c"><code>cfg</code></td><td class="d"><code>~/.config</code></td><td class="c"><code>ltg</code></td><td class="d">arborescence, en ignorant ce que git ignore</td></tr><tr><td class="c"><code>dl</code></td><td class="d"><code>~/Downloads</code></td><td class="c"><code>lm</code></td><td class="d">triés par date de modification</td></tr><tr><td class="c"><code>groot</code></td><td class="d">la racine du dépôt git courant</td><td class="c"><code>lsize</code></td><td class="d">triés par taille, les plus gros d'abord</td></tr><tr><td class="c"><code>mkcd &lt;dir&gt;</code></td><td class="d">créer le dossier <b>et</b> entrer dedans</td><td class="c"><code>recent</code></td><td class="d">les 20 derniers modifiés</td></tr></tbody></table><div class="note"><span class="lbl">ce qui n'est PAS masqué</span><code>grep</code>, <code>cat</code>, <code>du</code> et <code>ps</code> gardent leur binaire d'origine. Leurs remplaçants modernes ont des drapeaux différents — <code>rg -E</code> n'est pas <code>grep -E</code> — et les masquer casse les scripts autant que les réflexes. Les versions modernes ont leurs propres noms : <code>rg</code>, <code>bat</code>, <code>dust</code>, <code>procs</code>.</div><h3>Explorateurs</h3><table class=""><colgroup><col style="width:28%"><col style="width:72%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>yz</code></td><td class="d">yazi — explorateur complet, aperçus, opérations par lot</td></tr><tr><td class="c"><code>br</code></td><td class="d">broot — arborescence filtrable en direct, <code>:cd</code> pour y aller</td></tr><tr><td class="c"><code>tvd</code></td><td class="d">television — sélecteur flou de dossiers</td></tr><tr><td class="c"><code>lt3</code></td><td class="d">un simple coup d'œil sur trois niveaux</td></tr></tbody></table></section><section><h2><span class="num">07</span><span>Chercher &amp; inspecter</span></h2><div class="h2rule"></div><table class="split"><colgroup><col style="width:22%"><col style="width:28%"><col style="width:22%"><col style="width:28%"></colgroup><thead><tr><th>Chercher</th><th></th><th>Inspecter</th><th></th></tr></thead><tbody><tr><td class="c"><code>rg &lt;motif&gt;</code></td><td class="d">ripgrep — respecte le <code>.gitignore</code></td><td class="c"><code>b &lt;fichier&gt;</code></td><td class="d"><code>bat --style=plain</code> — cat colorié</td></tr><tr><td class="c"><code>rgi</code></td><td class="d">insensible à la casse</td><td class="c"><code>bn</code></td><td class="d">avec les numéros de ligne</td></tr><tr><td class="c"><code>rgf &lt;motif&gt;</code></td><td class="d">chercher dans les <b>noms</b> de fichiers</td><td class="c"><code>dust</code></td><td class="d">arbre des tailles, lisible</td></tr><tr><td class="c"><code>rgh</code></td><td class="d">y compris cachés et ignorés</td><td class="c"><code>dush</code></td><td class="d">les 20 plus gros éléments du dossier</td></tr><tr><td class="c"><code>fd &lt;motif&gt;</code></td><td class="d">trouver un fichier par son nom</td><td class="c"><code>loc</code></td><td class="d"><code>tokei</code> — lignes de code par langage</td></tr><tr><td class="c"><code>tvt</code></td><td class="d">television — recherche plein texte interactive</td><td class="c"><code>jsonpp · yamlpp</code></td><td class="d"><code>jq .</code> · <code>yq .</code></td></tr><tr><td class="c"><code>navi</code></td><td class="d">antisèches interactives — alias <code>cheat</code></td><td class="c"><code>versions</code></td><td class="d">node, python, uv, git, nvim, emacs d'un coup</td></tr></tbody></table><h3>Les questions que tout dev se pose</h3><table class=""><colgroup><col style="width:50%"><col style="width:50%"></colgroup><thead><tr><th>la question</th><th>la commande</th></tr></thead><tbody><tr><td class="d">Qui occupe le port 3000 ?</td><td class=""><code>port 3000</code></td></tr><tr><td class="d">Tue ce qui occupe le port 3000</td><td class=""><code>killport 3000</code></td></tr><tr><td class="d">Quels ports sont ouverts ?</td><td class=""><code>ports</code></td></tr><tr><td class="d">C'est un alias, une fonction ou un binaire ?</td><td class=""><code>whichall &lt;nom&gt;</code></td></tr><tr><td class="d">Quelle est mon IP ?</td><td class=""><code>myip</code> · <code>localip</code></td></tr><tr><td class="d">Combien pèse ce dossier ?</td><td class=""><code>dush</code></td></tr><tr><td class="d">Qu'est-ce qui a changé récemment ici ?</td><td class=""><code>recent</code></td></tr><tr><td class="d">Combien de lignes de code ?</td><td class=""><code>loc</code></td></tr><tr><td class="d">Mon PATH, lisible ?</td><td class=""><code>path</code></td></tr><tr><td class="d">Combien de temps prend cette commande ?</td><td class=""><code>bench '&lt;cmd&gt;'</code></td></tr><tr><td class="d">Extraire cette archive ?</td><td class=""><code>extract &lt;fichier&gt;</code> — tous formats</td></tr><tr><td class="d">Sauvegarder avant de bidouiller ?</td><td class=""><code>bak &lt;fichier&gt;</code> — horodaté</td></tr></tbody></table><div class="note"><span class="lbl">le manuel</span><code>MANPAGER</code> passe les pages de manuel dans <code>bat</code> avec la coloration <code>man</code> : <code>man ffmpeg</code> devient lisible. C'est une variable, pas un alias — donc <code>git help</code> et tout ce qui appelle le pager en profite aussi.</div></section><section><h2><span class="num">08</span><span>Git au terminal</span></h2><div class="h2rule"></div><table class="split"><colgroup><col style="width:22%"><col style="width:28%"><col style="width:22%"><col style="width:28%"></colgroup><thead><tr><th>Au quotidien</th><th></th><th>Les gestes qui sauvent</th><th></th></tr></thead><tbody><tr><td class="c"><code>gs</code></td><td class="d"><code>status -sb</code> — l'état, en deux lignes</td><td class="c"><code>gundo</code></td><td class="d">défait le commit, <b>garde le travail</b></td></tr><tr><td class="c"><code>gd · gds</code></td><td class="d">diff · diff des fichiers stagés</td><td class="c"><code>gwip</code></td><td class="d">tout ajouter et commiter « wip »</td></tr><tr><td class="c"><code>gdt</code></td><td class="d">diff <b>syntaxique</b> (difftastic) — compare les AST</td><td class="c"><code>gab</code></td><td class="d"><code>absorb --and-rebase</code> — range les correctifs</td></tr><tr><td class="c"><code>gl</code></td><td class="d">log en graphe, 20 derniers</td><td class="c"><code>gst · gstp</code></td><td class="d">remiser · reprendre</td></tr><tr><td class="c"><code>glog</code></td><td class="d">log en graphe, complet et colorié</td><td class="c"><code>groot</code></td><td class="d">remonter à la racine du dépôt</td></tr><tr><td class="c"><code>ga · gaa</code></td><td class="d">ajouter · ajouter tout</td><td class="c"><code>lg</code></td><td class="d"><b>lazygit</b> — la revue complète</td></tr><tr><td class="c"><code>gcm "…"</code></td><td class="d">commiter avec un message</td><td class="c"><code>fbr</code></td><td class="d">changer de branche, en flou</td></tr><tr><td class="c"><code>gca</code></td><td class="d">amender sans rouvrir l'éditeur</td><td class="c"><code>fshow</code></td><td class="d">chercher un commit → son diff</td></tr><tr><td class="c"><code>gp</code></td><td class="d"><code>pull --rebase</code> — historique linéaire</td><td class="c"><code>fmod</code></td><td class="d">chercher un fichier modifié → l'éditer</td></tr><tr><td class="c"><code>gpu · gpf</code></td><td class="d">push · push <code>--force-with-lease</code></td><td class="c"><code>ghpr</code></td><td class="d"><code>gh pr create --web</code></td></tr></tbody></table><div class="warn"><span class="lbl">jamais --force nu</span><code>gpf</code> est <code>push --force-with-lease</code>. La différence n'est pas cosmétique : <code>--force</code> écrase la branche distante sans regarder, <code>--force-with-lease</code> refuse si quelqu'un a poussé depuis ta dernière récupération. C'est la seule forme de force acceptable sur une branche partagée.</div><div class="key"><span class="lbl">gab — la commande la moins connue et la plus utile</span><code>git absorb</code> regarde tes modifications non commitées, trouve <b>pour chaque bloc</b> le commit qui a introduit ces lignes, et crée les <code>fixup!</code> correspondants. <code>--and-rebase</code> les applique ensuite. Sur une branche de review où l'on corrige dix remarques, cela remplace dix <code>rebase -i</code> manuels.</div><h3>jj (Jujutsu)</h3><table class=""><colgroup><col style="width:28%"><col style="width:72%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>jj l</code></td><td class="d">l'arbre des changements</td></tr><tr><td class="c"><code>jj d · jj s</code></td><td class="d">diff · statut du changement courant</td></tr><tr><td class="c"><code>jj ci -m "…"</code></td><td class="d">décrire le changement et en ouvrir un nouveau</td></tr><tr><td class="c"><code>jj into &lt;rev&gt;</code></td><td class="d">déplacer le travail courant dans une révision existante</td></tr><tr><td class="c"><code>jj out</code></td><td class="d">extraire le travail courant vers un nouveau changement</td></tr></tbody></table></section><section><h2><span class="num">09</span><span>Python, Node, make</span></h2><div class="h2rule"></div><table class="split"><colgroup><col style="width:22%"><col style="width:28%"><col style="width:22%"><col style="width:28%"></colgroup><thead><tr><th>Python — uv</th><th></th><th>Node</th><th></th></tr></thead><tbody><tr><td class="c"><code>uvs</code></td><td class="d"><code>uv sync</code> — aligner l'environnement</td><td class="c"><code>ni · nci</code></td><td class="d"><code>npm install</code> · <code>npm ci</code></td></tr><tr><td class="c"><code>uva · uvad</code></td><td class="d">ajouter une dépendance · de dev</td><td class="c"><code>nr &lt;script&gt;</code></td><td class="d"><code>npm run</code></td></tr><tr><td class="c"><code>uvr &lt;cmd&gt;</code></td><td class="d">exécuter dans le venv</td><td class="c"><code>nrd · nrb</code></td><td class="d"><code>run dev</code> · <code>run build</code></td></tr><tr><td class="c"><code>py</code></td><td class="d"><code>uv run python</code></td><td class="c"><code>nrt</code></td><td class="d"><code>npm test</code></td></tr><tr><td class="c"><code>pt</code></td><td class="d"><code>uv run pytest -q</code></td><td class="c"><code>nsize</code></td><td class="d">poids de <code>node_modules</code></td></tr><tr><td class="c"><code>ruffc</code></td><td class="d"><code>ruff check --fix</code> puis <code>ruff format</code></td><td class="c"></td><td class="d"></td></tr><tr><td class="c"><code>venv</code></td><td class="d">créer un venv et l'activer</td><td class="c"></td><td class="d"></td></tr></tbody></table><div class="note"><span class="lbl">pourquoi pt et pas pytest</span><code>pt</code> est <code>uv run pytest -q</code>, jamais <code>pytest</code> nu. Un <code>pytest</code> direct hors projet uv attrape l'interpréteur système et échoue de manière déroutante — ou pire, réussit avec les mauvaises dépendances.</div><h3>make &amp; just — 220 + 46 appels</h3><table class=""><colgroup><col style="width:22%"><col style="width:78%"></colgroup><thead><tr><th>commande</th><th>ce que ça fait</th></tr></thead><tbody><tr><td class=""><code>mk</code></td><td class="d"><b>fzf-make</b> — le catalogue interactif du projet. Lit Makefile, justfile, <code>package.json</code> et Taskfile, affiche la recette en aperçu, et garde un historique des cibles lancées</td></tr><tr><td class=""><code>make</code> <kbd>Tab</kbd></td><td class="d">les cibles réelles, avec en aperçu la description <code>##</code>, la recette, <b>et la valeur des variables</b> qu'elle utilise</td></tr><tr><td class=""><code>mtargets</code></td><td class="d">lister les cibles d'un Makefile, même sans cible <code>help</code></td></tr><tr><td class=""><code>m</code> · <code>mr</code> · <code>mt</code></td><td class="d"><code>make</code> · <code>make run</code> · <code>make test</code></td></tr><tr><td class=""><code>mdev</code> · <code>mg</code></td><td class="d"><code>make dev</code> · <code>make gui</code></td></tr><tr><td class=""><code>mf</code> · <code>mc</code></td><td class="d"><code>make format</code> · <code>make clean</code></td></tr><tr><td class=""><code>ju</code> · <code>jl</code></td><td class="d"><code>just</code> · <code>just --list</code></td></tr></tbody></table><div class="key"><span class="lbl">l'aperçu des cibles make</span>Il exploite une convention que tes Makefile suivent déjà : <code>cible: ## description</code>. <code>make-target-info</code> imprime la description, la recette, puis les variables résolues par <code>make -pn</code> — donc les <b>vraies</b> valeurs, pas ce qui est écrit dans le fichier. On voit ce que la commande va faire avant de la lancer.</div></section><section><h2><span class="num">10</span><span>Les TUIs</span></h2><div class="h2rule"></div><p class="lede">Des interfaces plein écran qui remplacent une série de commandes et de lectures de sortie. Toutes sont pilotables au clavier.</p><table class=""><colgroup><col style="width:15%"><col style="width:10%"><col style="width:30%"><col style="width:45%"></colgroup><thead><tr><th>outil</th><th>alias</th><th>remplace</th><th>geste clé</th></tr></thead><tbody><tr><td class=""><b>lazygit</b></td><td class="c"><code>lg</code></td><td class="d">git add / diff / rebase -i</td><td class="d"><code>Espace</code> stage, <code>c</code> commit, <code>P</code> push, <code>?</code> aide</td></tr><tr><td class=""><b>lazydocker</b></td><td class="c"><code>ldo</code></td><td class="d">docker ps / logs / exec</td><td class="d">navigation aux flèches, <code>d</code> supprimer</td></tr><tr><td class=""><b>btop</b></td><td class="c"><code>top</code></td><td class="d">top / htop / iftop</td><td class="d"><code>f</code> filtrer, <code>k</code> tuer, <code>m</code> trier par mémoire</td></tr><tr><td class=""><b>taproom</b></td><td class="c"><code>tap</code></td><td class="d">brew list / outdated / info</td><td class="d"><code>tapo</code> ce qui est à mettre à jour, <code>tapsz</code> trier par poids</td></tr><tr><td class=""><b>television</b></td><td class="c"><code>tv</code></td><td class="d">un sélecteur flou pour tout</td><td class="d"><code>tvf</code> fichiers, <code>tvt</code> texte, <code>tvg</code> git-log, <code>tvb</code> branches</td></tr><tr><td class=""><b>navi</b></td><td class="c"><code>cheat</code></td><td class="d">les commandes qu'on réapprend tous les six mois</td><td class="d"><code>nvedit</code> pour ajouter les siennes</td></tr><tr><td class=""><b>yazi</b></td><td class="c"><code>yz</code></td><td class="d">Finder</td><td class="d"><code>y</code> copier, <code>p</code> coller, <code>.</code> fichiers cachés</td></tr><tr><td class=""><b>atuin</b></td><td class="c"><code>hist</code></td><td class="d">Ctrl+r natif</td><td class="d">filtres par dossier, hôte, code de sortie</td></tr><tr><td class=""><b>fzf-make</b></td><td class="c"><code>mk</code></td><td class="d">make help</td><td class="d">historique des cibles lancées</td></tr><tr><td class=""><b>pk</b></td><td class="c">—</td><td class="d">ps | grep | kill</td><td class="d">recherche floue sur la <b>ligne de commande complète</b></td></tr><tr><td class=""><b>dive</b></td><td class="c">—</td><td class="d">docker history</td><td class="d">explorer une image couche par couche</td></tr><tr><td class=""><b>act</b></td><td class="c">—</td><td class="d">pousser pour tester un workflow</td><td class="d">exécuter GitHub Actions en local</td></tr></tbody></table><div class="tip"><span class="lbl">les filtres taproom</span><code>brew</code> est ta commande n°1 avec 517 appels. <code>tapo</code> (obsolètes), <code>tape</code> (installés explicitement) et <code>tapsz</code> (triés par poids disque) répondent aux trois questions réelles : qu'est-ce qui doit être mis à jour, qu'est-ce que j'ai vraiment voulu installer, et qu'est-ce qui prend de la place.</div></section><section><h2><span class="num">11</span><span>Les scripts maison</span></h2><div class="h2rule"></div><p><code>~/.config/workflow-tools/</code> — versionné avec le reste de la configuration.</p><h3>herdr</h3><table class=""><colgroup><col style="width:36%"><col style="width:64%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>herdr-open-project &lt;nom&gt;</code></td><td class="d">focaliser le space s'il existe, le monter sinon</td></tr><tr><td class="c"><code>herdr-new &lt;type&gt; &lt;nom&gt;</code></td><td class="d">créer un space / une session / une quick session</td></tr><tr><td class="c"><code>herdr-nav-create</code></td><td class="d">le pont appelé par le navigator sur un nom inexistant</td></tr><tr><td class="c"><code>herdr-manage</code></td><td class="d">renommer / supprimer un space ou une session</td></tr><tr><td class="c"><code>herdr-rename-session</code></td><td class="d">renommer une session, répertoire compris</td></tr><tr><td class="c"><code>herdr-session-presets</code></td><td class="d">les gabarits de session</td></tr><tr><td class="c"><code>herdr-sync-projects</code></td><td class="d">régénérer un template herdr-plus par dépôt</td></tr></tbody></table><h3>AeroSpace &amp; fenêtres</h3><table class=""><colgroup><col style="width:36%"><col style="width:64%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>appswitcher next · prev</code></td><td class="d">⌘Tab qui traverse les espaces plein écran natifs</td></tr><tr><td class="c"><code>apppicker</code></td><td class="d">choisir une application au clavier</td></tr><tr><td class="c"><code>spaceswitcher</code></td><td class="d">changer de workspace depuis un script</td></tr><tr><td class="c"><code>aerospacectl</code></td><td class="d">pilotage global</td></tr><tr><td class="c"><code>gap-mode</code></td><td class="d">basculer entre plusieurs jeux de marges</td></tr></tbody></table><h3>Système &amp; divers</h3><table class=""><colgroup><col style="width:36%"><col style="width:64%"></colgroup><thead><tr><th>commande</th><th>effet</th></tr></thead><tbody><tr><td class="c"><code>repos-status</code></td><td class="d">l'état git de tous les dépôts d'un coup</td></tr><tr><td class="c"><code>net</code></td><td class="d">état du réseau, wifi, bluetooth</td></tr><tr><td class="c"><code>pk</code></td><td class="d">chercher un processus et le tuer</td></tr><tr><td class="c"><code>mdv [chemin]</code></td><td class="d">parcourir du Markdown rendu — wrapper autour de glow</td></tr><tr><td class="c"><code>make-target-info &lt;cible&gt;</code></td><td class="d">description, recette et variables d'une cible make</td></tr><tr><td class="c"><code>zsh-completions-refresh</code></td><td class="d">régénérer les complétions des outils</td></tr><tr><td class="c"><code>workflow-on · workflow-off</code></td><td class="d">activer / désactiver l'ensemble de la chaîne</td></tr></tbody></table><div class="note"><span class="lbl">pourquoi mdv et pas glow directement</span>Dans glow 3.0.0, le fichier de configuration <b>et</b> <code>GLAMOUR_STYLE</code> sont ignorés — vérifié en posant <code>width: 40</code> sans effet. Seul le drapeau <code>-s</code> est pris en compte. <code>mdv</code> est le wrapper qui le passe, avec le thème <code>premium-noir</code>.</div></section><section><h2><span class="num">12</span><span>Recettes</span></h2><div class="h2rule"></div><table class="lay c2"><colgroup><col style="width:50.0%"><col style="width:50.0%"></colgroup><tbody><tr><td><div class="card"><div class="hd"><span class="nm">Reprendre un projet</span><span></span></div><div class="role">De zéro à un environnement complet, sans taper un chemin.</div><table class=""><colgroup><col style="width:24%"><col style="width:76%"></colgroup><tbody><tr><td class="k"><kbd>Ctrl+b</kbd> <kbd>p</kbd></td><td class="d">sélecteur de projets herdr-plus → le space se monte entier</td></tr><tr><td class="k"><kbd>Ctrl+p</kbd></td><td class="d">ou, dans le shell : <code>fpj</code> pour un simple <code>cd</code></td></tr><tr><td class="k"><kbd>gs</kbd></td><td class="d">où en est le dépôt</td></tr><tr><td class="k"><kbd>uvs</kbd></td><td class="d">aligner l'environnement Python</td></tr><tr><td class="k"><kbd>mk</kbd></td><td class="d">voir ce que le projet propose comme commandes</td></tr></tbody></table></div></td><td><div class="card"><div class="hd"><span class="nm">Traquer une régression</span><span></span></div><div class="role">Du symptôme au commit fautif.</div><table class=""><colgroup><col style="width:24%"><col style="width:76%"></colgroup><tbody><tr><td class="k"><kbd>rg</kbd> <kbd>&lt;symptôme&gt;</kbd></td><td class="d">trouver où ça se passe</td></tr><tr><td class="k"><kbd>fshow</kbd></td><td class="d">chercher le commit qui a touché ça</td></tr><tr><td class="k"><kbd>gdt</kbd></td><td class="d">diff syntaxique — ce qui a <em>vraiment</em> changé</td></tr><tr><td class="k"><kbd>git</kbd> <kbd>bisect</kbd> <kbd>start</kbd></td><td class="d">et laisser <code>pt</code> trancher</td></tr><tr><td class="k"><kbd>gundo</kbd></td><td class="d">défaire le commit sans perdre le travail</td></tr></tbody></table></div></td></tr></tbody></table><table class="lay c2"><colgroup><col style="width:50.0%"><col style="width:50.0%"></colgroup><tbody><tr><td><div class="card"><div class="hd"><span class="nm">Nettoyer la machine</span><span></span></div><div class="role">Ce qui prend de la place, et pourquoi.</div><table class=""><colgroup><col style="width:24%"><col style="width:76%"></colgroup><tbody><tr><td class="k"><kbd>dush</kbd></td><td class="d">les 20 plus gros éléments du dossier</td></tr><tr><td class="k"><kbd>dust</kbd></td><td class="d">l'arbre des tailles</td></tr><tr><td class="k"><kbd>tapsz</kbd></td><td class="d">les paquets brew triés par poids</td></tr><tr><td class="k"><kbd>bclean</kbd></td><td class="d"><code>brew cleanup --prune=all</code> + <code>autoremove</code></td></tr><tr><td class="k"><kbd>nsize</kbd></td><td class="d">le poids de <code>node_modules</code></td></tr></tbody></table></div></td><td><div class="card"><div class="hd"><span class="nm">Un port occupé</span><span></span></div><div class="role">Le cas le plus fréquent, en deux commandes.</div><table class=""><colgroup><col style="width:24%"><col style="width:76%"></colgroup><tbody><tr><td class="k"><kbd>port</kbd> <kbd>3000</kbd></td><td class="d">qui écoute</td></tr><tr><td class="k"><kbd>killport</kbd> <kbd>3000</kbd></td><td class="d">le libérer</td></tr><tr><td class="k"><kbd>ports</kbd></td><td class="d">tout ce qui écoute sur la machine</td></tr><tr><td class="k"><kbd>Ctrl+b</kbd> <kbd>Alt+k</kbd></td><td class="d">ou <code>pk</code> : chercher par ligne de commande complète</td></tr><tr><td class="k"></td><td class="d"></td></tr></tbody></table></div></td></tr></tbody></table><table class="lay c2"><colgroup><col style="width:50.0%"><col style="width:50.0%"></colgroup><tbody><tr><td><div class="card"><div class="hd"><span class="nm">Après une mise à jour d'outil</span><span></span></div><div class="role">Ce qu'il faut penser à régénérer.</div><table class=""><colgroup><col style="width:30%"><col style="width:70%"></colgroup><tbody><tr><td class="k"><kbd>bup</kbd></td><td class="d"><code>brew update &amp;&amp; brew upgrade</code></td></tr><tr><td class="k"><kbd>zsh-completions-refresh</kbd></td><td class="d">régénérer les complétions</td></tr><tr><td class="k"><kbd>zr</kbd></td><td class="d">recharger le shell</td></tr><tr><td class="k"><kbd>hr</kbd></td><td class="d">recharger herdr</td></tr><tr><td class="k"><kbd>ar</kbd></td><td class="d">recharger AeroSpace</td></tr></tbody></table></div></td><td><div class="card"><div class="hd"><span class="nm">Éditer la configuration</span><span></span></div><div class="role">Chaque fichier a son alias.</div><table class=""><colgroup><col style="width:30%"><col style="width:70%"></colgroup><tbody><tr><td class="k"><kbd>ze</kbd><span class="or">·</span><kbd>zev</kbd></td><td class="d"><code>.zshrc</code> · <code>.zshenv</code></td></tr><tr><td class="k"><kbd>za</kbd></td><td class="d">les alias</td></tr><tr><td class="k"><kbd>cfg</kbd></td><td class="d">aller dans <code>~/.config</code></td></tr><tr><td class="k"><kbd>Ctrl+b</kbd> <kbd>Alt+m</kbd></td><td class="d">relire la documentation en Markdown rendu</td></tr><tr><td class="k"><kbd>alias</kbd> <kbd>|</kbd> <kbd>rg</kbd> <kbd>&lt;mot&gt;</kbd></td><td class="d">retrouver un alias oublié</td></tr></tbody></table></div></td></tr></tbody></table></section><section><h2><span class="num">13</span><span>Dépannage</span></h2><div class="h2rule"></div><table class=""><colgroup><col style="width:24%"><col style="width:30%"><col style="width:46%"></colgroup><thead><tr><th>symptôme</th><th>cause</th><th>geste</th></tr></thead><tbody><tr><td class=""><b>Une complétion ne répond pas</b></td><td class="d">le <code>fpath</code> a été ajouté après <code>compinit</code></td><td class="d">il doit être dans <code>.zshrc</code> <b>avant</b> <code>compinit</code>, pas dans <code>completion.zsh</code></td></tr><tr><td class=""><b>Une complétion est périmée</b></td><td class="d">l'outil a été mis à jour, pas son fichier <code>_nom</code></td><td class="d"><code>zsh-completions-refresh</code></td></tr><tr><td class=""><b>fzf-tab n'affiche aucun aperçu</b></td><td class="d">les zstyles sont chargés avant les plugins</td><td class="d"><code>completion.zsh</code> doit être sourcé <b>après</b> antidote</td></tr><tr><td class=""><b>Le shell démarre lentement</b></td><td class="d">un gestionnaire de versions chargé au démarrage</td><td class="d"><code>zsh -xv -i -c exit</code> pour voir ce qui s'exécute ; le passer en fonction paresseuse</td></tr><tr><td class=""><b>La mauvaise version d'un outil répond</b></td><td class="d">un shim pyenv masque le binaire Homebrew</td><td class="d"><code>whichall <nom></code> montre toutes les résolutions dans l'ordre</td></tr><tr><td class=""><b>Un gros collage fait ramer</b></td><td class="d">les suggestions recalculées à chaque caractère</td><td class="d"><code>ZSH_AUTOSUGGEST_MANUAL_REBIND=1</code> est déjà posé — vérifier qu'il n'a pas été perdu</td></tr><tr><td class=""><b>Le dump de complétion est corrompu</b></td><td class="d">interruption pendant l'écriture</td><td class="d"><code>rm ~/.zcompdump*</code> puis <code>zr</code></td></tr><tr><td class=""><b>Une commande ne trouve pas son binaire dans Emacs ou herdr</b></td><td class="d">le PATH est dans <code>.zshrc</code> et non dans <code>.zshenv</code></td><td class="d">les shells non interactifs ne lisent que <code>.zshenv</code></td></tr></tbody></table></section><section><h2><span class="num">14</span><span>Index</span></h2><div class="h2rule"></div><div class="idx"><div class="grp"><h4>Raccourcis clavier</h4><div class="row"><span class="kk">Ctrl+o</span><span class="vv">fichier → éditeur</span></div><div class="row"><span class="kk">Ctrl+f</span><span class="vv">dossier → cd</span></div><div class="row"><span class="kk">Ctrl+g</span><span class="vv">branche git</span></div><div class="row"><span class="kk">Ctrl+p</span><span class="vv">projet → cd</span></div><div class="row"><span class="kk">Ctrl+n</span><span class="vv">fichier modifié</span></div><div class="row"><span class="kk">Ctrl+r</span><span class="vv">historique atuin</span></div><div class="row"><span class="kk">↑</span><span class="vv">historique, dossier courant</span></div><div class="row"><span class="kk">Ctrl+/</span><span class="vv">aperçu fzf</span></div><div class="row"><span class="kk">Ctrl+Espace</span><span class="vv">accepter la suggestion</span></div><div class="row"><span class="kk">Ctrl+→</span><span class="vv">un mot de la suggestion</span></div></div><div class="grp"><h4>Navigation</h4><div class="row"><span class="kk">j / ji</span><span class="vv">zoxide / interactif</span></div><div class="row"><span class="kk">pj / cfg / dl</span><span class="vv">projets / config / téléch.</span></div><div class="row"><span class="kk">..  ...</span><span class="vv">remonter</span></div><div class="row"><span class="kk">-</span><span class="vv">dossier précédent</span></div><div class="row"><span class="kk">groot</span><span class="vv">racine du dépôt</span></div><div class="row"><span class="kk">mkcd</span><span class="vv">créer et entrer</span></div><div class="row"><span class="kk">ll / la / l</span><span class="vv">lister</span></div><div class="row"><span class="kk">lt / lt3 / ltg</span><span class="vv">arborescence</span></div><div class="row"><span class="kk">lm / lsize</span><span class="vv">par date / par taille</span></div><div class="row"><span class="kk">yz / br</span><span class="vv">yazi / broot</span></div></div><div class="grp"><h4>Git</h4><div class="row"><span class="kk">gs</span><span class="vv">statut</span></div><div class="row"><span class="kk">gd / gds</span><span class="vv">diff / stagé</span></div><div class="row"><span class="kk">gdt</span><span class="vv">diff syntaxique</span></div><div class="row"><span class="kk">gl / glog</span><span class="vv">log</span></div><div class="row"><span class="kk">gcm / gca</span><span class="vv">commit / amend</span></div><div class="row"><span class="kk">gp / gpu / gpf</span><span class="vv">pull / push / force-lease</span></div><div class="row"><span class="kk">gundo</span><span class="vv">défaire le commit</span></div><div class="row"><span class="kk">gab</span><span class="vv">absorb + rebase</span></div><div class="row"><span class="kk">gwip</span><span class="vv">commit rapide</span></div><div class="row"><span class="kk">lg</span><span class="vv">lazygit</span></div></div><div class="grp"><h4>Python / Node / make</h4><div class="row"><span class="kk">uvs / uva / uvad</span><span class="vv">sync / add / add dev</span></div><div class="row"><span class="kk">uvr / py / pt</span><span class="vv">run / python / pytest</span></div><div class="row"><span class="kk">ruffc</span><span class="vv">check --fix + format</span></div><div class="row"><span class="kk">venv</span><span class="vv">créer et activer</span></div><div class="row"><span class="kk">ni / nr / nrd</span><span class="vv">install / run / dev</span></div><div class="row"><span class="kk">mk</span><span class="vv">fzf-make</span></div><div class="row"><span class="kk">m / mr / mt</span><span class="vv">make / run / test</span></div><div class="row"><span class="kk">mtargets</span><span class="vv">lister les cibles</span></div><div class="row"><span class="kk">ju / jl</span><span class="vv">just / --list</span></div><div class="row"><span class="kk">nsize</span><span class="vv">poids node_modules</span></div></div><div class="grp"><h4>Inspection</h4><div class="row"><span class="kk">port / killport</span><span class="vv">qui écoute / libérer</span></div><div class="row"><span class="kk">ports</span><span class="vv">tout ce qui écoute</span></div><div class="row"><span class="kk">whichall</span><span class="vv">alias, fonction ou binaire</span></div><div class="row"><span class="kk">path</span><span class="vv">PATH lisible</span></div><div class="row"><span class="kk">dush / dust</span><span class="vv">tailles</span></div><div class="row"><span class="kk">loc</span><span class="vv">lignes de code</span></div><div class="row"><span class="kk">versions</span><span class="vv">toutes les versions</span></div><div class="row"><span class="kk">myip / localip</span><span class="vv">adresses IP</span></div><div class="row"><span class="kk">bench</span><span class="vv">hyperfine</span></div><div class="row"><span class="kk">recent</span><span class="vv">derniers modifiés</span></div></div><div class="grp"><h4>TUIs &amp; rechargement</h4><div class="row"><span class="kk">lg / ldo / top</span><span class="vv">git / docker / système</span></div><div class="row"><span class="kk">tap / tapo</span><span class="vv">brew / obsolètes</span></div><div class="row"><span class="kk">tv / tvf / tvt</span><span class="vv">television</span></div><div class="row"><span class="kk">cheat</span><span class="vv">navi</span></div><div class="row"><span class="kk">hist / hstats</span><span class="vv">atuin</span></div><div class="row"><span class="kk">zr / ze / za</span><span class="vv">recharger / éditer zsh</span></div><div class="row"><span class="kk">hr</span><span class="vv">recharger herdr</span></div><div class="row"><span class="kk">ar</span><span class="vv">recharger AeroSpace</span></div><div class="row"><span class="kk">ds / dd</span><span class="vv">doom sync / doctor</span></div><div class="row"><span class="kk">bup / bclean</span><span class="vv">mettre à jour / nettoyer brew</span></div></div></div></section></body></html>
