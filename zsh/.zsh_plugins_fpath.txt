@@ -1,0 +1,3 @@
+# Plugins qui ajoutent seulement des completions au fpath.
+# Chargés AVANT compinit.
+zsh-users/zsh-completions kind:fpath path:src

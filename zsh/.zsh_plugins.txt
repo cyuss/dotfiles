@@ -1,0 +1,10 @@
+# Plugins zsh — gérés par antidote.
+# Modifie ce fichier puis ouvre un nouveau shell : le cache se régénère seul.
+# L'ORDRE COMPTE : zsh-syntax-highlighting doit rester en dernier.
+
+Aloxaf/fzf-tab
+wfxr/forgit
+lukechilds/zsh-better-npm-completion
+srijanshetty/zsh-pip-completion
+zsh-users/zsh-autosuggestions
+zsh-users/zsh-syntax-highlighting
