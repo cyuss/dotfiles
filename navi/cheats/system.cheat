@@ -1,0 +1,31 @@
+% macos, système
+
+# Qui occupe un port
+lsof -nP -iTCP:<port> -sTCP:LISTEN
+
+# Libérer un port
+lsof -ti tcp:<port> | xargs kill -9
+
+# Quels ports sont ouverts
+lsof -nP -iTCP -sTCP:LISTEN
+
+# Trouver les gros dossiers ici
+dust -d 2
+
+# Trouver les fichiers de plus de 100 Mo
+fd --type f --size +100m
+
+# Voir la consommation en direct
+btop
+
+# Comparer le temps de deux commandes
+hyperfine --warmup 3 '<commande_a>' '<commande_b>'
+
+# Compter les lignes de code du projet
+tokei
+
+# Surveiller des fichiers et relancer à chaque changement
+watchexec --clear --restart --exts <extensions> -- <commande>
+
+# Vider le cache DNS
+sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder

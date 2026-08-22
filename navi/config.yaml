@@ -1,0 +1,31 @@
+# ══════════════════════════════════════════════════════════════════════
+#  navi — antisèches interactives.  `navi` puis on cherche, Entrée exécute.
+# ══════════════════════════════════════════════════════════════════════
+style:
+  tag:
+    color: yellow
+    width_percentage: 18
+    min_width: 14
+  comment:
+    color: white
+    width_percentage: 48
+    min_width: 40
+  snippet:
+    color: cyan
+
+finder:
+  command: fzf
+  overrides: >-
+    --height 70% --layout=reverse --border=rounded --margin=1,2
+    --prompt '❯ ' --pointer '▎' --marker '✓'
+    --color=fg:#d6dae1,bg:-1,hl:#e3b778
+    --color=fg+:#eef1f6,bg+:#2b303b,hl+:#e3b778
+    --color=info:#7d8494,prompt:#8fb884,pointer:#e3b778
+    --color=marker:#8fb884,spinner:#c4a6dd,header:#7fa5cf,border:#3a404c
+
+cheats:
+  paths:
+    - ~/.config/navi/cheats
+
+shell:
+  command: zsh

@@ -1,0 +1,28 @@
+% docker, containers
+
+# Lancer les services en arrière-plan
+docker compose up -d
+
+# Suivre les logs d'un service
+docker compose logs -f <service>
+
+# Reconstruire sans cache et relancer
+docker compose up -d --build --force-recreate
+
+# Entrer dans un conteneur qui tourne
+docker compose exec <service> sh
+
+# Tout arrêter et supprimer volumes inclus (destructif)
+docker compose down -v
+
+# Voir ce que consomme chaque conteneur
+docker stats --no-stream
+
+# Récupérer de l'espace disque (destructif)
+docker system prune -af --volumes
+
+# Voir pourquoi une image est si grosse
+docker history <image> --no-trunc
+
+$ service: docker compose config --services
+$ image: docker images --format '{{.Repository}}:{{.Tag}}'

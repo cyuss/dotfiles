@@ -1,0 +1,31 @@
+% python, uv
+
+# Créer un projet
+uv init <nom>
+
+# Ajouter une dépendance
+uv add <paquet>
+
+# Ajouter une dépendance de développement
+uv add --dev <paquet>
+
+# Lancer sans activer de venv
+uv run <commande>
+
+# Synchroniser l'environnement sur le lock
+uv sync
+
+# Lancer les tests
+uv run pytest -q
+
+# Lint + format d'un coup
+uv run ruff check --fix . && uv run ruff format .
+
+# Vérifier les types
+uv run pyright
+
+# Installer un outil globalement (isolé)
+uv tool install <outil>
+
+# Profiler un script et voir où va le temps
+uv run python -m cProfile -s cumtime <script> | head -30

@@ -1,0 +1,25 @@
+[mgr]
+# Colonnes: parent / current / preview
+ratio = [1, 4, 3]
+sort_by = "mtime"
+sort_sensitive = false
+sort_reverse = true
+sort_dir_first = true
+show_hidden = false
+linemode = "mtime"
+
+[preview]
+max_width = 2000
+max_height = 2000
+cache_dir = "~/.cache/yazi"
+
+[opener]
+# Ouvrir avec l’app par défaut macOS
+open = [
+  { run = 'open "$@"', desc = "Open", for = "macos" },
+]
+
+# Ouvrir dans ton éditeur (Emacsclient si tu veux)
+edit = [
+  { run = '${EDITOR:-vim} "$@"', desc = "Edit", for = "unix" },
+]

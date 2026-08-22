@@ -1,0 +1,31 @@
+% kubernetes, k8s
+
+# Voir les pods qui ne tournent pas correctement
+kubectl get pods --field-selector=status.phase!=Running -A
+
+# Comprendre pourquoi un pod ne démarre pas
+kubectl describe pod <pod> -n <namespace>
+
+# Logs d'un pod, y compris après un crash
+kubectl logs <pod> -n <namespace> --previous
+
+# Suivre les logs en direct
+kubectl logs -f <pod> -n <namespace>
+
+# Ouvrir un shell dans un pod
+kubectl exec -it <pod> -n <namespace> -- sh
+
+# Rediriger un port local vers un service
+kubectl port-forward svc/<service> <port_local>:<port_distant> -n <namespace>
+
+# Valider un manifeste sans l'appliquer
+kubectl apply --dry-run=server -f <fichier>
+
+# Voir la consommation réelle
+kubectl top pods -n <namespace>
+
+# Revenir à la version précédente d'un déploiement
+kubectl rollout undo deployment/<deploiement> -n <namespace>
+
+$ namespace: kubectl get ns --no-headers -o custom-columns=:metadata.name
+$ pod: kubectl get pods -n <namespace> --no-headers -o custom-columns=:metadata.name

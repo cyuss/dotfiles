@@ -1,0 +1,53 @@
+% git, vcs
+
+# Annuler le dernier commit en gardant les modifications
+git reset --soft HEAD~1
+
+# Annuler le dernier commit ET jeter les modifications (destructif)
+git reset --hard HEAD~1
+
+# Modifier le dernier commit sans changer le message
+git commit --amend --no-edit
+
+# Ranger les modifications dans les bons commits de la pile
+git absorb --and-rebase
+
+# Pousser après un rebase, sans écraser le travail des autres
+git push --force-with-lease
+
+# Retrouver un commit perdu (après reset/rebase raté)
+git reflog
+
+# Voir qui a modifié une ligne et quand
+git log -L <ligne_debut>,<ligne_fin>:<fichier>
+
+# Chercher un commit qui a introduit ou supprimé un texte
+git log -S '<texte>' --oneline
+
+# Trouver le commit qui a cassé quelque chose (dichotomie)
+git bisect start && git bisect bad && git bisect good <commit_bon>
+
+# Récupérer un seul fichier depuis une autre branche
+git checkout <branche> -- <fichier>
+
+# Voir le diff en côte à côte
+git diff --color-moved
+
+# Voir le diff syntaxique (compare les AST, pas les lignes)
+git dft
+
+# Supprimer les branches locales déjà fusionnées
+git branch --merged | grep -v '\*\|main\|master' | xargs -n1 git branch -d
+
+# Nettoyer les références distantes disparues
+git remote prune origin
+
+# Créer une branche depuis un commit précis
+git switch -c <nouvelle_branche> <commit>
+
+# Mettre de côté seulement certains fichiers
+git stash push -m "<message>" -- <fichier>
+
+$ branche: git branch -a --format='%(refname:short)'
+$ commit: git log --oneline -50 --- --column 1
+$ fichier: git status --porcelain | awk '{print $2}'
