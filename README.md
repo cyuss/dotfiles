@@ -12,6 +12,7 @@ pavage AeroSpace, Emacs (Doom) en daemon, zsh.
 | `zsh/` | Shell : `.zshenv` (PATH), `.zshrc` (interactif), alias, complétion |
 | `alacritty/` | Terminal — thème `premium-noir`, hints, bindings ⌘ |
 | `herdr/` | Multiplexeur / workspace manager, prefix `C-b` |
+| `herdr/launchd/` | LaunchAgent du rafraîchisseur de métadonnées de la sidebar |
 | `aerospace/` | Pavage de fenêtres, bindings Hyper |
 | `doom/` | Emacs (Doom) — daemon via LaunchAgent |
 | `nvim/` | Neovim (LazyVim) |
@@ -83,6 +84,33 @@ téléchargée à la main n'est pas signalée comme manquante.
 cp doom/private.el.example doom/private.el   # nom et e-mail, non versionnés
 ~/.config/emacs/bin/doom sync                # si Doom est installé
 ```
+
+### Intégrations hors `~/.config` (optionnelles)
+
+Deux réglages de la sidebar herdr vivent en dehors de ce dépôt, parce que
+macOS et Claude Code les lisent ailleurs. Sans eux tout fonctionne, mais
+les jetons correspondants restent vides.
+
+**`$limit` et `$model`** — le quota et le modèle en cours n'existent que
+dans le JSON que Claude Code passe à sa commande `statusLine`. Ajouter à
+`~/.claude/settings.json` :
+
+```json
+"statusLine": {
+  "type": "command",
+  "command": "~/.config/workflow-tools/herdr-usagebar-statusline"
+}
+```
+
+**`$sync`** — l'écart avec le remote (`↑2 ↓1 ⚑3`) sur les lignes de space :
+
+```sh
+cp herdr/launchd/com.youcef.herdr-space-metadata.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.youcef.herdr-space-metadata.plist
+```
+
+`launchctl` n'interprète pas `~` : ce `.plist` est le seul fichier du dépôt
+qui code un chemin absolu en dur, à adapter si tu n'es pas sur ce compte.
 
 ## Le modèle du `.gitignore`
 

@@ -100,6 +100,13 @@ doom/backup/
 doom/.local/
 nvim/lazy-lock.json.bak
 
+# Artefacts Python : bytecode compile, regenere a chaque execution et
+# porteur de chemins absolus. Les regles !docs/** et !workflow-tools/**
+# ci-dessus le reincluaient — en .gitignore, la DERNIERE regle qui matche
+# gagne, donc ces deux lignes doivent rester APRES les allowlists.
+__pycache__/
+*.pyc
+
 # docs : les PDF sont des ARTEFACTS (4,6 Mo), regenerables par docs/src/build
 docs/*.pdf
 
