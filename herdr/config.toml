@@ -191,54 +191,59 @@ rows = [
 # ══════════════════════════════════════════════════════════════════════
 #  Panneau AGENTS
 #
-#  Defaut precedent : ["state_icon", "workspace", "tab"] sur UNE ligne.
-#  Trois informations dans 24 colonnes : tout etait tronque, et on ne
-#  savait justement pas de quel projet venait l'agent — l'information la
-#  plus utile etait la premiere sacrifiee.
+#  Historique : le defaut herdr mettait ["state_icon","workspace","tab"] sur
+#  UNE ligne — trois informations dans 24 colonnes, donc tout tronque. La
+#  version suivante a eclate ca sur 4 lignes, ce qui reglait la troncature
+#  mais laissait un defaut de HIERARCHIE : la ligne en gras portait le titre
+#  de tache, c'est-a-dire l'information la PLUS volatile (elle change a
+#  chaque tour d'agent), et l'identite du projet lui etait subordonnee.
 #
-#  Regle appliquee ici : UNE idee par ligne, et la plus importante en
-#  premier. Quatre lignes courtes se lisent mieux qu'une ligne coupee.
+#  Regle appliquee ici : ce qui est STABLE ancre l'entree, ce qui est
+#  VOLATILE vient apres, ce qui est CHIFFRE finit en sourdine.
 #
-#    ligne 1   etat + quel agent            ◐ claude
-#    ligne 2   DANS QUEL PROJET             mon-garage-auto
-#    ligne 3   ou exactement dedans         run
-#    ligne 4   ce qu'il consomme            ⛁ 13%   5h 72%
+#    ligne 1   etat + QUEL PROJET     ◐ mon-garage-auto   (gras + accent)
+#    ligne 2   ce qu'il fait          Corne keyboard direction…
+#    ligne 3   qui, et ou             claude  run
+#    ligne 4   ce qu'il consomme      ⛁ 19% (186k)  5h 82%
+#    (ligne vide : row_gap = 1)
 #
-#  Jetons disponibles pour les agents (built-ins herdr) :
+#  row_gap = 1 : c'est le SEUL separateur disponible entre deux agents.
+#  Sans lui, deux entrees de 4 lignes se touchent et forment un mur.
+#
+#  Ce qui n'est PAS faisable, et pourquoi il n'y a ni indentation ni « · » :
+#  herdr refuse tout texte litteral dans une ligne — « unknown sidebar token;
+#  custom tokens must start with $ ». Et un jeton $ ne contenant que des
+#  espaces est silencieusement jete (teste : il n'est meme pas stocke). Les
+#  lignes 2 a 4 sont donc a fleur de marge.
+#
+#  Jetons integres pour les agents :
 #    state_icon  state_text  workspace  tab  pane  agent
 #    terminal_title  terminal_title_stripped
 #
-#  Les jetons en $ viennent des METADONNEES DE PANE, publiees par un
-#  plugin via `herdr pane report-metadata`. Ceux-ci viennent d'usagebar :
-#    $context   contexte consomme par le pane      ⛁ 13% (130k)
-#    $limit     fenetre de quota la plus courte    5h 72%
-#               ou, sur une cle API a l'usage      Σ 425k $0.04
-#    $provider  le backend qui repond              anthropic, ollama…
+#  Les jetons en $ viennent des METADONNEES DE PANE (`herdr pane
+#  report-metadata`). Ceux-ci viennent d'usagebar :
+#    $context   contexte consomme par le pane      ⛁ 19% (186k)
+#    $limit     fenetre de quota la plus courte     5h 82%
+#    $provider  le backend qui repond               anthropic, ollama…
 #    $title     le titre du terminal, deja nettoye
 #
-#  Mis a jour quand l'agent s'est POSE (pas pendant qu'il travaille) :
-#  les chiffres correspondent donc toujours au dernier tour termine.
+#  Mis a jour quand l'agent s'est POSE (pas pendant qu'il travaille) : les
+#  chiffres correspondent donc toujours au dernier tour termine.
 #
 #  Style en ligne : { token = "x", fg = "#RRGGBB", bold = true, dim = true }
 #  Seuls #RGB / #RRGGBB sont acceptes — pas de noms de couleur ici.
+#
+#  La surcharge par agent a ete retiree : elle n'existait que pour remonter
+#  terminal_title_stripped en ligne 1 chez claude. Cette ligne porte
+#  desormais le projet pour TOUS les agents, et le titre est en ligne 2 pour
+#  tout le monde — la surcharge n'avait plus d'objet.
 # ══════════════════════════════════════════════════════════════════════
 [ui.sidebar.agents]
-row_gap = 0
+row_gap = 1
 rows = [
-  ["state_icon", { token = "agent", bold = true }],
-  [{ token = "workspace", fg = "#ffc799" }],
-  [{ token = "tab", dim = true }],
-  [{ token = "$context", dim = true }, { token = "$limit", dim = true }],
-]
-
-# Claude annonce sa tache en cours dans le titre du terminal. C'est plus
-# parlant que le mot « claude », qu'on lit deja a l'icone d'etat — donc on
-# remplace la premiere ligne, et on garde le projet juste dessous.
-[ui.sidebar.agents.rows_by_agent]
-claude = [
-  ["state_icon", { token = "terminal_title_stripped", bold = true }],
-  [{ token = "workspace", fg = "#ffc799" }],
-  [{ token = "tab", dim = true }],
+  ["state_icon", { token = "workspace", bold = true, fg = "#ffc799" }],
+  [{ token = "terminal_title_stripped", dim = true }],
+  [{ token = "agent", dim = true }, { token = "tab", dim = true }],
   [{ token = "$context", dim = true }, { token = "$limit", dim = true }],
 ]
 
