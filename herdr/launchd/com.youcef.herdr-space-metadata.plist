@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Rafraichit le jeton $sync des lignes de space de la sidebar herdr.
+  Source : workflow-tools/herdr-space-metadata
+
+  Ce fichier est la reference ; la copie active vit dans
+  ~/Library/LaunchAgents/ (launchd n'y suit pas les liens symboliques de
+  facon fiable, et c'est deja la facon dont com.youcef.doom-emacs est pose).
+
+    installer  cp herdr/launchd/com.youcef.herdr-space-metadata.plist ~/Library/LaunchAgents/
+               launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.youcef.herdr-space-metadata.plist
+    retirer    launchctl bootout   gui/$UID/com.youcef.herdr-space-metadata
+               rm ~/Library/LaunchAgents/com.youcef.herdr-space-metadata.plist
+    etat       launchctl print     gui/$UID/com.youcef.herdr-space-metadata
+
+  launchd n'expand PAS "~" : les chemins sont absolus. C'est le seul fichier
+  du depot qui code en dur /Users/youcef.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.youcef.herdr-space-metadata</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/youcef/.config/workflow-tools/herdr-space-metadata</string>
+		<string>--watch</string>
+		<string>45</string>
+	</array>
+
+	<!-- launchd ne fournit pas le PATH d'un shell de login : sans ceci,
+	     ni `herdr` ni `git` ne sont trouves. -->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<!-- Le script boucle et ne sort jamais de lui-meme : KeepAlive ne sert
+	     qu'a le relancer s'il est tue. Serveur herdr arrete = il dort, il
+	     ne sort pas — donc pas de cycle de relance en boucle. -->
+	<key>KeepAlive</key>
+	<true/>
+	<key>ThrottleInterval</key>
+	<integer>30</integer>
+
+	<key>ProcessType</key>
+	<string>Background</string>
+
+	<key>StandardErrorPath</key>
+	<string>/tmp/herdr-space-metadata.err</string>
+</dict>
+</plist>

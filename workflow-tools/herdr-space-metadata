@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+# ─────────────────────────────────────────────────────────────────────
+# herdr-space-metadata — alimente le jeton $sync des lignes de space.
+#
+# Pourquoi ce script existe : les lignes de space de la sidebar herdr
+# n'acceptent que cinq jetons integres (state_icon, state_text, workspace,
+# branch, git_status). Tout le reste passe par des METADONNEES DE WORKSPACE,
+# que herdr ne produit pas lui-meme — il faut les lui pousser :
+#
+#   herdr workspace report-metadata <id> --source X --token NOM=VALEUR
+#
+# C'est exactement le mecanisme qu'utilise usagebar cote pane pour $context
+# et $limit. Ici, cote space.
+#
+# Ce qu'on affiche, et pourquoi : `git_status` (integre) montre deja l'etat
+# de l'arbre de travail. Ce qui n'etait visible NULLE PART, c'est l'ecart
+# avec l'amont — les commits qu'on a oublie de pousser.
+#
+#   ↑2   2 commits d'avance sur l'amont
+#   ↓1   1 commit de retard
+#   ⚑3   3 stashes en attente
+#
+# Le workspace n'expose pas de cwd (verifie : `herdr workspace get` renvoie
+# label/tabs/panes, pas de chemin). On le derive donc des panes, qui eux
+# portent leur cwd.
+#
+#   herdr-space-metadata              une passe, puis sortie
+#   herdr-space-metadata --watch      boucle (defaut : 45 s)
+#   herdr-space-metadata --watch 20   boucle, intervalle choisi
+#   herdr-space-metadata --clear      efface le jeton partout
+#   herdr-space-metadata -v           detaille ce qui est pousse
+#
+# Le TTL est pose a 4x l'intervalle : si ce script meurt, les jetons
+# s'effacent d'eux-memes au lieu d'afficher indefiniment une valeur fausse.
+# ─────────────────────────────────────────────────────────────────────
+import json
+import os
+import subprocess
+import sys
+import time
+
+SOURCE = "herdr-space-metadata"
+TOKEN = "sync"
+DEFAULT_INTERVAL = 45
+
+
+def run(cmd, cwd=None, timeout=5):
+    """Renvoie stdout strippe, ou None si la commande echoue."""
+    try:
+        r = subprocess.run(
+            cmd, cwd=cwd, timeout=timeout,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    return r.stdout.decode("utf-8", "replace").strip()
+
+
+def workspace_dirs():
+    """workspace_id -> cwd, derive des panes (le workspace n'expose pas de cwd)."""
+    out = run(["herdr", "pane", "list"])
+    if not out:
+        return {}
+    try:
+        panes = json.loads(out)["result"]["panes"]
+    except (ValueError, KeyError, TypeError):
+        return {}
+    dirs = {}
+    for pane in panes:
+        ws, cwd = pane.get("workspace_id"), pane.get("cwd")
+        # Premier pane rencontre : c'est le plus ancien du space, donc le plus
+        # representatif. Les suivants d'un meme space sont ignores.
+        if ws and cwd and ws not in dirs:
+            dirs[ws] = cwd
+    return dirs
+
+
+def sync_state(cwd):
+    """'↑2 ↓1 ⚑3', ou '' si rien a signaler / hors depot git."""
+    if not os.path.isdir(cwd):
+        return ""
+    if run(["git", "rev-parse", "--is-inside-work-tree"], cwd=cwd) != "true":
+        return ""
+
+    parts = []
+
+    # @{upstream}...HEAD : gauche = commits de l'amont absents en local
+    # (retard), droite = commits locaux absents de l'amont (avance).
+    # Echoue silencieusement si la branche n'a pas d'amont — cas normal.
+    counts = run(
+        ["git", "rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
+        cwd=cwd,
+    )
+    if counts:
+        try:
+            behind, ahead = (int(x) for x in counts.split())
+        except ValueError:
+            behind = ahead = 0
+        if ahead:
+            parts.append(f"↑{ahead}")
+        if behind:
+            parts.append(f"↓{behind}")
+
+    stash = run(["git", "stash", "list"], cwd=cwd)
+    if stash:
+        parts.append(f"⚑{len(stash.splitlines())}")
+
+    return " ".join(parts)
+
+
+def publish(ws, value, ttl_ms, verbose=False):
+    base = ["herdr", "workspace", "report-metadata", ws, "--source", SOURCE]
+    if value:
+        cmd = base + ["--token", f"{TOKEN}={value}", "--ttl-ms", str(ttl_ms)]
+    else:
+        # Un token vide resterait affiche tel quel : on l'efface franchement.
+        cmd = base + ["--clear-token", TOKEN]
+    ok = run(cmd) is not None
+    if verbose:
+        state = value or "(vide)"
+        print(f"{ws:<6} {state:<16} {'ok' if ok else 'ECHEC'}", file=sys.stderr)
+    return ok
+
+
+def pass_once(ttl_ms, verbose=False, clear=False):
+    dirs = workspace_dirs()
+    if not dirs and verbose:
+        print("aucun space (serveur herdr arrete ?)", file=sys.stderr)
+    for ws, cwd in sorted(dirs.items()):
+        publish(ws, "" if clear else sync_state(cwd), ttl_ms, verbose)
+    return len(dirs)
+
+
+def main():
+    args = sys.argv[1:]
+    verbose = False
+    clear = False
+    watch = False
+    interval = DEFAULT_INTERVAL
+
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ("-v", "--verbose"):
+            verbose = True
+        elif a == "--clear":
+            clear = True
+        elif a == "--watch":
+            watch = True
+            # Intervalle optionnel juste apres --watch.
+            if i + 1 < len(args) and args[i + 1].isdigit():
+                i += 1
+                interval = max(5, int(args[i]))
+        elif a in ("-h", "--help"):
+            print(__doc__ or "", end="")
+            sys.exit(0)
+        else:
+            print(f"argument inconnu : {a}", file=sys.stderr)
+            sys.exit(2)
+        i += 1
+
+    ttl_ms = min(86_400_000, max(1, interval * 4 * 1000))
+
+    if not watch:
+        pass_once(ttl_ms, verbose, clear)
+        return
+
+    while True:
+        try:
+            pass_once(ttl_ms, verbose, clear)
+        except Exception as exc:  # une passe ratee ne doit pas tuer la boucle
+            print(f"passe ignoree : {exc}", file=sys.stderr)
+        time.sleep(interval)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(130)
