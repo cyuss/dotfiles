@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# herdr-usagebar-statusline — pont entre Claude Code et le plugin usagebar.
+#
+# Pourquoi : usagebar ne peut pas connaitre les fenetres de quota Claude
+# (5h / 7j) tout seul. `usagebar collect` le disait noir sur blanc :
+#
+#   "Primary": null, "Source": "none",
+#   "Note": "no ~/.claude.json utilization and no statusLine cache"
+#
+# Sans source, le jeton $limit de la sidebar herdr reste vide. Claude Code
+# passe ses `rate_limits` sur stdin a la commande `statusLine` : c'est le
+# seul endroit ou cette donnee existe. usagebar la lit, la met en cache, et
+# $limit se remplit enfin.
+#
+# Pourquoi ce wrapper plutot que le script du plugin en direct : le chemin
+# du plugin contient un hash (plugins/github/usagebar-33803b79d616). Le
+# resoudre au moment de l'appel evite un settings.json casse le jour d'une
+# reinstallation.
+#
+# Contrat d'une commande statusLine : rapide, et JAMAIS bruyante. Elle est
+# rappelee a chaque rendu ; toute erreur s'afficherait a la place du statut.
+# D'ou le exit 0 systematique.
+#
+# Sortie : celle de usagebar, c'est-a-dire RIEN. Ce script est un collecteur,
+# pas un afficheur. Pour afficher quelque chose, ajouter un echo a la fin.
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+SL=$(/bin/ls -1d "$HOME"/.config/herdr/plugins/github/usagebar-*/bin/run-statusline.sh 2>/dev/null | head -1)
+
+# Plugin absent ou renomme : on ne dit rien, on ne casse pas la status line.
+[[ -n ${SL:-} && -r $SL ]] || exit 0
+
+bash "$SL" "$@" 2>/dev/null || true
+exit 0
