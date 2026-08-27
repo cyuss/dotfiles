@@ -71,13 +71,21 @@ new_cwd = "follow"
 [ui]
 accent = "#ffc799"
 
-sidebar_width = 28
+# Terminal mesure : 155 colonnes. A 28, la sidebar n'en prenait que 18 % et
+# tronquait tout au-dela de ~26 caracteres — d'ou l'impossibilite de lire le
+# sujet d'un agent. A 40, elle prend 26 % et laisse ~113 colonnes au contenu,
+# ce qui reste large pour du code ou un TUI. `prefix+b` la replie a la demande.
+#
+# Le « 36 » de la doc herdr n'est PAS un plafond, seulement le maximum par
+# defaut : le binaire accepte au moins 96. min reste a 22 pour que la config
+# tienne encore sur un ecran etroit ou en --remote.
+sidebar_width = 40
 sidebar_min_width = 22
 # 36 = le maximum par defaut de herdr. La largeur s'auto-ajuste aux libelles :
 # relever le plafond ne coute rien tant que les noms sont courts, et evite la
 # troncature sur « mon-garage-auto ». Meme probleme que le prefixe « project: »
 # du navigator, traite par l'autre bout.
-sidebar_max_width = 36
+sidebar_max_width = 52
 sidebar_collapsed_mode = "compact"
 # Explicite : aucun interet sur un 3840x1600, et la sidebar est justement ce
 # qui porte l'etat des agents. `prefix+b` (toggle_sidebar, defaut herdr) la
