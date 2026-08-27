@@ -367,10 +367,10 @@ last_pane = "prefix+backtick"        # aller-retour entre deux panes
 #
 #  Verifie : herdr normalise `prefix+shift+i` et `prefix+I` sur la MEME
 #  touche, et Alacritty envoie bien « I » pour shift+i. Le binding declenche.
-swap_pane_up    = "prefix+shift+i"
-swap_pane_left  = "prefix+shift+j"
-swap_pane_down  = "prefix+shift+k"
-swap_pane_right = "prefix+shift+l"
+# [SUSPENDU 2026-08-27] swap_pane_up    = "prefix+shift+i"
+# [SUSPENDU 2026-08-27] swap_pane_left  = "prefix+shift+j"
+# [SUSPENDU 2026-08-27] swap_pane_down  = "prefix+shift+k"
+# [SUSPENDU 2026-08-27] swap_pane_right = "prefix+shift+l"
 
 # ── Reordonner les onglets ───────────────────────────────────────────
 #  prefix+, / prefix+. changent d'onglet ; < et > le POUSSENT.
@@ -381,14 +381,14 @@ swap_pane_right = "prefix+shift+l"
 #  protocole clavier kitty que cote pane (src/pane/kitty_keyboard.rs), pas
 #  cote client : Alacritty lui envoie donc le caractere « < », pas
 #  « shift+virgule ». Ecrit autrement, ce binding ne declencherait jamais.
-move_tab_previous = "prefix+<"
-move_tab_next     = "prefix+>"
+# [SUSPENDU 2026-08-27] move_tab_previous = "prefix+<"
+# [SUSPENDU 2026-08-27] move_tab_next     = "prefix+>"
 
 # Defaut herdr, rendu explicite parce qu'il est trop utile pour rester cache :
 # ouvre TOUT le scrollback du pane dans $EDITOR. Pour relire 2000 lignes de
 # sortie d'agent, c'est superieur au copy-mode — on y arrive avec la recherche,
 # les text objects tree-sitter et les marks de Doom.
-edit_scrollback = "prefix+e"
+# [SUSPENDU 2026-08-27] edit_scrollback = "prefix+e"
 
 # Mode navigate : mouvements locaux facon vim
 navigate_pane_left  = "h"
@@ -629,11 +629,11 @@ description = "usage & limites des agents"
 # de ce fichier : « Majuscule = variante/gestion ». Les compteurs de la sidebar
 # ne sont rafraichis que lorsque l'agent s'est POSE (jamais pendant qu'il
 # travaille) ; ceci force le recalcul de $context et $limit sans attendre.
-[[keys.command]]
-key = "prefix+shift+u"
-type = "plugin_action"
-command = "usagebar.refresh"
-description = "usagebar : recalculer $context / $limit"
+# [SUSPENDU 2026-08-27] [[keys.command]]
+# [SUSPENDU 2026-08-27] key = "prefix+shift+u"
+# [SUSPENDU 2026-08-27] type = "plugin_action"
+# [SUSPENDU 2026-08-27] command = "usagebar.refresh"
+# [SUSPENDU 2026-08-27] description = "usagebar : recalculer $context / $limit"
 
 # alt+t = tokens — depense en direct (prefix+shift+t = rename_tab chez herdr)
 [[keys.command]]
@@ -668,7 +668,7 @@ description = "claude auto-retry (statut)"
 # serveur. Complement direct de resume_agents_on_restore = true : sans lui
 # l'agent reprend sa conversation, mais l'ecran repart vide.
 # Marque experimental par herdr — a surveiller, pas a oublier.
-pane_history = true
+# [SUSPENDU 2026-08-27] pane_history = true
 
 kitty_graphics = false               # Alacritty n'implemente PAS le protocole graphique
                                      # kitty (Ghostty oui). A repasser a true si tu
