@@ -209,10 +209,9 @@ rows = [
 #  Regle appliquee ici : ce qui est STABLE ancre l'entree, ce qui est
 #  VOLATILE vient apres, ce qui est CHIFFRE finit en sourdine.
 #
-#    ligne 1   etat + QUEL PROJET     ◐ mon-garage-auto   (gras + accent)
-#    ligne 2   ce qu'il fait          Corne keyboard direction…
-#    ligne 3   qui, et ou             claude  run
-#    ligne 4   ce qu'il consomme      ⛁ 19% (186k)  5h 82%
+#    ligne 1   etat + OU              ◐ [1] ~
+#    ligne 2   quel agent, quel modele claude  Opus 5
+#    ligne 3   ce qu'il consomme      ⛁ 31% (311k)  5h 54%
 #    (ligne vide : row_gap = 1)
 #
 #  row_gap = 1 : c'est le SEUL separateur disponible entre deux agents.
@@ -269,10 +268,24 @@ rows = [
 # En revanche il n'y a PAS de fond : seul le premier plan est stylable.
 [ui.sidebar.agents]
 row_gap = 1
+# Trois lignes, sans titre de tache :
+#   ligne 1   ou       ◐ [1] ~                le [N] vient du plugin
+#                                             automatic-rename, c'est la
+#                                             touche de saut prefix+N
+#   ligne 2   quoi     claude  Opus 5
+#   ligne 3   budget   ⛁ 31% (311k)  5h 54%
+#
+# Le titre de tache a ete RETIRE, et l'onglet avec. Les deux disaient la
+# meme chose : le plugin automatic-rename renomme l'onglet d'apres le titre
+# du terminal de l'agent, donc « Corne keyboard directional » apparaissait
+# en ligne 2 (terminal_title_stripped) ET en ligne 3 (tab).
+#
+# $model vient de workflow-tools/herdr-usagebar-statusline : le modele en
+# cours n'existe que dans le JSON que Claude Code passe a sa commande
+# statusLine, aucun jeton herdr ne le porte.
 rows = [
   ["state_icon", { token = "workspace", bold = true, fg = "#ffc799", dim = false }],
-  [{ token = "terminal_title_stripped", fg = "#c4a7e7", dim = false }],
-  [{ token = "agent", fg = "#7fd9c4", dim = false }, { token = "tab", fg = "#8aa0b8", dim = false }],
+  [{ token = "agent", fg = "#7fd9c4", dim = false }, { token = "$model", fg = "#c4a7e7", dim = false }],
   [{ token = "$context", fg = "#e0b070", dim = false }, { token = "$limit", fg = "#8fbf9f", dim = false }],
 ]
 

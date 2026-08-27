@@ -1,36 +1,81 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # ─────────────────────────────────────────────────────────────────────
-# herdr-usagebar-statusline — pont entre Claude Code et le plugin usagebar.
+# herdr-usagebar-statusline — pont entre Claude Code et la sidebar herdr.
 #
-# Pourquoi : usagebar ne peut pas connaitre les fenetres de quota Claude
-# (5h / 7j) tout seul. `usagebar collect` le disait noir sur blanc :
+# Claude Code appelle sa commande `statusLine` a chaque rendu, en lui
+# passant sur stdin un JSON qui contient deux choses qu'on ne trouve
+# NULLE PART ailleurs :
 #
-#   "Primary": null, "Source": "none",
-#   "Note": "no ~/.claude.json utilization and no statusLine cache"
+#   rate_limits            -> sans quoi usagebar ne peut pas remplir $limit
+#   model.display_name     -> le modele reellement en cours ("Opus 5")
 #
-# Sans source, le jeton $limit de la sidebar herdr reste vide. Claude Code
-# passe ses `rate_limits` sur stdin a la commande `statusLine` : c'est le
-# seul endroit ou cette donnee existe. usagebar la lit, la met en cache, et
-# $limit se remplit enfin.
+# Ce script fait donc deux passes sur la meme entree :
+#   1. publie $model comme jeton de pane, pour la sidebar herdr ;
+#   2. transmet le JSON brut, INTACT, au script du plugin usagebar.
 #
-# Pourquoi ce wrapper plutot que le script du plugin en direct : le chemin
-# du plugin contient un hash (plugins/github/usagebar-33803b79d616). Le
-# resoudre au moment de l'appel evite un settings.json casse le jour d'une
-# reinstallation.
+# Le chemin du plugin contient un hash (usagebar-33803b79d616) : on le
+# resout a l'appel, pour ne pas casser au prochain reinstall.
 #
-# Contrat d'une commande statusLine : rapide, et JAMAIS bruyante. Elle est
-# rappelee a chaque rendu ; toute erreur s'afficherait a la place du statut.
-# D'ou le exit 0 systematique.
-#
-# Sortie : celle de usagebar, c'est-a-dire RIEN. Ce script est un collecteur,
-# pas un afficheur. Pour afficher quelque chose, ajouter un echo a la fin.
+# CONTRAT d'une commande statusLine : rapide, et JAMAIS bruyante. Elle est
+# rappelee a chaque rendu et sa sortie s'affiche a la place du statut.
+# D'ou : aucune sortie, et exit 0 quoi qu'il arrive.
 # ─────────────────────────────────────────────────────────────────────
-set -uo pipefail
+import glob
+import json
+import os
+import subprocess
+import sys
 
-SL=$(/bin/ls -1d "$HOME"/.config/herdr/plugins/github/usagebar-*/bin/run-statusline.sh 2>/dev/null | head -1)
+TTL_MS = 86_400_000
 
-# Plugin absent ou renomme : on ne dit rien, on ne casse pas la status line.
-[[ -n ${SL:-} && -r $SL ]] || exit 0
 
-bash "$SL" "$@" 2>/dev/null || true
-exit 0
+def publish_model(payload):
+    """$model : le modele en cours, pour la ligne 2 du panneau des agents."""
+    pane = os.environ.get("HERDR_PANE_ID")
+    if not pane or not os.environ.get("HERDR_SOCKET_PATH"):
+        return
+    name = (payload.get("model") or {}).get("display_name")
+    if not isinstance(name, str) or not name.strip():
+        return
+    subprocess.run(
+        ["herdr", "pane", "report-metadata", pane,
+         "--source", "herdr-usagebar-statusline",
+         "--token", f"model={name.strip()}", "--ttl-ms", str(TTL_MS)],
+        timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def forward(raw):
+    """Le plugin usagebar veut le JSON tel quel : on ne le reserialise pas."""
+    hits = glob.glob(os.path.expanduser(
+        "~/.config/herdr/plugins/github/usagebar-*/bin/run-statusline.sh"))
+    if not hits:
+        return
+    subprocess.run(["bash", hits[0]], input=raw.encode("utf-8"),
+                   timeout=10, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)
+
+
+def main():
+    raw = sys.stdin.read()
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        payload = None
+    if isinstance(payload, dict):
+        try:
+            publish_model(payload)
+        except Exception:
+            pass
+    try:
+        forward(raw)
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        pass
+    sys.exit(0)
