@@ -13,6 +13,12 @@ auto_switch = false
 [theme.custom]
 # Transparence : les panneaux herdr héritent du fond du terminal
 panel_bg = "reset"
+# Meme raison, pour la sidebar. Elle etait restee au noir opaque de vesper :
+# a opacity = 0.55 cote Alacritty, ca faisait une bande opaque collee contre
+# un terminal translucide. `herdr config check` accepte "reset" ici, mais la
+# doc n'associe explicitement "reset" qu'a panel_bg — si le rendu ne suit pas,
+# remettre une valeur hex (vesper : "#101010").
+sidebar_bg = "reset"
 accent = "#ffc799"
 
 # ── Sélection dans la sidebar ────────────────────────────────────────
@@ -31,6 +37,30 @@ accent = "#ffc799"
 active_row_bg = "#181c24"
 selection_bg  = "#222833"
 
+# ── Jetons de couleur non documentes ─────────────────────────────────
+# `herdr --default-config` n'en documente que 7. Le binaire en accepte 11 :
+#   sidebar_bg  active_row_bg  selection_bg  surface_dim  panel_bg
+#   accent  mauve  green  yellow  red  peach
+# surface_dim / mauve / yellow / peach n'apparaissent dans aucune doc.
+#
+# Ces trois couleurs portent les etats d'agent et le statut git. Depuis que
+# status_indicators = "symbols" (voir [ui]), la FORME porte l'etat : la
+# couleur n'est plus qu'un renfort, elle peut donc etre calmee sans rien
+# perdre. Une seule exception, `red` : c'est le « agis maintenant », il reste
+# a pleine intensite (valeur d'origine de vesper).
+#
+# Hierarchie voulue :  red vif  >  yellow tiede  >  green calme
+# `green` (agent termine = ignorable) est volontairement le plus discret ;
+# le mint d'origine de vesper (#99ffe4) criait plus fort que l'urgence.
+red    = "#ff8080"   # bloque / erreur    — vesper d'origine, non touche
+yellow = "#e0b070"   # en cours           — distinct de l'accent
+green  = "#7fd9c4"   # termine / propre   — mint de vesper, calme
+peach  = "#ffc799"   # aligne sur accent
+mauve  = "#b9a5d6"
+# Surface intermediaire : un cran au-dessus du fond du terminal (#101216),
+# un cran en dessous de active_row_bg (#181c24).
+surface_dim = "#15181e"
+
 [terminal]
 shell_mode = "auto"
 new_cwd = "follow"
@@ -43,29 +73,120 @@ accent = "#ffc799"
 
 sidebar_width = 28
 sidebar_min_width = 22
-sidebar_max_width = 32
+# 36 = le maximum par defaut de herdr. La largeur s'auto-ajuste aux libelles :
+# relever le plafond ne coute rien tant que les noms sont courts, et evite la
+# troncature sur « mon-garage-auto ». Meme probleme que le prefixe « project: »
+# du navigator, traite par l'autre bout.
+sidebar_max_width = 36
 sidebar_collapsed_mode = "compact"
+# Explicite : aucun interet sur un 3840x1600, et la sidebar est justement ce
+# qui porte l'etat des agents. `prefix+b` (toggle_sidebar, defaut herdr) la
+# replie a la demande. Passer a true si tu travailles un jour sur petit ecran.
+sidebar_start_collapsed = false
 
 pane_borders = true
+# Supprime le cadre qui entoure L'ENSEMBLE de la zone de panes, en gardant les
+# separateurs internes (style tmux). Suite logique de pane_scrollbars = false
+# et hide_tab_bar_when_single_tab : ce cadre est redondant avec le bord du
+# terminal et la sidebar.
+pane_outer_borders = false
 pane_gaps = true
 pane_scrollbars = false              # récupère une colonne, moins de bruit visuel
 hide_tab_bar_when_single_tab = true  # pas de barre d'onglets inutile
 tab_bar_position = "top"
 show_agent_labels_on_pane_borders = true
 
-agent_panel_sort = "spaces"          # "priority" = file d'attente par urgence
+# ══════════════════════════════════════════════════════════════════════
+#  status_indicators — la forme plutot que la teinte
+#
+#  "dots" (defaut) encode l'etat UNIQUEMENT par la couleur. Or ce setup
+#  empile trois choses qui degradent chacune la discrimination des teintes :
+#  un theme quasi monochrome, opacity = 0.55, et blur = true.
+#
+#  "symbols" donne un glyphe distinct par etat (blocked / working / done /
+#  idle / unknown). La forme porte l'information, la couleur ne fait plus
+#  que la renforcer — cf. le bloc `red`/`yellow`/`green` dans [theme.custom].
+# ══════════════════════════════════════════════════════════════════════
+status_indicators = "symbols"
+
+# "spaces" reste le bon choix a 1-2 agents : le regroupement par projet prime.
+# A basculer sur "priority" (file d'attente par urgence, ce qui te bloque
+# remonte en tete) le jour ou plusieurs agents tournent en parallele : avec
+# 4 lignes par agent, 6 agents = 24 lignes et le groupement devient illisible.
+agent_panel_sort = "spaces"
 prompt_new_tab_name = false          # les onglets se nomment tout seuls (cf. plugin rename)
 prompt_new_workspace_name = false
 confirm_close = true
+
+# ── Titre ecrit dans le terminal hote ────────────────────────────────
+# Defaut : "{hostname}: {workspace}". {hostname} est du bruit en local — c'est
+# cette machine. sketchybar n'affiche que front_app, donc ce titre ne sert qu'a
+# Mission Control et au selecteur d'applications ; {terminal_title} y fait
+# apparaitre la tache en cours de l'agent. Alacritty a dynamic_title = true,
+# c'est ce qui le rend visible.
+# Remettre {hostname} si tu utilises `herdr --remote`.
+# Jetons : {hostname} {workspace} {tab} {pane} {terminal_title}
+window_title = "{workspace} · {terminal_title}"
+
+# ══════════════════════════════════════════════════════════════════════
+#  Barre de statut (bord droit de la barre d'onglets)
+#
+#  Syntaxe non documentee : c'est un enum INTERNALLY TAGGED, donc `type =`
+#  est obligatoire et la forme chaine ("zoom") est refusee.
+#    { type = "zoom" }
+#    { type = "hostname" }
+#    { type = "datetime", format = "%H:%M" }
+#    { type = "text",     text = "..." }
+#    { type = "command",  command = "...", interval_seconds = 30,
+#                         timeout_seconds = 2 }
+#  Les entrees command/hostname/datetime sont resolues par le SERVEUR herdr.
+#  Le binaire contient un message « ui.tab_bar_right may contain at most N »
+#  applique a l'execution, que `config check` ne signale pas (il accepte
+#  16 entrees sans broncher) — rester a 3 ou 4.
+#
+#  ⚠ LIMITE CONNUE : hide_tab_bar_when_single_tab = true (plus bas) masque
+#  la barre d'onglets quand le space n'a qu'UN onglet — et donc cette zone
+#  avec. Or un space a un seul onglet peut avoir plusieurs panes, ce qui est
+#  exactement le cas ou l'on zoome. L'indicateur ne sera donc visible qu'a
+#  partir de deux onglets. Pour l'avoir toujours : passer
+#  hide_tab_bar_when_single_tab a false (coute une ligne en permanence).
+#
+#  `zoom` signale qu'un pane est zoome (prefix+z). Sans lui, rien ne le dit :
+#  il faut deduire le zoom de l'absence des autres panes.
+tab_bar_right = [
+  { type = "zoom" },
+]
+tab_bar_right_separator = "   "
 
 mouse_capture = true
 copy_on_select = true
 mouse_scroll_lines = 3
 
 # Lignes de la sidebar : compactes, 2 lignes max, zéro respiration inutile
+# Jetons integres pour les spaces :
+#   state_icon  state_text  workspace  branch  git_status
+# Les jetons en $ viennent des METADONNEES DE WORKSPACE, publiees par
+# `herdr workspace report-metadata <id> --source X --token NOM=VALEUR`.
+# C'est le pendant, cote space, de ce que usagebar fait cote pane.
+#
+#   $sync   ecart avec le remote, alimente par workflow-tools/herdr-space-metadata
+#           ↑2 = 2 commits d'avance   ↓1 = 1 de retard   ⚑3 = 3 stashes
+#
+# Volontairement complementaire de `git_status`, qui montre l'etat de l'arbre
+# de travail (modifie / en attente) : $sync montre l'ecart avec l'amont, que
+# rien n'affichait.
+#
+# NON VERIFIE : herdr ne documente pas s'il masque une ligne dont tous les
+# jetons sont vides, ou s'il laisse une ligne blanche. Si les spaces propres
+# gagnent une ligne vide dans la sidebar, remettre $sync sur la 2e ligne :
+#   ["branch", "git_status", { token = "$sync", dim = true }]
 [ui.sidebar.spaces]
 row_gap = 0
-rows = [["state_icon", "workspace"], ["branch", "git_status"]]
+rows = [
+  ["state_icon", "workspace"],
+  ["branch", "git_status"],
+  [{ token = "$sync", dim = true }],
+]
 
 # ══════════════════════════════════════════════════════════════════════
 #  Panneau AGENTS
@@ -137,6 +258,19 @@ position = "bottom-center"
 
 [ui.sound]
 enabled = true
+
+# ── Sons par agent ───────────────────────────────────────────────────
+# Valeurs : "default" | "on" | "off". Les sons ne se declenchent que pour les
+# spaces EN ARRIERE-PLAN — c'est deja le comportement voulu, donc `claude` est
+# laisse sur "default" : la cle est posee pour etre trouvable, pas pour changer
+# quoi que ce soit aujourd'hui. Passer un agent a "off" le rend muet (c'est
+# deja le cas de `droid` par defaut chez herdr).
+#
+# Ids d'agents reconnus par le binaire :
+#   pi  claude  codex  gemini  cursor  devin  cline  opencode  copilot
+#   kimi  kiro  droid  amp  grok  hermes  kilo  qodercli  qwen  maki
+[ui.sound.agents]
+claude = "default"
 
 [session]
 resume_agents_on_restore = true      # reprend les conversations après restart du serveur
@@ -213,6 +347,43 @@ focus_pane_right = "prefix+l"
 switch_workspace = "prefix+shift+1..9"
 focus_agent = "prefix+alt+1..9"      # saute direct sur l'agent n°N
 last_pane = "prefix+backtick"        # aller-retour entre deux panes
+
+# ══════════════════════════════════════════════════════════════════════
+#  DEPLACER un pane (et non deplacer le focus)
+#
+#  Il manquait la moitie du geste : deux schemas pour bouger le FOCUS
+#  (prefix+ijkl facon AeroSpace, alt+hjkl facon nvim) et aucun pour bouger
+#  le PANE lui-meme.
+#
+#  AeroSpace met `move` sur Hyper+SEDF — impossible ici, prefix+s est
+#  split_horizontal. Le choix retenu est donc le meme cluster que le focus,
+#  plus Shift. Ca deroge au principe « sans majuscule » de ce fichier, et
+#  c'est assume : rearranger un pane est rare, naviguer ne l'est pas.
+#
+#  Verifie : herdr normalise `prefix+shift+i` et `prefix+I` sur la MEME
+#  touche, et Alacritty envoie bien « I » pour shift+i. Le binding declenche.
+swap_pane_up    = "prefix+shift+i"
+swap_pane_left  = "prefix+shift+j"
+swap_pane_down  = "prefix+shift+k"
+swap_pane_right = "prefix+shift+l"
+
+# ── Reordonner les onglets ───────────────────────────────────────────
+#  prefix+, / prefix+. changent d'onglet ; < et > le POUSSENT.
+#
+#  ⚠ Ecrit « prefix+< » et non « prefix+shift+, » : ce sont deux touches
+#  DIFFERENTES pour herdr (verifie par collision — shift+, et shift+comma
+#  entrent en conflit entre elles, mais pas avec <). herdr n'implemente le
+#  protocole clavier kitty que cote pane (src/pane/kitty_keyboard.rs), pas
+#  cote client : Alacritty lui envoie donc le caractere « < », pas
+#  « shift+virgule ». Ecrit autrement, ce binding ne declencherait jamais.
+move_tab_previous = "prefix+<"
+move_tab_next     = "prefix+>"
+
+# Defaut herdr, rendu explicite parce qu'il est trop utile pour rester cache :
+# ouvre TOUT le scrollback du pane dans $EDITOR. Pour relire 2000 lignes de
+# sortie d'agent, c'est superieur au copy-mode — on y arrive avec la recherche,
+# les text objects tree-sitter et les marks de Doom.
+edit_scrollback = "prefix+e"
 
 # Mode navigate : mouvements locaux facon vim
 navigate_pane_left  = "h"
@@ -449,6 +620,16 @@ type = "plugin_action"
 command = "usagebar.open-limits"
 description = "usage & limites des agents"
 
+# shift+u = la MEME information, recalculee tout de suite. Suit la convention
+# de ce fichier : « Majuscule = variante/gestion ». Les compteurs de la sidebar
+# ne sont rafraichis que lorsque l'agent s'est POSE (jamais pendant qu'il
+# travaille) ; ceci force le recalcul de $context et $limit sans attendre.
+[[keys.command]]
+key = "prefix+shift+u"
+type = "plugin_action"
+command = "usagebar.refresh"
+description = "usagebar : recalculer $context / $limit"
+
 # alt+t = tokens — depense en direct (prefix+shift+t = rename_tab chez herdr)
 [[keys.command]]
 key = "prefix+alt+t"
@@ -478,6 +659,12 @@ command = "claude-auto-retry.status"
 description = "claude auto-retry (statut)"
 
 [experimental]
+# Conserve l'historique d'ecran des panes a travers un redemarrage COMPLET du
+# serveur. Complement direct de resume_agents_on_restore = true : sans lui
+# l'agent reprend sa conversation, mais l'ecran repart vide.
+# Marque experimental par herdr — a surveiller, pas a oublier.
+pane_history = true
+
 kitty_graphics = false               # Alacritty n'implemente PAS le protocole graphique
                                      # kitty (Ghostty oui). A repasser a true si tu
                                      # reviens sur Ghostty/kitty.
