@@ -112,6 +112,29 @@ launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.youcef.herdr-space-metad
 `launchctl` n'interprète pas `~` : ce `.plist` est le seul fichier du dépôt
 qui code un chemin absolu en dur, à adapter si tu n'es pas sur ce compte.
 
+## Documentation
+
+Quatre références PDF décrivent la configuration **telle qu'elle est
+réellement installée**, avec la raison de chaque réglage — pas la
+documentation générique de l'outil. Elles ne sont pas versionnées :
+
+```sh
+cd docs/src && ./build          # doom, herdr, aerospace, terminal
+mdv ~/.config/docs              # ou les lire en terminal
+```
+
+| Où | Quoi |
+|---|---|
+| [`CHANGELOG.md`](CHANGELOG.md) | Ce qui a changé, et pourquoi. Y compris ce qui est **suspendu** |
+| [`docs/README.md`](docs/README.md) | Les références PDF, leur chaîne de fabrication, les règles de mise en page |
+| [`workflow-tools/README.md`](workflow-tools/README.md) | Les scripts maison, un par un |
+| [`herdr/patches/README.md`](herdr/patches/README.md) | Les correctifs appliqués aux plugins herdr |
+| [`nvim/README.md`](nvim/README.md) | Neovim |
+| [`install/groups.conf`](install/groups.conf) | Ce que contient chaque groupe de paquets |
+
+Les fichiers de configuration eux-mêmes sont commentés : ils expliquent
+*pourquoi*, et gardent les mesures et les hypothèses réfutées en chemin.
+
 ## Le modèle du `.gitignore`
 
 Tout est ignoré par défaut, puis réautorisé dossier par dossier :
@@ -129,8 +152,8 @@ permanence : un nouvel outil qui pose un fichier dans `~/.config` n'est
 jamais committé par accident — donc jamais un token publié par mégarde.
 
 Sont explicitement exclus, en plus : `doom/private.el` (identité), les
-fichiers de projets herdr (générés, ils listent les dépôts locaux) et les
-PDF de `docs/` (artefacts régénérables).
+fichiers de projets herdr (générés, ils listent les dépôts locaux) et tout
+ce que `docs/src/build` fabrique — les PDF comme les HTML intermédiaires.
 
 ## Principes
 
