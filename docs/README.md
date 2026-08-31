@@ -38,6 +38,10 @@ les deux sont recollés pour que la pagination commence à la section 01.
 | `build` | Orchestration |
 | `archive/` | Générateurs de l'ancienne série (opencode, workflow), non construits |
 
+Ni les PDF ni les HTML intermédiaires ne sont versionnés : `./build` les
+reconstruit. Après un clone, `docs/` ne contient donc que du Markdown
+jusqu'au premier `build`.
+
 ### Deux règles de mise en page à connaître
 
 **Largeurs de colonnes fixes.** Tous les tableaux utilisent

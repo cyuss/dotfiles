@@ -110,6 +110,13 @@ __pycache__/
 # docs : les PDF sont des ARTEFACTS (4,6 Mo), regenerables par docs/src/build
 docs/*.pdf
 
+# docs : le HTML aussi est un ARTEFACT. `<nom>_doc.py' reecrit
+# `<nom>-cover.html' et `<nom>-body.html' a chaque `./build'. Ils sont
+# minifies sur une seule ligne : versionnes, chaque regeneration produisait
+# un diff pleine page pour un changement de date.
+docs/src/*-body.html
+docs/src/*-cover.html
+
 # zsh : cache genere par antidote a partir de .zsh_plugins.txt
 zsh/.zsh_plugins.zsh
 zsh/.zcompdump*
