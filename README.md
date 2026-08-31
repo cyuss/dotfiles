@@ -109,8 +109,28 @@ cp herdr/launchd/com.youcef.herdr-space-metadata.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.youcef.herdr-space-metadata.plist
 ```
 
-`launchctl` n'interprète pas `~` : ce `.plist` est le seul fichier du dépôt
-qui code un chemin absolu en dur, à adapter si tu n'es pas sur ce compte.
+`launchctl` n'interprète pas `~`, ce chemin doit donc rester absolu.
+
+### Si tu n'es pas sur ce compte
+
+Six fichiers codent `/Users/youcef` en dur. Rien n'est secret — c'est un
+nom de compte — mais il faut les reprendre, sans quoi le navigator et les
+quick actions herdr pointent dans le vide :
+
+| Fichier | Ce qui casse sinon |
+|---|---|
+| `herdr/plugins/config/herdr-navigator/config.toml` | Les trois sources du navigator |
+| `herdr/config.toml` | La quick action « quotidien » |
+| `herdr/launchd/com.youcef.herdr-space-metadata.plist` | Le jeton `$sync` |
+| `opencode/opencode.json` | Les permissions de fichiers |
+| `git/gitconfig` | `excludesfile` |
+| `zsh/.zprofile` | Le `PATH` Coursier |
+
+```sh
+grep -rl '/Users/youcef' --exclude-dir=.git --include='*.toml' --include='*.json' \
+     --include='*.plist' --include='gitconfig' --include='.zprofile' . \
+  | xargs sed -i '' "s|/Users/youcef|$HOME|g"
+```
 
 ## Documentation
 

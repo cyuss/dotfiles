@@ -26,6 +26,12 @@ Le format s'inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 ### Ajouté
 - Ce journal, et un sommaire de la documentation dans le `README`.
 
+### Corrigé
+- Le `README` affirmait que le `.plist` du LaunchAgent était le seul
+  fichier à coder un chemin absolu en dur. C'est faux : ils sont **six**,
+  et le navigator herdr pointe dans le vide sur un autre compte. La liste
+  et la commande de reprise remplacent l'affirmation.
+
 ---
 
 ## 2026-08-27 — herdr : la sidebar devient lisible
