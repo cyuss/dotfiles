@@ -1,22 +1,21 @@
 # ══════════════════════════════════════════════════════════════════════
-#  ~/.zshenv — lu par TOUS les shells zsh, y compris non interactifs.
+#  ~/.zshenv: read by EVERY zsh, non-interactive ones too.
 #
-#  C'est la difference qui compte : .zshrc n'est lu que par les shells
-#  interactifs. Un script lance par Emacs, herdr, launchd, une tache cron
-#  ou `zsh -c` ne le voit jamais — et donc ne trouvait ni ~/.local/bin,
-#  ni homebrew, ni les shims pyenv. D'ou les classiques « ca marche dans
-#  mon terminal mais pas depuis Emacs ».
+#  That's the point. .zshrc is only read by interactive shells, so a
+#  script started by Emacs, herdr, launchd, cron or `zsh -c` never saw
+#  ~/.local/bin, homebrew or the pyenv shims. Hence the classic "works
+#  in my terminal but not from Emacs".
 #
-#  Ici : uniquement le PATH et les variables d'environnement.
-#  Rien d'interactif (pas d'alias, pas de prompt, pas de completion).
+#  Only PATH and env vars here. Nothing interactive (no aliases, no
+#  prompt, no completion).
 # ══════════════════════════════════════════════════════════════════════
 
-# `path` est le tableau lie a PATH ; -U supprime les doublons.
-# -x est OBLIGATOIRE ici : quand zsh demarre sans PATH dans l'environnement
-# (env -i, certains services launchd), `typeset -U PATH` cree la variable
-# SANS l'attribut export. Les sous-processus recoivent alors le PATH par
-# defaut du systeme — et `pyenv init`, qui reconstruit PATH via un sous-shell
-# bash, propage ce PATH ampute a tout le shell.
+# `path` is the array tied to PATH, -U drops duplicates.
+# -x is required: when zsh starts with no PATH in the env (env -i, some
+# launchd services), `typeset -U PATH` creates the var without export.
+# Child processes then get the system default PATH, and `pyenv init`
+# (which rebuilds PATH through a bash subshell) spreads that cut-down
+# PATH to the whole shell.
 typeset -gxU PATH path
 typeset -gU fpath
 
@@ -28,23 +27,21 @@ export NVM_DIR="$HOME/.nvm"
 path=(
   /opt/homebrew/bin
   /opt/homebrew/sbin
-  "$PYENV_ROOT/shims"                 # shims avant tout : python/uv/pip
+  "$PYENV_ROOT/shims"                 # shims first: python/uv/pip
   "$PYENV_ROOT/bin"
   "$HOME/.local/bin"
-  # NB: on n'ajoute PAS "$POETRY_HOME/bin" au PATH : ce chemin contient
-  # des espaces ("Application Support") et `pyenv init` casse dessus —
-  # il reconstruit alors PATH depuis zero et fait disparaitre homebrew.
-  # poetry est symlinke dans ~/.local/bin a la place.
+  # Don't add "$POETRY_HOME/bin" here: the path has spaces ("Application
+  # Support") and `pyenv init` chokes on it, rebuilds PATH from scratch
+  # and homebrew vanishes. poetry is symlinked into ~/.local/bin instead.
   "$HOME/.opencode/bin"
   "$HOME/.jenv/shims"
   "$HOME/.lmstudio/bin"
   "$HOME/.config/workflow-tools"
   /opt/homebrew/opt/openjdk/bin
   $path
-  # Repertoires systeme explicites : sans eux, un shell demarre sans PATH
-  # herite (env -i, certains services launchd) n'a pas /usr/sbin et perd
-  # des binaires comme lsof. typeset -U dedoublonne si path_helper les
-  # a deja ajoutes.
+  # System dirs spelled out: a shell started with no inherited PATH
+  # (env -i, some launchd services) has no /usr/sbin and loses stuff
+  # like lsof. typeset -U dedupes if path_helper already added them.
   /usr/local/bin
   /usr/bin
   /bin
@@ -52,16 +49,16 @@ path=(
   /sbin
 )
 
-# Node : le bin de la version par defaut, resolu par glob (aucun sous-processus).
-# On honore l'alias `default` de nvm s'il pointe une version precise, sinon on
-# prend la plus recente. (On = tri decroissant, [1] = premiere entree.)
+# Node: bin dir of the default version, found by glob (no subprocess).
+# Use nvm's `default` alias if it points to a real version, else take the
+# newest one. (On = sort descending, [1] = first entry.)
 if [[ -d "$NVM_DIR/versions/node" ]]; then
   _nvm_pick=""
   if [[ -r "$NVM_DIR/alias/default" ]]; then
     _nvm_alias="$(<"$NVM_DIR/alias/default")"
-    # "v24.5.0" -> chemin direct ; "node"/"lts/*" -> on retombe sur le glob
+    # "v24.5.0" -> direct path, "node"/"lts/*" -> fall back to the glob
     [[ -d "$NVM_DIR/versions/node/$_nvm_alias" ]] && _nvm_pick="$NVM_DIR/versions/node/$_nvm_alias"
-    # "24" -> on prend la plus recente qui commence par v24
+    # "24" -> newest one starting with v24
     if [[ -z $_nvm_pick && $_nvm_alias == <-> ]]; then
       _nvm_pick=("$NVM_DIR"/versions/node/v${_nvm_alias}.*(N/On[1]))
     fi
@@ -71,10 +68,10 @@ if [[ -d "$NVM_DIR/versions/node" ]]; then
   unset _nvm_pick _nvm_alias
 fi
 
-# ── Editeurs ──────────────────────────────────────────────────────────
+# ── Editors ───────────────────────────────────────────────────────────
 export EDITOR="nvim"
 export VISUAL="emacsclient -c -a ''"
 
-# ── Divers ────────────────────────────────────────────────────────────
+# ── Misc ──────────────────────────────────────────────────────────────
 export TESSDATA_PREFIX=/opt/homebrew/share/tessdata
 export BAT_THEME="ansi"

@@ -1,6 +1,6 @@
-# Plugins zsh — gérés par antidote.
-# Modifie ce fichier puis ouvre un nouveau shell : le cache se régénère seul.
-# L'ORDRE COMPTE : zsh-syntax-highlighting doit rester en dernier.
+# zsh plugins, managed by antidote.
+# Edit this file then open a new shell: the cache rebuilds itself.
+# ORDER MATTERS: zsh-syntax-highlighting must stay last.
 
 Aloxaf/fzf-tab
 wfxr/forgit
