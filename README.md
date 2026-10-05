@@ -105,32 +105,16 @@ dans le JSON que Claude Code passe à sa commande `statusLine`. Ajouter à
 **`$sync`** — l'écart avec le remote (`↑2 ↓1 ⚑3`) sur les lignes de space :
 
 ```sh
-cp herdr/launchd/com.youcef.herdr-space-metadata.plist ~/Library/LaunchAgents/
-launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.youcef.herdr-space-metadata.plist
+cp herdr/launchd/local.herdr-space-metadata.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/local.herdr-space-metadata.plist
 ```
 
-`launchctl` n'interprète pas `~`, ce chemin doit donc rester absolu.
+### Sur une autre machine
 
-### Si tu n'es pas sur ce compte
-
-Six fichiers codent `/Users/youcef` en dur. Rien n'est secret — c'est un
-nom de compte — mais il faut les reprendre, sans quoi le navigator et les
-quick actions herdr pointent dans le vide :
-
-| Fichier | Ce qui casse sinon |
-|---|---|
-| `herdr/plugins/config/herdr-navigator/config.toml` | Les trois sources du navigator |
-| `herdr/config.toml` | La quick action « quotidien » |
-| `herdr/launchd/com.youcef.herdr-space-metadata.plist` | Le jeton `$sync` |
-| `opencode/opencode.json` | Les permissions de fichiers |
-| `git/gitconfig` | `excludesfile` |
-| `zsh/.zprofile` | Le `PATH` Coursier |
-
-```sh
-grep -rl '/Users/youcef' --exclude-dir=.git --include='*.toml' --include='*.json' \
-     --include='*.plist' --include='gitconfig' --include='.zprofile' . \
-  | xargs sed -i '' "s|/Users/youcef|$HOME|g"
-```
+Aucun chemin n'est codé en dur : tout passe par `~` ou `$HOME` (le plist
+launchd lance son script via `/bin/sh` pour que `$HOME` soit développé).
+Le dépôt fonctionne tel quel sur n'importe quel compte macOS, cloné dans
+`~/.config`.
 
 ## Documentation
 

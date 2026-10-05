@@ -1,6 +1,6 @@
 
 # >>> coursier install directory >>>
-export PATH="$PATH:/Users/youcef/Library/Application Support/Coursier/bin"
+export PATH="$PATH:$HOME/Library/Application Support/Coursier/bin"
 # <<< coursier install directory <<<
 
 # Added by OrbStack: command-line tools and integration

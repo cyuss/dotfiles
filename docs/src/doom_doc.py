@@ -30,7 +30,7 @@ S = []
 # ══════════════════════════════════════════════════════════════════ 01
 S.append(section("01", "Le poste de travail",
   flow([
-    ("1", "launchd", "Le LaunchAgent <code>com.youcef.doom-emacs</code> démarre <code>emacs --fg-daemon</code> à la session."),
+    ("1", "launchd", "Un LaunchAgent démarre <code>emacs --fg-daemon</code> à la session."),
     ("2", "daemon", "Un seul processus Emacs vit en permanence. Il porte les paquets, les serveurs LSP et l'historique."),
     ("3", "emacsclient", "Chaque fenêtre est un <em>frame</em> client. Ouverture instantanée : rien n'est rechargé."),
     ("4", "frame", "Fermer une fenêtre ne tue rien. Le daemon garde buffers, undo et sessions LSP."),

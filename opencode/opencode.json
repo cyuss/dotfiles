@@ -7,7 +7,6 @@
   "model": "ollama/qwen3-coder:30b",
   "small_model": "ollama/qwen2.5vl:7b",
   "default_agent": "build",
-  "username": "youcef",
 
   "provider": {
     "ollama": {
@@ -95,8 +94,8 @@
     // sans ces regles, chaque lecture de skill declenche une demande.
     "external_directory": {
       "*": "ask",
-      "/Users/youcef/.config/opencode/**": "allow",
-      "/Users/youcef/.agents/skills/**": "allow"
+      "~/.config/opencode/**": "allow",
+      "~/.agents/skills/**": "allow"
     },
     "bash": {
       "*": "allow",

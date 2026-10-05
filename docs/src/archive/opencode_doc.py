@@ -295,8 +295,8 @@ où elle protège vraiment.</p>
 <h3>Répertoires hors du projet</h3>
 <pre><span class=k>"external_directory"</span>: {
   <span class=s>"*"</span>: <span class=s>"ask"</span>,
-  <span class=s>"/Users/youcef/.config/opencode/**"</span>: <span class=s>"allow"</span>,
-  <span class=s>"/Users/youcef/.agents/skills/**"</span>: <span class=s>"allow"</span>
+  <span class=s>"~/.config/opencode/**"</span>: <span class=s>"allow"</span>,
+  <span class=s>"~/.agents/skills/**"</span>: <span class=s>"allow"</span>
 }</pre>
 """ + note('note','Pourquoi ces deux exceptions',
  "Les skills et la config d'opencode vivent <b>hors</b> du projet courant. Sans ces "
@@ -598,7 +598,7 @@ cov = cover(
   "Un agent de code entièrement local, qui délègue.<br>"
   "Agents, subagents, skills, permissions, clavier et CLI — au complet.",
   TOC,
-  "youcef · ~/.config/opencode",
+  "~/.config/opencode",
   os.environ.get("OC_VER", "opencode") + " · août 2026",
   stats=[("6", "agents"), ("9", "commandes"), ("7", "skills"), ("Ctrl+X", "le leader")])
 

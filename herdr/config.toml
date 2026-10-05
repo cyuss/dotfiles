@@ -608,7 +608,7 @@ description = "termscope: liens visibles"
 [[keys.command]]
 key = "prefix+h"
 type = "shell"
-command = "/Users/youcef/.config/workflow-tools/herdr-open-project quotidien"
+command = "$HOME/.config/workflow-tools/herdr-open-project quotidien"
 description = "space quotidien (hors projet)"
 
 # p = projects — monte tout le workspace d'un projet (tabs + commandes).

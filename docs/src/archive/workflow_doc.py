@@ -329,7 +329,7 @@ TOC = [("01","Ce que disent tes dépôts"),("02","Naviguer, échelle par échell
 cov = cover("Étude de poste","Naviguer & coder",
   "Ce que 28 dépôts et 328 commits disent de ta façon de travailler,<br>"
   "et ce qu'on peut en faire.",
-  TOC, "youcef · analyse du 21 août 2026", "Doom Emacs · herdr · opencode",
+  TOC, "analyse du 21 août 2026", "Doom Emacs · herdr · opencode",
   stats=[("328","commits analysés"),("93 %","conventional"),("35 %","dépôts testés"),("3 %","avec pre-commit")])
 
 d = os.path.dirname(__file__)

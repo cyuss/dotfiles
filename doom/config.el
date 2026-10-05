@@ -1052,7 +1052,7 @@ surface, so the same number reads very differently in each app.")
 ;; at fault: it merely added one more process, which crossed the threshold
 ;; sooner.
 ;;
-;; Fixed in ~/Library/LaunchAgents/com.youcef.doom-emacs.plist:
+;; Fixed in the doom-emacs LaunchAgent plist (~/Library/LaunchAgents):
 ;;   SoftResourceLimits > NumberOfFiles = 16384
 ;; Emacs now sees ~10000 descriptors instead of 256.
 ;;
