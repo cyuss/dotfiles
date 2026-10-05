@@ -2702,6 +2702,32 @@ window configuration of a session in progress."
 
 
 ;; ══════════════════════════════════════════════════════════════════════
+;;  Moving between buffers and windows, fast
+;;
+;;  SPC w a (ace-window) is four keystrokes for something you do dozens of
+;;  times an hour. What follows is one chord each.
+;;
+;;  SPC w i/j/k/l was the obvious idea and it does not work: in the SPC w
+;;  map h, j, k and l are already `evil-window-left/down/up/right', and
+;;  only i is free. Rebinding them would cost the directional window keys
+;;  to save one keystroke.
+;;
+;;  M-h/j/k/l is not free either -- `mark-paragraph',
+;;  `default-indent-new-line', `kill-sentence', `downcase-word'. Low-value
+;;  defaults, but defaults all the same, and kill-sentence is the kind of
+;;  thing you miss the day you reach for it.
+;;
+;;  So: the Command bracket keys, which are genuinely unbound here and
+;;  already mean "previous / next" everywhere else on macOS.
+;; ══════════════════════════════════════════════════════════════════════
+(map! "s-]" #'next-buffer
+      "s-[" #'previous-buffer
+      ;; One chord, then one letter for the window you want -- including
+      ;; the four LeetCode panes. Faster than SPC w a and than walking
+      ;; there with C-w h/j/k/l, which still works.
+      "M-o" #'ace-window)
+
+;; ══════════════════════════════════════════════════════════════════════
 ;;  Modern IDE setup (2026-08-21)
 ;; ══════════════════════════════════════════════════════════════════════
 
@@ -2920,13 +2946,31 @@ DIRECTION is -1 to move the view down, +1 to move it up."
      (* direction (/ (window-text-height nil t) 2))
      nil 1)))
 
+;; The buffer edge. `pixel-scroll-precision-interpolate' scrolls the
+;; WINDOW; point follows. When there is nothing left to scroll -- the
+;; first line is already on screen -- the window does not move, so point
+;; does not either, and C-u feels dead. Vim moves the cursor even when
+;; the view is pinned.
+;;
+;; So as soon as the far end is visible we go straight there, with no
+;; animation: there is nothing to animate, the view is already in place.
+;;
+;; The 3rd argument to `pos-visible-in-window-p' (PARTIALLY) is not
+;; optional here: `pixel-scroll-precision-mode' scrolls by fractions of a
+;; line, so the last line is very often half displayed. Without it that
+;; line is reported invisible and C-d stays inert in exactly the case we
+;; are trying to fix.
 (defun +smooth-scroll-down-a (&rest _)
-  "Animate `evil-scroll-down' instead of jumping."
-  (+smooth-scroll-half -1))
+  "Animate `evil-scroll-down'. At the buffer end, go to the last line."
+  (if (pos-visible-in-window-p (point-max) nil t)
+      (goto-char (point-max))
+    (+smooth-scroll-half -1)))
 
 (defun +smooth-scroll-up-a (&rest _)
-  "Animate `evil-scroll-up' instead of jumping."
-  (+smooth-scroll-half 1))
+  "Animate `evil-scroll-up'. At the buffer start, go to the first line."
+  (if (pos-visible-in-window-p (point-min) nil t)
+      (goto-char (point-min))
+    (+smooth-scroll-half 1)))
 
 (after! evil
   ;; :override and not :before — otherwise the view would jump first and
