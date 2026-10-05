@@ -205,6 +205,7 @@ rows = [
 #
 #    row 1   state + WHERE          ◐ [1] ~
 #    row 2   which agent, model     claude  Opus 5
+#    row 3   what it uses, how hard  ⛁ 31% (311k)  ●●●○○ high
 #    row 3   what it uses           ⛁ 31% (311k)  5h 54%
 #    (blank row: row_gap = 1)
 #
@@ -224,8 +225,15 @@ rows = [
 #  These come from usagebar:
 #    $context   context used by the pane           ⛁ 19% (186k)
 #    $limit     shortest quota window               5h 82%
+#               NOT SHOWN since 02/09. usagebar still produces it, it's
+#               just not rendered. To bring it back, add
+#               { token = "$limit", fg = "#8fbf9f" }
+#               to row 3.
 #    $provider  backend answering                   anthropic, ollama…
 #    $title     terminal title, already cleaned
+#
+#  And this one comes from the same bridge as $model:
+#    $effort    reasoning effort                    ●●●○○ high
 #
 #  Updated once the agent has SETTLED (not while it works), so the
 #  numbers always match the last finished turn.
@@ -251,10 +259,17 @@ rows = [
 #   who/where  agent          teal    #7fd9c4
 #              tab            slate   #8aa0b8  pushed back on purpose
 #   budget     used           amber   #e0b070  what's burned (warm)
-#              left           sage    #8fbf9f  what's left (cool)
+#              left           sage    #8fbf9f  NOT SHOWN ANYMORE (see $limit)
+#   effort     how it thinks  dark mauve #8f7fae  qualifies the model
 #
-# Amber/sage isn't decoration: warm = going out, cool = what's left. You
-# read the ratio without reading the numbers.
+# Effort gets a DARKER mauve, not its own color: it says nothing new, it
+# qualifies the model right before it. Same family, lower rank (the
+# "stable anchors, qualifier steps back" rule, inside one row). dim = true
+# would look about the same but pushes the hue to gray (see above);
+# darkening keeps the family link visible.
+#
+# Amber/sage used to mean: warm = going out, cool = what's left.
+# Sage left with $limit; amber keeps its meaning on its own.
 #
 # fg takes any #RRGGBB, not just theme tokens.
 # But there's NO background: only the foreground can be styled.
@@ -265,6 +280,35 @@ row_gap = 1
 #                                           automatic-rename plugin, it's
 #                                           the prefix+N jump key
 #   row 2   what     claude  Opus 5
+#   row 3   budget   ⛁ 31% (311k)  ●●●○○ high
+#
+# The effort gauge is set by herdr-usagebar-statusline.
+#
+# First try: a single block from a ramp (▁ ▃ ▅ ▆ █). Didn't work, for a
+# clear reason: a half-height block carries NO scale. You see "something
+# in the middle" without knowing the middle of what.
+#
+# Five dots show the scale AND the position at once: five slots, three
+# filled. Same as signal and battery icons, nothing to learn. And there
+# are exactly five effort levels, so it maps one to one.
+#
+#   ●○○○○ low   ●●○○○ medium   ●●●○○ high   ●●●●○ xhigh   ●●●●● max
+#
+# The word stays next to it: the gauge gives the level at a glance, the
+# word makes clear what's being measured.
+#
+# It's on ROW 3, not row 2, even if it'd logically sit next to the model.
+# Width problem: "claude Opus 5 (1M context) ●●○○○ medium" is 39 columns
+# in a 40-column sidebar, and herdr cuts it (the original problem of this
+# panel). It still makes sense here: this row says what it uses, effort
+# says how hard.
+#
+# The quota timer ($limit) shared this row and filled it for nothing: the
+# gauge was there, but cut off. Between knowing how hard the agent runs
+# and knowing in how many hours the quota window reopens, easy pick.
+#
+# It keeps the model's dark mauve instead of the nearby amber or sage:
+# it's a SETTING, not a measurement, and the color says so.
 #   row 3   budget   ⛁ 31% (311k)  5h 54%
 #
 # The task title was REMOVED, and the tab too. Both said the same thing:
@@ -278,7 +322,7 @@ row_gap = 1
 rows = [
   ["state_icon", { token = "workspace", bold = true, fg = "#ffc799", dim = false }],
   [{ token = "agent", fg = "#7fd9c4", dim = false }, { token = "$model", fg = "#c4a7e7", dim = false }],
-  [{ token = "$context", fg = "#e0b070", dim = false }, { token = "$limit", fg = "#8fbf9f", dim = false }],
+  [{ token = "$context", fg = "#e0b070", dim = false }, { token = "$effort", fg = "#8f7fae", dim = false }],
 ]
 
 # ─────────────────────────────────────────────────────────────

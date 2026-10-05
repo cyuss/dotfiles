@@ -7,9 +7,10 @@
 #
 #   rate_limits            -> without it usagebar can't fill $limit
 #   model.display_name     -> the model actually running ("Opus 5")
+#   effort.level           -> the reasoning effort ("high")
 #
 # So this does two things with the same input:
-#   1. publishes $model as a pane token, for the herdr sidebar;
+#   1. publishes $model and $effort as pane tokens, for the sidebar;
 #   2. passes the raw JSON, UNTOUCHED, to the usagebar plugin script.
 #
 # The plugin path has a hash in it (usagebar-33803b79d616), so resolve it
@@ -28,18 +29,58 @@ import sys
 TTL_MS = 86_400_000
 
 
-def publish_model(payload):
-    """$model: the current model, for line 2 of the agents panel."""
+# Effort, shown as a five-dot gauge.
+#
+# First try was a single block from a ramp (▁ ▃ ▅ ▆ █). Unreadable: a
+# half-height block has NO scale. You see "something in the middle" without
+# knowing the middle of what.
+#
+# Five dots show the scale and the position at once, like signal or battery
+# bars. And there are exactly five effort levels, so it maps one to one.
+#
+# The word stays next to it so you know what's being measured.
+EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"]
+
+
+def effort_gauge(level):
+    """●●●○○ for level 3 of 5."""
+    if level not in EFFORT_LEVELS:
+        return None
+    filled = EFFORT_LEVELS.index(level) + 1
+    return "\u25cf" * filled + "\u25cb" * (len(EFFORT_LEVELS) - filled)
+
+
+def publish_tokens(payload):
+    """$model and $effort: line 2 of the agents panel."""
     pane = os.environ.get("HERDR_PANE_ID")
     if not pane or not os.environ.get("HERDR_SOCKET_PATH"):
         return
+
+    args = []
+
     name = (payload.get("model") or {}).get("display_name")
-    if not isinstance(name, str) or not name.strip():
+    if isinstance(name, str) and name.strip():
+        args += ["--token", f"model={name.strip()}"]
+
+    level = (payload.get("effort") or {}).get("level")
+    if isinstance(level, str) and level.strip():
+        level = level.strip().lower()
+        gauge = effort_gauge(level)
+        args += ["--token",
+                 f"effort={gauge} {level}" if gauge else f"effort={level}"]
+    else:
+        # TTL is 24 h: without this clear, an agent that stops reporting
+        # its effort would keep showing the old value forever. A wrong
+        # value is worse than none.
+        args += ["--clear-token", "effort"]
+
+    if not args:
         return
+
     subprocess.run(
         ["herdr", "pane", "report-metadata", pane,
          "--source", "herdr-usagebar-statusline",
-         "--token", f"model={name.strip()}", "--ttl-ms", str(TTL_MS)],
+         *args, "--ttl-ms", str(TTL_MS)],
         timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
 
@@ -63,7 +104,7 @@ def main():
         payload = None
     if isinstance(payload, dict):
         try:
-            publish_model(payload)
+            publish_tokens(payload)
         except Exception:
             pass
     try:
