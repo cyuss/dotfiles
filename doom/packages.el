@@ -195,3 +195,34 @@
 ;; JSON exactly as they do in a lisp.
 (package! combobulate
   :recipe (:host github :repo "mickeynp/combobulate"))
+
+;; ── Colors: delimiters and variables ────────────────────────────────
+;; rainbow-delimiters colors parens/brackets/braces by DEPTH. Pure
+;; font-lock: no timer, no deferred scan, it costs one more font-lock rule.
+(package! rainbow-delimiters)
+
+;; color-identifiers-mode gives each VARIABLE its own color, stable across
+;; occurrences. It only colors variables (not keywords, not function calls)
+;; because it knows the language grammar, whereas `rainbow-identifiers'
+;; just hashes anything that looks like a symbol.
+;;
+;; It was declared then removed on 2026-08-22 for zero usage. It's back,
+;; with config this time (see config.el). It's the only one of the two
+;; with a cost to keep an eye on: it rescans the buffer on a timer.
+(package! color-identifiers-mode)
+
+;; ── Tables: align in PIXELS, not characters ─────────────────────────
+;; org and markdown align columns by counting CHARACTERS. That works as
+;; long as every char has the same width, and breaks as soon as an emoji
+;; or CJK char shows up, since those are drawn by a fallback font whose
+;; advance isn't JetBrains Mono's.
+;;
+;; Measured on a 4-row table, same number of columns:
+;;   ASCII        275 px
+;;   ✅ (emoji)    287 px   (+12)
+;;   ⚠️ (emoji)    299 px   (+24)
+;;   日本語 (CJK)  263 px   (-12)
+;;
+;; valign redraws the separator with a display property computed in
+;; pixels: the buffer isn't touched, only the rendering.
+(package! valign)

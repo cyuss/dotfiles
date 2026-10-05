@@ -921,6 +921,91 @@ last frame really does mean quitting."
 ;;   3. indent guides — indentation overlays
 ;; On a short file this is invisible. Past ~2000 lines, or with very long
 ;; lines, it shows. We only switch them off there.
+
+;; ── Colors: delimiters and variables ────────────────────────────────
+;; Two layers with very different costs, which is why they're hooked in
+;; different places.
+;;
+;; rainbow-delimiters colors by DEPTH: nested parens, brackets and braces
+;; get successive hues, so you see at a glance which level you're
+;; closing. It's just one more font-lock rule, evaluated on demand line
+;; by line with the rest of fontification. Cheap, so it goes everywhere.
+;;
+;; color-identifiers-mode gives each VARIABLE its own stable color: the
+;; same `total' is the same blue all over the function. It ONLY colors
+;; variables (not keywords, not calls) because it knows the grammar. The
+;; price is that it has to rescan the buffer to know what's a variable.
+;;
+;; Three guards for that price:
+;;   1. the rescan runs on an IDLE timer, never while typing;
+;;   2. the delay is bumped to 1s (default 0.5), no recoloring between
+;;      two words;
+;;   3. it's only hooked on Python, not on all of `prog-mode'.
+;;
+;; Both get switched off in big files by `+maybe-lighten-buffer-h', same
+;; as ligatures and indent guides.
+(use-package! rainbow-delimiters
+  :hook (prog-mode . rainbow-delimiters-mode))
+
+(use-package! color-identifiers-mode
+  :hook ((python-mode python-ts-mode) . color-identifiers-mode)
+  :config
+  ;; The palette is REGENERATED from the theme: hues are derived from the
+  ;; current background, not hardcoded, so a theme change carries over.
+  ;;
+  ;; Luminance 0.72 and min saturation 0.35 are tuned for a dark
+  ;; background (#232530). Lower and variables drown in the background,
+  ;; higher and more saturated and it looks like a Christmas tree. 12
+  ;; colors instead of 10: a Python function often has more than ten
+  ;; locals, and two neighbours with the same color kills the point.
+  (setq color-identifiers:num-colors 12
+        color-identifiers:color-luminance 0.72
+        color-identifiers:min-color-saturation 0.35
+        color-identifiers:max-color-saturation 0.85
+        color-identifiers:recoloring-delay 1.0)
+  (color-identifiers:regenerate-colors))
+
+
+;; ── Aligned tables ──────────────────────────────────────────────────
+;; org and markdown align columns by counting CHARACTERS via
+;; `string-width'. One char = one width holds for ASCII and breaks as
+;; soon as an emoji or CJK char shows up: those are drawn by a fallback
+;; font whose advance has no reason to match JetBrains Mono.
+;;
+;; Measured on a four-row table, same column count, real width on
+;; screen:
+;;
+;;   | abc    | ASCII |   275 px
+;;   | ✅      | Fini  |   287 px   (+12)
+;;   | ⚠️      | ...   |   299 px   (+24)
+;;   | 日本語 | CJK   |   263 px   (-12)
+;;
+;; org thinks these four rows are identical. The screen disagrees, and
+;; the screen is right.
+;;
+;; valign places the separators with a display property computed in
+;; PIXELS. The buffer isn't modified, the file on disk keeps its bars as
+;; is, so nothing changes for git, pandoc or anyone reading it elsewhere.
+;; Only the rendering moves.
+(use-package! valign
+  :hook ((org-mode markdown-mode) . valign-mode)
+  :config
+  ;; Past this size valign gives up and just uses a fixed-pitch face. The
+  ;; limit matters: realign cost grows with the cell count. Measured here:
+  ;;
+  ;;    30 rows / 1162 chars  ->   23 ms
+  ;;   120 rows / 6411 chars  ->  147 ms
+  ;;
+  ;; This cost is NOT paid on every keystroke.
+  ;; `valign-not-align-after-list' excludes `self-insert-command' and
+  ;; friends, so typing in a cell realigns nothing. It fires on TAB, on
+  ;; file open, after a cut/paste. So 4000 (the package default) puts the
+  ;; cutoff around ~80 ms on a one-off event: noticeable, not annoying.
+  (setq valign-max-table-size 4000)
+  ;; Full-height bars: separators connect from one row to the next instead
+  ;; of being chopped by line spacing (line-spacing 4 here, so it showed).
+  (setq valign-fancy-bar t))
+
 (defvar +big-file-lines 2000
   "Above this line count, drop the expensive per-line decorations.")
 
@@ -933,6 +1018,8 @@ last frame really does mean quitting."
     (when (bound-and-true-p ligature-mode)      (ligature-mode -1))
     (when (bound-and-true-p prettify-symbols-mode) (prettify-symbols-mode -1))
     (when (fboundp 'highlight-indent-guides-mode) (highlight-indent-guides-mode -1))
+    (when (bound-and-true-p rainbow-delimiters-mode) (rainbow-delimiters-mode -1))
+    (when (bound-and-true-p color-identifiers-mode) (color-identifiers-mode -1))
     (setq-local bidi-display-reordering nil
                 bidi-paragraph-direction 'left-to-right)))
 
