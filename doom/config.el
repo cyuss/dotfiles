@@ -1046,11 +1046,175 @@ last frame really does mean quitting."
 
 ;; ══════════════════════════════════════════════════════════════════════
 ;;  LeetCode
-;;  Workflow: SPC l l lists problems, RET on one opens the code, the
-;;  description and the tests side by side. SPC l t runs the tests,
-;;  SPC l s submits. Solutions are written to leetcode-challenges/ so they
-;;  are version-controlled and can be reviewed later.
+;;
+;;  Window layout, from `leetcode--solving-window-layout':
+;;
+;;    +----------------+----------------+
+;;    |                |    Statement   |
+;;    |                +----------------+
+;;    |      Code      |     Input      |
+;;    |                +----------------+
+;;    |                |     Result     |
+;;    +----------------+----------------+
+;;
+;;  The loop: SPC l l lists problems, RET opens one and lays out the
+;;  windows. Write in Code, adjust Input if needed, SPC l t runs the
+;;  tests, SPC l s submits. Solutions land in leetcode-challenges/, so
+;;  they are version-controlled and can be reread later.
+;;
+;;  SPC l g c/p/i/o jumps between windows without leaving the keyboard,
+;;  SPC l b opens the dashboard and SPC l ? the cheat sheet.
 ;; ══════════════════════════════════════════════════════════════════════
+
+;; ── Moving around the layout ────────────────────────────────────────
+;; `leetcode-try' and `leetcode-submit' read the problem title from the
+;; NAME of the current buffer: run from the statement or the result, they
+;; fail. And they fail badly — they are `aio-defun's, so the read happens
+;; AFTER the first `aio-await', which means the error surfaces detached
+;; from the key you just pressed.
+;;
+;; Hence these wrappers, which select the code WINDOW first. Selecting the
+;; window rather than merely the buffer is required precisely because of
+;; that await: on resume, `current-buffer' follows the selected window,
+;; not whatever a `with-current-buffer' set before the suspension.
+;;
+;; They live outside the `use-package!' so the `map!' below does not
+;; depend on the package being loaded.
+(defun +leetcode--code-buffer ()
+  "The LeetCode code buffer shown in this frame, or nil."
+  (if (bound-and-true-p leetcode-solution-mode)
+      (current-buffer)
+    (seq-some (lambda (w)
+                (with-current-buffer (window-buffer w)
+                  (and (bound-and-true-p leetcode-solution-mode)
+                       (current-buffer))))
+              (window-list))))
+
+(defun +leetcode-goto-code ()
+  "Jump to the code buffer."
+  (interactive)
+  (let ((buf (or (+leetcode--code-buffer)
+                 (user-error "No LeetCode code buffer in this frame"))))
+    (if-let ((w (get-buffer-window buf)))
+        (select-window w)
+      (switch-to-buffer buf))
+    buf))
+
+(defun +leetcode--goto-by-name (regexp what)
+  "Select the window whose buffer matches REGEXP.
+WHAT names the window in the error message."
+  (let ((w (seq-find (lambda (w)
+                       (string-match-p regexp (buffer-name (window-buffer w))))
+                     (window-list))))
+    (unless w (user-error "No %s window in this layout" what))
+    (select-window w)))
+
+(defun +leetcode-goto-description ()
+  "Jump to the problem statement."
+  (interactive) (+leetcode--goto-by-name "\\`\\*leetcode-detail-" "statement"))
+
+(defun +leetcode--swap-into-shared (kind what)
+  "Show the KIND buffer of the current problem in the shared bottom pane.
+KIND is `testcase' or `result'. Input and result take turns in one pane,
+so jumping to either means swapping it in, not hunting for a window that
+may not be showing it right now."
+  (require 'leetcode)
+  (let* ((code (or (+leetcode--code-buffer)
+                   (user-error "No LeetCode code buffer in this frame")))
+         (problem (or (leetcode--get-problem (leetcode--get-slug-title code))
+                      (user-error "Unknown LeetCode problem")))
+         (id (leetcode-problem-id problem))
+         (buf (get-buffer-create
+               (if (eq kind 'testcase)
+                   (leetcode--testcase-buffer-name id)
+                 (leetcode--result-buffer-name id))))
+         (win (or (and (window-live-p leetcode--result-window) leetcode--result-window)
+                  (get-buffer-window buf)
+                  (seq-find (lambda (w)
+                              (string-match-p "\\`\\*leetcode-\\(testcase\\|result\\)-"
+                                              (buffer-name (window-buffer w))))
+                            (window-list)))))
+    (unless win (user-error "No %s pane in this layout" what))
+    (set-window-buffer win buf)
+    (select-window win)))
+
+(defun +leetcode-goto-testcase ()
+  "Show and edit the test input."
+  (interactive) (+leetcode--swap-into-shared 'testcase "input"))
+
+(defun +leetcode-goto-result ()
+  "Show the result."
+  (interactive) (+leetcode--swap-into-shared 'result "result"))
+
+(defun +leetcode-try ()
+  "Run the tests, from any window of the layout."
+  (interactive) (+leetcode-goto-code) (call-interactively #'leetcode-try))
+
+(defun +leetcode-submit ()
+  "Submit, from any window of the layout."
+  (interactive) (+leetcode-goto-code) (call-interactively #'leetcode-submit))
+
+(defun +leetcode-goto-list ()
+  "Jump to the problem list."
+  (interactive)
+  (require 'leetcode)
+  (if-let* ((buf (get-buffer leetcode--buffer-name))
+            (w (get-buffer-window buf)))
+      (select-window w)
+    (call-interactively #'leetcode)))
+
+(defun +leetcode-open-session ()
+  "Pick a problem already started and restore its layout.
+Candidates come from open code buffers AND from solutions already
+written to `leetcode-directory', so a problem closed days ago is picked
+up the same way as one still on screen."
+  (interactive)
+  (require 'leetcode)
+  (let* ((sessions (or (+leetcode--sessions)
+                       (user-error "No problem started yet")))
+         (labels (mapcar (lambda (s)
+                           (cons (format "%5s  %-45s %s"
+                                         (nth 0 s) (or (nth 1 s) "?")
+                                         (+leetcode--difficulty-name (nth 2 s)))
+                                 (nth 0 s)))
+                         sessions))
+         (pick (completing-read "Resume: " labels nil t)))
+    (+leetcode-resume (cdr (assoc pick labels)))))
+
+;; ── Readability ─────────────────────────────────────────────────────
+;; `leetcode--show-problem' hands the HTML to `shr-render-buffer'. shr
+;; styles prose with `shr-text' (which inherits `variable-pitch') and code
+;; with `shr-code' (which inherits `fixed-pitch'). So the statement was
+;; inheriting `doom-variable-pitch-font' — SF Pro.
+;;
+;; SF Pro is an INTERFACE typeface. Apple ships it with optical sizing and
+;; tracking that tighten the drawing at small sizes; Emacs applies
+;; neither. We were reading whole paragraphs in the shape meant for button
+;; labels.
+;;
+;; Bookerly was drawn by Dalton Maag for on-screen reading: low contrast —
+;; it holds up on a dark, translucent background — a tall x-height, and
+;; lining figures. The files come from the Kindle app, copied into
+;; ~/Library/Fonts: CoreText does not follow symlinks (fontconfig does,
+;; which is misleading), so real files are required. It is therefore not
+;; shipped by this repo — on another machine, pick one of the families
+;; listed below.
+(defvar +leetcode-prose-font "Bookerly"
+  "Typeface for the LeetCode problem statement.
+Verified alternatives, bold and italic included:
+  \"Charter\"      ships with macOS, narrower, very good too
+  \"New York\"     Apple's serif, warmer and wider
+  \"Merriweather\" tall x-height, robust on a dark background
+  \"Avenir Next\"  if you would rather have a sans")
+
+(defvar +leetcode-measure 74
+  "Fill width for the statement, passed to `shr-max-width'.
+It counts in FIXED-PITCH characters: shr converts it to pixels through
+`frame-char-width'. Prose being narrower, 74 yields about 90 characters
+per line — the measure past which the eye loses the start of the next
+line. At 92 we were up to 113.")
+
+;; ── Options and hooks ───────────────────────────────────────────────
 (use-package! leetcode
   :defer t
   :commands (leetcode leetcode-daily leetcode-refresh)
@@ -1060,23 +1224,1482 @@ last frame really does mean quitting."
         leetcode-save-solutions t
         leetcode-directory "~/Desktop/projects/leetcode-challenges/solutions")
   :config
-  ;; Windows: description on the left, code on the right, results below.
   (setq leetcode-path-operation-alist
         '(("python3" . python-ts-mode)
           ("go"      . go-mode)
           ("rust"    . rust-mode)))
+
+  ;; ── Reading the session from the browser ──────────────────────────
+  ;; leetcode.el shells out to `my_cookies', which walks Chrome,
+  ;; Chromium, Brave, Firefox, Edge, Vivaldi and Opera, and stops at the
+  ;; first one that answers. Arc is in none of that list. Here it was
+  ;; handing over a Chrome session that had expired months earlier;
+  ;; LeetCode answered "user is not authenticated" and the failure looked
+  ;; like a bug in Emacs.
+  ;;
+  ;; `workflow-tools/leetcode-cookies' reads Arc first, reports an EXPIRED
+  ;; session instead of skipping past it, and gives every browser a time
+  ;; budget — a loader stuck on a Keychain prompt would otherwise freeze
+  ;; Emacs, since this is called through `shell-command-to-string'.
+  (defadvice! +leetcode-cookies-path-a ()
+    "Prefer our Arc-aware reader over the package's `my_cookies'."
+    :override #'leetcode--my-cookies-path
+    (or (executable-find "leetcode-cookies")
+        (executable-find (expand-file-name
+                          "workflow-tools/leetcode-cookies" "~/.config"))
+        (executable-find (format "%s/bin/my_cookies" leetcode-python-environment))
+        (executable-find "my_cookies")))
+
+  ;; The reader explains itself on stderr -- which browser, and whether
+  ;; the session is merely expired. `shell-command-to-string', which the
+  ;; package uses, keeps stdout only, so that explanation was thrown away
+  ;; and you were left with LeetCode's own "user is not authenticated".
+  ;;
+  ;; A `user-error' would not help either: this runs inside `leetcode--login',
+  ;; an `aio-defun', so the signal would be swallowed by the promise the
+  ;; same way the polling bug was. A warning buffer cannot be missed, and
+  ;; the problem does need you to go and do something.
+  (defadvice! +leetcode-cookie-get-all-a ()
+    "Read browser cookies, surfacing the reader's diagnosis when it fails."
+    :override #'leetcode--cookie-get-all
+    (let* ((tool (leetcode--my-cookies-path))
+           (errfile (make-temp-file "leetcode-cookies-")))
+      (unwind-protect
+          (with-temp-buffer
+            (let ((code (if tool (call-process tool nil (list t errfile) nil) 127))
+                  (out (buffer-string)))
+              (if (zerop code)
+                  (mapcar (lambda (l) (s-split-up-to " " l 1 'OMIT-NULLS))
+                          (split-string out "\n" t))
+                (display-warning
+                 'leetcode
+                 (concat (string-trim
+                          (with-temp-buffer (insert-file-contents errfile)
+                                            (buffer-string)))
+                         (unless tool "\n  No cookie reader found on PATH."))
+                 ;; :error and not :warning -- Doom pins
+                 ;; `warning-minimum-level' to :error, so a :warning here
+                 ;; is dropped without even being logged. And it is an
+                 ;; error in substance: without a session, test and
+                 ;; submit cannot work at all.
+                 :error)
+                nil)))
+        (delete-file errfile))))
+
+  ;; ── Where the statement opens ─────────────────────────────────────
+  ;; `shr-render-buffer' does `pop-to-buffer "*html*"'. Doom has a
+  ;; catch-all rule on "^\\*" that drops every starred buffer into a
+  ;; drawer at the bottom, 16% of the frame tall: the statement came out
+  ;; eight lines high.
+  ;;
+  ;; `leetcode--show-problem' also calls `leetcode--maybe-focus', which
+  ;; runs `delete-other-windows' when `leetcode-focus' is t. Mid-solve
+  ;; that DESTROYS the four-window layout we just built. We neutralise the
+  ;; option here only: the list still opens on its own, since `leetcode'
+  ;; calls `leetcode--maybe-focus' outside this advice.
+  ;;
+  ;; And `shr-render-buffer' fills in a TEMPORARY buffer: the width it
+  ;; used was that of whatever window happened to be current, not of the
+  ;; statement window, which does not exist yet. Hence lines of differing
+  ;; lengths depending on where the problem was opened from.
+  (defvar +leetcode-detail-width 0.55
+    "Share of the frame width the statement takes beside the problem list.")
+
+  (defvar +leetcode-solving-detail-width 0.4
+    "Share of the frame width the right-hand column takes while solving.
+The code gets the rest. Code is the pane you type in and the one whose
+lines run long; the statement only needs its measure, which
+`+leetcode-measure' already caps.")
+
+  (defvar +leetcode--detail-window nil
+    "Window to put the statement in once the solving layout is up.
+A global rather than a dynamic binding: `aio' coroutines suspend, and a
+`let' does not survive the suspension.")
+
+  (defvar +leetcode-detail-float t
+    "Open a statement read from the problem list in a floating frame.")
+
+  (defvar +leetcode--floating-render nil
+    "Bound while rendering a statement that is about to be floated.
+shr needs a window to render into, but that window is temporary: we hand
+it the current one and put the previous buffer back afterwards, so no
+stray split is left behind next to the list.")
+
+  (defun +leetcode--place-detail (buf _alist)
+    "Put statement BUF in its dedicated window, otherwise to the right."
+    (cond
+     (+leetcode--floating-render
+      (set-window-buffer (selected-window) buf)
+      (selected-window))
+     ((window-live-p +leetcode--detail-window)
+      (set-window-buffer +leetcode--detail-window buf)
+      (select-window +leetcode--detail-window)
+      +leetcode--detail-window)
+     ((seq-find (lambda (w) (string-match-p "\\`\\*leetcode-detail-"
+                                            (buffer-name (window-buffer w))))
+                (window-list))
+      (let ((w (seq-find (lambda (w) (string-match-p "\\`\\*leetcode-detail-"
+                                                     (buffer-name (window-buffer w))))
+                         (window-list))))
+        (set-window-buffer w buf) (select-window w) w))
+     (t
+      (display-buffer-in-direction
+       buf `((direction . right) (window-width . ,+leetcode-detail-width))))))
+
+  (defun +leetcode--float-other-statements (keep)
+    "Close every floating statement other than KEEP.
+Each problem gets its own detail buffer, so each one used to get its own
+child frame -- all centred, all stacked at the same spot. Opening three
+problems looked like three descriptions piled inside one window. Only one
+statement floats at a time.
+
+`posframe-delete-frame' and not `posframe-delete': the latter also kills
+the buffer, and `leetcode--show-problem' needs the old statement buffers
+to stay around."
+    (dolist (b (buffer-list))
+      (let ((name (buffer-name b)))
+        (when (and (string-match-p "\\`\\*leetcode-detail-" name)
+                   (not (eq b keep)))
+          (ignore-errors (posframe-delete-frame b))))))
+
+  (defun +leetcode--point-on-solve (frame buf)
+    "Put point on the \"Solve it\" button of BUF, in FRAME's window.
+A statement you just opened is a question -- solve it or not -- so the
+cursor starts on the answer. The window keeps its own point, separate
+from the buffer's, so setting it in the buffer alone would not show."
+    (with-current-buffer buf
+      (goto-char (point-min))
+      (when (search-forward "Solve it" nil t)
+        (goto-char (match-beginning 0))))
+    (when (frame-live-p frame)
+      (set-window-point (frame-selected-window frame)
+                        (with-current-buffer buf (point)))))
+
+  (defun +leetcode--leave-float ()
+    "Step out of any floating statement, back onto the real frame.
+The \"Solve it\" text button carries its own keymap, and a text-property
+keymap wins over the major mode's: RET on that button runs `push-button',
+never our command. So the escape hatch cannot live in a key binding -- it
+has to sit on `leetcode--start-coding' itself, which is where every route
+converges, mouse click included.
+
+Without it the whole solving layout was built INSIDE the child frame:
+`delete-other-windows' and the splits applied there, the statement stayed
+up, and it read as the problem being displayed twice with no workspace in
+sight."
+    (when-let ((parent (frame-parent (selected-frame))))
+      (select-frame-set-input-focus parent))
+    (+leetcode--float-other-statements nil))
+
+  (defadvice! +leetcode-start-coding-a (&rest _)
+    "Never build the solving layout inside a floating frame."
+    :before #'leetcode--start-coding
+    (+leetcode--leave-float))
+
+  (defun +leetcode--float-buffer (buf &optional width height)
+    "Show BUF in a centred child frame and give it the keyboard."
+    (+leetcode--float-other-statements buf)
+    (let ((frame (posframe-show
+                  buf
+                  :poshandler #'posframe-poshandler-frame-center
+                  :width (or width 92)
+                  :height (or height (min 40 (- (frame-height) 6)))
+                  ;; The internal border IS the padding. Left uncoloured
+                  ;; it takes the frame background, so it reads as empty
+                  ;; space on all four sides rather than as a ring. At 2px
+                  ;; the text sat against the edge and looked cramped.
+                  ;;
+                  ;; No :border-width here, tempting as it is for a
+                  ;; hairline: posframe maps it onto the SAME
+                  ;; internal-border-width, so asking for a 1px outline
+                  ;; silently reset the padding to 1px. The card separates
+                  ;; from the desktop on its own -- it is opaque while the
+                  ;; main frame is translucent.
+                  :internal-border-width 20
+                  :background-color (face-attribute 'default :background nil t)
+                  ;; Fringes carry the last few pixels between padding and
+                  ;; the first character. Buffer margins cannot: posframe
+                  ;; resets them when it takes the buffer over.
+                  :left-fringe 12
+                  :right-fringe 12
+                  :accept-focus t
+                  :hidehandler nil)))
+      ;; posframe leaves the keyboard on the parent frame, so the buffer's
+      ;; own keymap would never see a key.
+      (select-frame-set-input-focus frame)
+      (+leetcode--point-on-solve frame buf)
+      frame))
+
+  (defun +leetcode--unfloat (buf)
+    "Hide the child frame showing BUF and hand the keyboard back."
+    (when (fboundp 'posframe-hide) (posframe-hide buf))
+    (when-let ((parent (frame-parent (selected-frame))))
+      (select-frame-set-input-focus parent)))
+
+  (defun +leetcode-detail-quit ()
+    "Close the statement: unfloat it, or bury the window."
+    (interactive)
+    (if (frame-parent (selected-frame))
+        (+leetcode--unfloat (current-buffer))
+      (quit-window)))
+
+  (defun +leetcode-detail-solve ()
+    "Solve the problem this statement belongs to.
+The floating statement is a reading step: you look at it and then decide.
+RET takes the decision -- it closes the frame and lays out the four
+windows, exactly like the dashboard."
+    (interactive)
+    (let ((id (and (string-match "\\`\\*leetcode-detail-\\([0-9]+\\)\\*\\'" (buffer-name))
+                   (match-string 1 (buffer-name)))))
+      (unless id (user-error "Not a LeetCode statement buffer"))
+      (+leetcode--leave-float)
+      (+leetcode-resume id)))
+
+  (defadvice! +leetcode-show-problem-a (fn &rest args)
+    "Render the statement at a fixed measure; float it when read from the list."
+    :around #'leetcode--show-problem
+    ;; Never render into a child frame. If one holds the keyboard -- the
+    ;; floating statement opened a moment ago, or the dashboard -- step
+    ;; back to the real frame first: a child frame is transient, and
+    ;; anything drawn there goes away with it, leaving the split it
+    ;; borrowed behind on the parent.
+    (when-let ((parent (frame-parent (selected-frame))))
+      (select-frame-set-input-focus parent))
+    ;; Upstream writes the header with `(number-to-string likes)' and no
+    ;; guard. The list query does not return likes or dislikes, so on a
+    ;; problem whose full detail was never fetched they are nil and the
+    ;; call signals `wrong-type-argument numberp nil' -- inside an `aio'
+    ;; coroutine, so it vanishes and the statement simply never opens.
+    ;; `cl-struct-slot-value' and not `(setf (leetcode-problem-likes ...))':
+    ;; the accessor's setf expander is generated by `cl-defstruct' and, in
+    ;; interpreted code, resolving it needs `cl-macs' already loaded. The
+    ;; first call from inside the coroutine hit
+    ;; "Symbol's function definition is void: (setf leetcode-problem-likes)".
+    ;; The generic slot accessor carries its own expander and always works.
+    ;; Plain record operations, and deliberately so. Everything
+    ;; `cl-defstruct' generates -- the predicate, the accessors, the setf
+    ;; expander behind `cl-struct-slot-value' -- carries a compiler macro,
+    ;; and none of those macros exist yet when config.el is READ. Each one
+    ;; logged "Optimization failure for cl-typep: Unknown type
+    ;; leetcode-problem" at every daemon start before quietly falling back
+    ;; to a runtime call. Measured: two warnings per start, gone once the
+    ;; last accessor left this block.
+    ;;
+    ;; `cl-struct-slot-offset' is an ordinary function, and a cl-struct is
+    ;; a record, so aref/aset reach the slot with nothing to expand. The
+    ;; offset is looked up by NAME, so a reordering upstream cannot make
+    ;; this write into the wrong field.
+    (let ((problem (car args)))
+      (when (recordp problem)
+        (dolist (slot '(likes dislikes))
+          (let ((i (ignore-errors (cl-struct-slot-offset 'leetcode-problem slot))))
+            (when (and i (not (numberp (aref problem i))))
+              (aset problem i 0))))))
+    (let* ((win (selected-window))
+           (prev (window-buffer win))
+           (from-list (with-current-buffer prev
+                        (derived-mode-p 'leetcode--problems-mode)))
+           (float (and from-list +leetcode-detail-float
+                       (require 'posframe nil t)
+                       (posframe-workable-p))))
+      (let ((shr-width nil)
+            (shr-max-width +leetcode-measure)
+            (leetcode-focus nil)
+            (+leetcode--floating-render float)
+            (display-buffer-alist
+             (cons (list "\\`\\*html\\*\\'" #'+leetcode--place-detail)
+                   display-buffer-alist)))
+        (apply fn args))
+      (when float
+        ;; The statement buffer comes from the WINDOW, not from
+        ;; `current-buffer': `leetcode--show-problem' ends inside a
+        ;; `with-current-buffer', which restores the buffer that was
+        ;; current before -- the problem list. Reading it there floated
+        ;; the list and left the statement behind in a split.
+        (let ((detail (window-buffer win)))
+          ;; Give the list its window back before floating: the render
+          ;; borrowed it, and leaving the statement there would be the
+          ;; very thing the floating frame is meant to avoid.
+          (when (window-live-p win) (set-window-buffer win prev))
+          (+leetcode--float-buffer detail)))))
+
+  ;; `face-remap-set-base' rather than `face-remap-add-relative': by
+  ;; replacing `shr-text''s base with a RELATIVE height and no `:inherit',
+  ;; we also repair the heading hierarchy. `shr-h1' carries `:height 1.3',
+  ;; but in the face list `(shr-text shr-h1)' it is `shr-text' that wins,
+  ;; and its height inherited from `variable-pitch-text' is ABSOLUTE: it
+  ;; was overriding that 1.3. Measured: the title came out at 20px,
+  ;; exactly like the body.
+  ;;
+  ;; The remap is buffer-local: org and markdown keep SF Pro.
+  ;;
+  ;; `+word-wrap-mode' (from :ui word-wrap) rather than `visual-line-mode'
+  ;; alone: it adds `adaptive-wrap', so the "Constraints" items resume
+  ;; under their bullet instead of returning to the margin. shr already
+  ;; breaks lines at render time; this mode is the safety net for when the
+  ;; window is narrower than the measure — otherwise lines overflow.
+  (defun +leetcode--code-tint ()
+    "A background one step off the default, for code inside the statement.
+Mixed from the theme's own colours: hardcoding a grey would break on the
+next theme change, and read wrong in the other polarity."
+    (let* ((bg (face-attribute 'default :background nil t))
+           (fg (face-attribute 'default :foreground nil t)))
+      (if (and (stringp bg) (stringp fg) (color-defined-p bg) (color-defined-p fg))
+          (apply #'color-rgb-to-hex
+                 (append (cl-mapcar (lambda (b f) (+ b (* 0.08 (- f b))))
+                                    (color-name-to-rgb bg)
+                                    (color-name-to-rgb fg))
+                         '(2)))
+        'unspecified)))
+
+  (defun +leetcode-detail-h ()
+    "Make the statement readable: reading face, wrapping, no line numbers."
+    (face-remap-set-base 'shr-text
+                         (list :family +leetcode-prose-font :height 1.15))
+    ;; `shr-code' dresses BOTH inline <code> and the <pre> example blocks.
+    ;; A faint background turns `nums[i]' and the Input/Output samples into
+    ;; objects you can find while skimming, instead of grey text sitting in
+    ;; grey text. The tint is derived from the theme, not hardcoded, so it
+    ;; follows a theme change.
+    (face-remap-set-base 'shr-code
+                         (list :inherit 'fixed-pitch
+                               :background (+leetcode--code-tint)))
+    ;; Breathing room. Statement text runs right up to the window edge
+    ;; otherwise, and the first character sits against the fringe.
+    (setq-local left-margin-width 2)
+    (setq-local right-margin-width 2)
+    (setq-local line-spacing 6)
+    (setq-local truncate-lines nil)
+    (+word-wrap-mode +1)
+    (display-line-numbers-mode -1))
+  (add-hook 'leetcode--problem-detail-mode-hook #'+leetcode-detail-h)
+
+  ;; ── Polling for the result ────────────────────────────────────────
+  ;; Upstream bug, and it makes Test and Submit unusable. In
+  ;; `leetcode--api-check-submission' the PENDING/STARTED branch of the
+  ;; `pcase' is written with one pair of parentheses too many:
+  ;;
+  ;;   ((or "PENDING" "STARTED") ((aio-await ...) (aio-await ...)))
+  ;;
+  ;; So the body is not two successive forms but a SINGLE one whose
+  ;; function position is the list `(aio-await ...)'. At runtime:
+  ;; `invalid-function'. Verified by reproducing the exact shape.
+  ;;
+  ;; LeetCode always answers PENDING on the first poll, so the branch is
+  ;; always taken — and the error, raised inside an `aio' coroutine nobody
+  ;; awaits, is swallowed by the promise. Nothing in *Messages*, nothing
+  ;; in the echo area: the result buffer sits on "Waiting for result..."
+  ;; forever.
+  ;;
+  ;; The recursive call targets the original name: the advice redirects it
+  ;; back here, so the whole loop runs through the fixed version.
+  (defvar +leetcode-poll-interval 0.5
+    "Seconds between two polls of the submission result.
+The package uses 0.2 — five requests a second at LeetCode for as long as
+the run takes. 0.5 is imperceptible and stays out of the way.")
+
+  (aio-defun +leetcode--api-check-submission (interpret-id problem on-success)
+    "Fixed copy of `leetcode--api-check-submission'."
+    (let* ((title-slug (leetcode-problem-title-slug problem))
+           (problem-id (leetcode-problem-id problem))
+           (url-request-method "GET")
+           (url-request-extra-headers
+            `(,@(aio-await (leetcode--common-extra-headers))
+              ,(leetcode--referer (format leetcode--url-problems title-slug))))
+           (response (aio-await (aio-url-retrieve
+                                 (format leetcode--url-check-submission interpret-id))))
+           (response-status (car response))
+           (response-buffer (cdr response)))
+      (if-let ((error-info (plist-get response-status :error)))
+          (progn
+            (switch-to-buffer response-buffer)
+            (leetcode--warn "LeetCode check submission ERROR: %S" error-info))
+        (let ((result (leetcode--parse-buffer response-buffer)))
+          ;; `url-retrieve' hands us a fresh buffer every time and never
+          ;; reclaims it. At one poll every half second that piles up fast
+          ;; -- 36 of them were sitting in the buffer list. Parsed is
+          ;; parsed; the buffer has nothing left to give.
+          (when (buffer-live-p response-buffer) (kill-buffer response-buffer))
+          (let-alist result
+            (pcase .state
+              ((or "PENDING" "STARTED")
+               (aio-await (aio-sleep +leetcode-poll-interval))
+               (aio-await (leetcode--api-check-submission interpret-id problem on-success)))
+              ("SUCCESS" (funcall on-success problem-id result))))))))
+  (advice-add 'leetcode--api-check-submission
+              :override #'+leetcode--api-check-submission)
+
+  ;; ── Opening a problem cold ────────────────────────────────────────
+  ;; `leetcode-solve-problem' shows the statement and starts coding, but
+  ;; fetches nothing first -- it assumes you already opened the problem,
+  ;; which is true when you press "c" in the list and false for every
+  ;; other route, SPC l o included. The statement then renders from a
+  ;; half-empty struct.
+  (aio-defun +leetcode--solve-problem (problem-id)
+    "Fetch what the statement needs, then open the problem."
+    (let ((problem (leetcode--get-problem-by-id problem-id)))
+      (unless problem
+        (user-error "Unknown LeetCode problem: %s (load the list with SPC l l)"
+                    problem-id))
+      (aio-await (leetcode--ensure-question-content problem))
+      (aio-await (leetcode--ensure-question-snippets problem))
+      (aio-await (leetcode--ensure-question-testcases problem))
+      (leetcode--show-problem problem)
+      (leetcode--start-coding problem)))
+  (advice-add 'leetcode-solve-problem :override #'+leetcode--solve-problem)
+
+  ;; ── Making silent failures audible ────────────────────────────────
+  ;; Every command here is an `aio-defun', and an error raised inside one
+  ;; is captured by its promise. Nobody awaits these promises, so the
+  ;; error is simply lost: no message, no *Backtrace*, nothing in
+  ;; *Messages*. Three separate bugs in this file hid behind that -- the
+  ;; polling parens, the nil likes above, the swallowed relayout error.
+  ;; Attaching a listener costs nothing and turns silence into a message.
+  ;; `url-retrieve' never reclaims its response buffers, and leetcode.el
+  ;; makes one request per page of the list plus one per statement
+  ;; fetched. They pile up as hidden " *http leetcode.com:443*" buffers --
+  ;; 27 of them after one session. The polling loop kills its own now;
+  ;; these are the rest.
+  ;;
+  ;; Only buffers whose process is gone, and only at entry points where
+  ;; nothing else is in flight: a continuation still holding its response
+  ;; buffer must not have it pulled away.
+  (defun +leetcode--reap-http-buffers ()
+    "Kill finished LeetCode HTTP response buffers."
+    (dolist (b (buffer-list))
+      (when (and (string-prefix-p " *http leetcode" (buffer-name b))
+                 (null (get-buffer-process b)))
+        (ignore-errors (kill-buffer b)))))
+
+  (dolist (cmd '(leetcode leetcode-refresh-fetch leetcode-try leetcode-submit))
+    (advice-add cmd :before #'+leetcode--reap-http-buffers))
+
+  (defun +leetcode--surface-errors (promise)
+    "Report a failure carried by PROMISE instead of losing it."
+    (when (aio-promise-p promise)
+      (aio-listen promise
+                  (lambda (value)
+                    (condition-case err (funcall value)
+                      (error (message "LeetCode: %s" (error-message-string err)))))))
+    promise)
+
+  (dolist (cmd '(leetcode leetcode-daily leetcode-refresh-fetch
+                 leetcode-show-problem leetcode-solve-problem
+                 leetcode-try leetcode-submit))
+    (advice-add cmd :filter-return #'+leetcode--surface-errors))
+
+  ;; ── Laying the windows out without wrecking them ──────────────────
+  ;; `leetcode-try' starts with `leetcode-restore-layout'. Upstream
+  ;; rebuilds the layout EVERY TIME — `delete-other-windows' then three
+  ;; splits — even when it is already up: every test loses your scroll
+  ;; positions.
+  ;;
+  ;; Worse, it has this bug: `desc-buf' is bound BEFORE the
+  ;; `(unless desc-buf (aio-await (leetcode-show-problem ...)))' and never
+  ;; read again. The first time you test a problem whose statement is not
+  ;; open yet, `desc-buf' is still nil at `(display-buffer desc-buf ...)'
+  ;; — and `display-buffer' with nil displays the CURRENT BUFFER. That is
+  ;; the solution file landing in the statement window.
+  ;;
+  ;; We override the package's window layout rather than write our own:
+  ;; the tree keeps exactly the same SHAPE — code on the left, a column of
+  ;; three on the right — only the proportions change. The package's
+  ;; display functions (`leetcode--display-detail' and its siblings)
+  ;; re-navigate that tree through `window-left-child'; keeping the shape
+  ;; keeps them landing right, and `leetcode--start-coding' gets the same
+  ;; proportions for free.
+  (defvar +leetcode-detail-share 0.55
+    "Share of the right-hand column's height given to the statement.
+The package gives a third to each of the three right-hand buffers. The
+statement is the only one you actually read; input and result fit in a
+few lines.")
+
+  (defun +leetcode--layout-intact-p (code-buf problem-id)
+    "Is the layout already up FOR CODE-BUF and PROBLEM-ID?
+The check is on buffer identity, not mere presence: switching from one
+problem to another leaves all four windows in place but showing the
+PREVIOUS problem. A check that settled for a name prefix believed the
+layout was fine and left the old statement, input and result sitting
+beside the new code."
+    (let ((names (mapcar (lambda (w) (buffer-name (window-buffer w))) (window-list))))
+      (and (member (buffer-name code-buf) names)
+           (member (leetcode--detail-buffer-name problem-id) names)
+           ;; Either of the two is fine: they share a pane, and which one
+           ;; is up depends on whether you last ran a test or went to edit
+           ;; the input.
+           (or (member (leetcode--result-buffer-name problem-id) names)
+               (member (leetcode--testcase-buffer-name problem-id) names)))))
+
+  ;; Input and result SHARE one pane. The package gives each of the three
+  ;; right-hand buffers a third of the column, which left the result on a
+  ;; handful of lines -- the one buffer you actually need to read after a
+  ;; run. And the input had stopped earning its own pane: the result now
+  ;; prints the input of every case next to its output, so keeping it
+  ;; permanently on screen was showing the same thing twice.
+  ;;
+  ;; It is a shared pane and not a removed buffer, because the input is
+  ;; still yours to EDIT: SPC l g i swaps it in, SPC l g o swaps the result
+  ;; back, and a run brings the result up on its own.
+  (defadvice! +leetcode-solving-window-layout-a ()
+    "Lay out Code | (Statement / Input+Result), code wide."
+    :override #'leetcode--solving-window-layout
+    (delete-other-windows)
+    (let* ((w-desc (split-window-horizontally
+                    (- (round (* (window-total-width) +leetcode-solving-detail-width)))))
+           (w-bottom (with-selected-window w-desc
+                       (split-window-below
+                        (round (* (window-total-height w-desc) +leetcode-detail-share))))))
+      (setq leetcode--description-window w-desc
+            ;; Same window under both names: everything upstream that
+            ;; targets one or the other lands in the shared pane.
+            leetcode--testcase-window    w-bottom
+            leetcode--result-window      w-bottom
+            +leetcode--detail-window     w-desc)
+      w-desc))
+
+  ;; The package's display functions re-walk the window tree with
+  ;; `window-left-child' and `window-next-sibling', counting on exactly
+  ;; three children on the right. With two, the second `window-next-sibling'
+  ;; returns nil and `set-window-buffer' with nil writes into the SELECTED
+  ;; window -- the result would land in your code pane. We aim at the
+  ;; windows we kept instead, which is what the layout function set them for.
+  (defadvice! +leetcode-display-detail-a (buffer &optional _alist)
+    :override #'leetcode--display-detail
+    (when (window-live-p leetcode--description-window)
+      (set-window-buffer leetcode--description-window buffer)
+      leetcode--description-window))
+
+  (defadvice! +leetcode-display-testcase-a (buffer &optional _alist)
+    :override #'leetcode--display-testcase
+    (when (window-live-p leetcode--testcase-window)
+      (set-window-buffer leetcode--testcase-window buffer)
+      leetcode--testcase-window))
+
+  (defadvice! +leetcode-display-result-a (buffer &optional _alist)
+    :override #'leetcode--display-result
+    (when (window-live-p leetcode--result-window)
+      (set-window-buffer leetcode--result-window buffer)
+      leetcode--result-window))
+
+  (defadvice! +leetcode-restore-layout-a ()
+    "Restore the layout, without rebuilding one that already holds."
+    :override #'leetcode-restore-layout
+    (interactive)
+    ;; Same guard: this reads the window list of the current frame, and a
+    ;; child frame's window list is not the workspace.
+    (+leetcode--leave-float)
+    (let* ((code-buf (or (+leetcode--code-buffer)
+                         (user-error "No LeetCode code buffer in this frame")))
+           (slug (leetcode--get-slug-title code-buf))
+           (problem (or (leetcode--get-problem slug)
+                        (user-error "Unknown LeetCode problem: %s" slug)))
+           (problem-id (leetcode-problem-id problem))
+           (desc-buf (get-buffer (leetcode--detail-buffer-name problem-id)))
+           (testcase-buf (get-buffer-create (leetcode--testcase-buffer-name problem-id)))
+           (result-buf (get-buffer-create (leetcode--result-buffer-name problem-id))))
+      (with-current-buffer result-buf
+        (erase-buffer)
+        (insert "Waiting for result..."))
+      (if (+leetcode--layout-intact-p code-buf problem-id)
+          ;; Already up for THIS problem: break nothing, but the shared
+          ;; pane may be showing the INPUT -- you went to edit it, which
+          ;; is the usual reason to run a test right after. A run is
+          ;; starting, so bring the result up. Without this the output was
+          ;; rendered into a buffer nobody could see, and testing looked
+          ;; like it did nothing at all.
+          (progn
+            (setq +leetcode--detail-window
+                  (get-buffer-window (leetcode--detail-buffer-name problem-id)))
+            (when-let ((w (or (get-buffer-window (leetcode--testcase-buffer-name problem-id))
+                              (get-buffer-window (leetcode--result-buffer-name problem-id)))))
+              (set-window-buffer w result-buf)
+              (setq leetcode--result-window w
+                    leetcode--testcase-window w)))
+        (select-window (or (get-buffer-window code-buf) (selected-window)))
+        (switch-to-buffer code-buf)
+        (+leetcode-solving-window-layout-a)
+        ;; The shared pane shows the result: a run is about to start.
+        (set-window-buffer leetcode--result-window result-buf)
+        (ignore testcase-buf)
+        ;; The statement: place it if it exists, otherwise ask for it and
+        ;; `+leetcode--place-detail' will drop it into that same window.
+        (if desc-buf
+            (set-window-buffer +leetcode--detail-window desc-buf)
+          (leetcode-show-problem problem-id)))
+      (select-window (get-buffer-window code-buf))))
+
+  ;; Input and result: plain text you read and edit. No line numbers, no
+  ;; truncation.
+  (defun +leetcode--plain-setup (buf)
+    (with-current-buffer buf
+      (setq-local truncate-lines nil)
+      (setq-local line-spacing 2)
+      (visual-line-mode +1)
+      (display-line-numbers-mode -1)))
+
+  (defadvice! +leetcode-plain-buffers-a (&rest _)
+    "Tidy up the input and result buffers, and show the input first."
+    :after #'leetcode--start-coding
+    (dolist (b (buffer-list))
+      (when (string-match-p "\\`\\*leetcode-\\(testcase\\|result\\)-" (buffer-name b))
+        (+leetcode--plain-setup b)))
+    ;; The statement, explicitly. `leetcode--solving-window-layout' splits
+    ;; the CURRENT window, and the new windows inherit its buffer -- which
+    ;; is how upstream ends up with the statement top-right: you were
+    ;; looking at it when you pressed Solve it. Coming out of a floating
+    ;; statement that no longer holds: the window being split is the
+    ;; problem list, so the list was inherited into the statement pane.
+    (when (window-live-p leetcode--description-window)
+      (when-let* ((code (+leetcode--code-buffer))
+                  (slug (ignore-errors (leetcode--get-slug-title code)))
+                  (problem (leetcode--get-problem slug))
+                  (detail (get-buffer (leetcode--detail-buffer-name
+                                       (leetcode-problem-id problem)))))
+        (set-window-buffer leetcode--description-window detail)))
+    ;; `leetcode--start-coding' fills the shared pane with the result
+    ;; buffer, which is empty until you run something. On a problem you
+    ;; are only opening, the sample input is the useful thing to see.
+    (when (window-live-p leetcode--result-window)
+      (let ((shown (window-buffer leetcode--result-window)))
+        (when (and (string-match-p "\\`\\*leetcode-result-" (buffer-name shown))
+                   (zerop (buffer-size shown)))
+          (when-let ((input (get-buffer
+                             (replace-regexp-in-string
+                              "-result-" "-testcase-" (buffer-name shown)))))
+            (set-window-buffer leetcode--result-window input))))))
+
+  ;; The problem list is a table: truncation is wanted, line numbers add
+  ;; nothing.
+  (add-hook! 'leetcode--problems-mode-hook
+    (defun +leetcode-list-h ()
+      (setq-local truncate-lines t)
+      (display-line-numbers-mode -1)))
+
+
+  ;; ── Test results ──────────────────────────────────────────────────
+  ;; Upstream dumps two unlabelled lists one after the other -- "Code
+  ;; Answer" then "Expected Code Answer" -- and leaves you to line them up
+  ;; by eye. With three or four cases that is exactly the moment you stop
+  ;; reading and go check on the website instead.
+  ;;
+  ;; Here each case is one block: what went in, what came out, and the
+  ;; expected value ONLY when it differs. A wrong case is marked; a right
+  ;; one stays quiet. The inputs come from the test-input buffer, whose
+  ;; lines hold one parameter each -- so we chunk them by
+  ;; (lines / number of cases). When that does not divide evenly the
+  ;; problem takes a shape we cannot infer, and we simply drop the input
+  ;; column rather than print a plausible-looking lie.
+  (defface +leetcode-result-pass '((t :inherit success :weight bold))
+    "Verdict of a passing run.")
+  (defface +leetcode-result-fail '((t :inherit error :weight bold))
+    "Verdict of a failing run.")
+  (defface +leetcode-result-label '((t :inherit shadow))
+    "Field labels in the result buffer.")
+
+  (defun +leetcode--testcase-raw (problem-id)
+    "The whole test input as one string, or nil when there is none."
+    (when-let* ((buf (get-buffer (leetcode--testcase-buffer-name problem-id)))
+                (text (string-trim (with-current-buffer buf (buffer-string))))
+                ((not (string-empty-p text))))
+      text))
+
+  (defun +leetcode--testcase-inputs (problem-id cases)
+    "Split the test input into CASES groups, or nil if it does not divide.
+The input buffer holds one parameter per line, so a case is
+(lines / cases) of them. When that does not divide, the problem takes a
+shape we cannot infer -- the caller then falls back to printing the whole
+block once, rather than pairing inputs with the wrong outputs."
+    (when-let* ((text (+leetcode--testcase-raw problem-id))
+                (lines (split-string text "\n" t))
+                ((> cases 0))
+                ((zerop (% (length lines) cases))))
+      (let ((per (/ (length lines) cases)) out)
+        (dotimes (i cases (nreverse out))
+          (push (string-join (seq-subseq lines (* i per) (* (1+ i) per)) ", ") out)))))
+
+  (defun +leetcode--result-field (label value &optional face)
+    (insert (propertize (format "     %-8s " label) 'face '+leetcode-result-label)
+            (if face (propertize (format "%s" value) 'face face) (format "%s" value))
+            "\n"))
+
+  (defadvice! +leetcode-show-testcases-result-a (problem-id result)
+    "Lay the test run out one case per block."
+    :override #'leetcode--show-testcases-result
+    (let-alist result
+      (with-current-buffer (get-buffer (leetcode--result-buffer-name problem-id))
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (cond
+           ;; 10 = the code ran; every case has an answer to compare.
+           ((eq .status_code 10)
+            (let* ((got .code_answer)
+                   (want .expected_code_answer)
+                   (n (length got))
+                   (ok (equal got want))
+                   (inputs (+leetcode--testcase-inputs problem-id n))
+                   (wrong (cl-count-if (lambda (i) (not (equal (aref got i) (aref want i))))
+                                       (number-sequence 0 (1- n)))))
+              (insert "\n  "
+                      (if ok (propertize "✓  Passed" 'face '+leetcode-result-pass)
+                        (propertize "✗  Failed" 'face '+leetcode-result-fail))
+                      (propertize (format "     %d/%d cases" (- n wrong) n)
+                                  'face '+leetcode-result-label)
+                      (if (and .status_runtime (not (string-empty-p .status_runtime)))
+                          (propertize (format "     %s" .status_runtime)
+                                      'face '+leetcode-result-label)
+                        "")
+                      "\n\n")
+              ;; Chunking failed -- print what was sent, once, rather than
+              ;; leave you guessing which input produced which output.
+              (unless inputs
+                (when-let ((raw (+leetcode--testcase-raw problem-id)))
+                  (insert (propertize "  input\n" 'face '+leetcode-result-label))
+                  (dolist (l (split-string raw "\n" t))
+                    (insert "     " l "\n"))
+                  (insert "\n")))
+              (dotimes (i n)
+                (let* ((g (aref got i)) (w (aref want i)) (good (equal g w)))
+                  (insert "  "
+                          (propertize (format "%d" (1+ i)) 'face 'bold) "  "
+                          (if good (propertize "✓" 'face '+leetcode-result-pass)
+                            (propertize "✗" 'face '+leetcode-result-fail))
+                          "\n")
+                  (when inputs (+leetcode--result-field "input" (nth i inputs)))
+                  (+leetcode--result-field "output" g
+                                           (unless good '+leetcode-result-fail))
+                  (unless good (+leetcode--result-field "expected" w '+leetcode-result-pass))
+                  (let ((so (and .std_output_list (> (length .std_output_list) i)
+                                 (aref .std_output_list i))))
+                    (when (and so (not (string-empty-p so)))
+                      (+leetcode--result-field "stdout" (string-trim so))))
+                  (insert "\n")))))
+           ;; 12 = memory limit, 14 = time limit: one offending case.
+           ((or (eq .status_code 12) (eq .status_code 14))
+            (insert "\n  " (propertize (format "✗  %s" .status_msg)
+                                       'face '+leetcode-result-fail)
+                    (propertize (format "     %s/%s cases" .total_correct .total_testcases)
+                                'face '+leetcode-result-label)
+                    "\n\n")
+            (+leetcode--result-field "input" .last_testcase)
+            (+leetcode--result-field "expected" .expected_output)
+            (unless (string-empty-p .std_output)
+              (+leetcode--result-field "stdout" (string-trim .std_output))))
+           ;; 15 = runtime error, 20 = compile error: the trace is the answer.
+           ;; The input still matters -- a crash is usually about one case.
+           ((memq .status_code '(15 20))
+            (insert "\n  " (propertize (format "✗  %s" .status_msg)
+                                       'face '+leetcode-result-fail)
+                    "\n\n")
+            (when-let ((raw (+leetcode--testcase-raw problem-id)))
+              (+leetcode--result-field "input" (string-replace "\n" ", " raw))
+              (insert "\n"))
+            (insert (or .full_runtime_error .full_compile_error "") "\n"))
+           (t
+            (insert "\n  " (propertize (format "%s" (or .status_msg "?"))
+                                       'face '+leetcode-result-fail) "\n")))
+          ;; This pane is shared with the input buffer, so say how to get
+          ;; back to it -- otherwise the input looks like it disappeared.
+          (insert (propertize "\n  SPC l g i  edit the input\n"
+                              'face '+leetcode-result-label))
+          (goto-char (point-min))))))
+
+  ;; ── Floating dashboard ────────────────────────────────────────────
+  ;; A child frame rather than a window: the dashboard is something you
+  ;; glance at and dismiss, and opening it should not disturb the four
+  ;; windows you are working in. `posframe' is already pulled in by Doom.
+  (defvar +leetcode-dashboard-float t
+    "Show the dashboard in a floating child frame rather than a window.")
+
+  (defun +leetcode-dashboard-quit ()
+    "Close the dashboard, floating or not."
+    (interactive)
+    (if (and (fboundp 'posframe-hide) (posframe-workable-p))
+        (progn (posframe-hide +leetcode-dashboard-buffer)
+               ;; Focus went to the child frame; hand it back to the real one.
+               (when-let ((p (frame-parent (selected-frame))))
+                 (select-frame-set-input-focus p)))
+      (quit-window)))
+
+  ;; ── Filtering the problem list ────────────────────────────────────
+  ;; `leetcode--filter' looks each row's problem back up by id, twice:
+  ;;
+  ;;   (leetcode-problem-tags       (leetcode--get-problem-by-id (aref row 1)))
+  ;;   (leetcode-problem-difficulty (leetcode--get-problem-by-id (aref row 1)))
+  ;;
+  ;; When that lookup comes back nil -- and it does, on [Load More] with a
+  ;; filter active -- the accessor is handed nil and signals
+  ;; `wrong-type-argument leetcode-problem, nil'. The error lands in the
+  ;; middle of a redisplay, so the list is left half-drawn.
+  ;;
+  ;; I could not reproduce it here across six pages and both filters, so
+  ;; this does not chase the trigger: it removes the class.
+  ;;
+  ;;   - difficulty needs no lookup at all. The row already carries it in
+  ;;     column 4 ("Easy" / "Medium" / "Hard"), which is where
+  ;;     `leetcode--problems-rows' put it a moment earlier. One whole
+  ;;     lookup goes away.
+  ;;   - tags still need the problem, so that one is guarded. A row whose
+  ;;     problem cannot be resolved is dropped from the filtered view
+  ;;     instead of taking the whole refresh down with it.
+  ;;
+  ;; Behaviour is identical whenever the lookup succeeds, which is every
+  ;; case that works today.
+  (defadvice! +leetcode-filter-a (rows)
+    "Filter ROWS, surviving a row whose problem cannot be looked up."
+    :override #'leetcode--filter
+    (seq-filter
+     (lambda (row)
+       (and
+        (if leetcode--filter-regex
+            (string-match-p leetcode--filter-regex (aref row 2))
+          t)
+        (if leetcode--filter-tag
+            (when-let ((p (leetcode--get-problem-by-id (aref row 1))))
+              (member leetcode--filter-tag (leetcode-problem-tags p)))
+          t)
+        (if leetcode--filter-difficulty
+            (string-equal-ignore-case (aref row 4) leetcode--filter-difficulty)
+          t)))
+     rows))
+
+  ;; ── Dashboard ─────────────────────────────────────────────────────
+  ;; The numbers come from `leetcode--problems', filled by
+  ;; `leetcode-refresh-fetch': each problem carries a `status' ("SOLVED"
+  ;; once accepted) and a `difficulty'. Until the list has been fetched
+  ;; once there is nothing to count — we say so rather than show
+  ;; misleading zeros.
+  (defvar +leetcode-dashboard-buffer "*leetcode-dashboard*"
+    "Name of the dashboard buffer.")
+
+  (defface +leetcode-dash-heading
+    '((t :inherit font-lock-keyword-face :weight bold))
+    "Section heading in the LeetCode dashboard.")
+
+  (defface +leetcode-dash-dim
+    '((t :inherit shadow))
+    "Secondary text in the LeetCode dashboard.")
+
+  (defun +leetcode--difficulty-face (d)
+    (pcase (downcase (or d ""))
+      ("easy"   'leetcode-easy-face)
+      ("medium" 'leetcode-medium-face)
+      ("hard"   'leetcode-hard-face)
+      (_        '+leetcode-dash-dim)))
+
+  (defun +leetcode--difficulty-name (d)
+    (pcase (downcase (or d ""))
+      ("easy" "Easy") ("medium" "Medium") ("hard" "Hard") (_ "?")))
+
+  (defconst +leetcode--eighths ["" "▏" "▎" "▍" "▌" "▋" "▊" "▉"]
+    "Partial blocks, from one eighth to seven eighths.")
+
+  (defun +leetcode--bar (done total width)
+    "Progress bar WIDTH cells wide.
+LeetCode completion rates per difficulty run to single-digit percents:
+rounded to the cell, the bar would be empty or nearly so and would say
+nothing. So we go down to the eighth of a cell, and guarantee a mark as
+soon as DONE clears zero — \"a little\" and \"none\" have to read apart at
+a glance."
+    (let* ((ratio (if (and total (> total 0)) (/ (float done) total) 0))
+           (exact (* ratio width))
+           (full (floor exact))
+           (rest (floor (* 8 (- exact full))))
+           (partial (aref +leetcode--eighths rest))
+           (filled (concat (make-string full ?█) partial))
+           (filled (if (and (string-empty-p filled) (> done 0)) "▏" filled))
+           (empty (max 0 (- width (string-width filled)))))
+      (concat (propertize filled 'face 'success)
+              (propertize (make-string empty ?░) 'face '+leetcode-dash-dim))))
+
+  ;; ── Real numbers, not "out of what we happened to load" ───────────
+  ;; The old panel counted over `leetcode--problems', which holds only the
+  ;; pages fetched so far. Fresh, that meant "11 / 100" -- a ratio out of
+  ;; an arbitrary window, presented as if it were the catalogue.
+  ;;
+  ;; LeetCode answers both figures directly, so we ask. The same call also
+  ;; carries what no local count could know: your percentile per
+  ;; difficulty, the current streak, and the submission calendar.
+  (defvar +leetcode--profile nil
+    "Cached profile payload, refreshed by `g' in the dashboard.")
+
+  (defconst +leetcode--graphql-profile
+    "query dashboardProfile($username: String!) {
+       allQuestionsCount { difficulty count }
+       matchedUser(username: $username) {
+         profile { ranking }
+         problemsSolvedBeatsStats { difficulty percentage }
+         submitStatsGlobal { acSubmissionNum { difficulty count } }
+         userCalendar { streak totalActiveDays submissionCalendar }
+       }
+     }")
+
+  (defun +leetcode--fetch-profile ()
+    "Fetch the profile block, or nil. Never signals: the dashboard degrades."
+    (ignore-errors
+      (with-timeout (6 nil)
+        (let* ((user (leetcode-user-username leetcode--user))
+               (url-request-method "POST")
+               (url-request-extra-headers
+                (list leetcode--User-Agent leetcode--Content-Type))
+               (url-request-data
+                (leetcode--graphql-payload
+                 "dashboardProfile" +leetcode--graphql-profile
+                 (list (cons "username" user))))
+               (resp (aio-wait-for (aio-url-retrieve leetcode--url-graphql)))
+               (buf (cdr resp)))
+          (unwind-protect
+              (with-current-buffer buf
+                (goto-char url-http-end-of-headers)
+                (json-read))
+            (when (buffer-live-p buf) (kill-buffer buf)))))))
+
+  (defun +leetcode--alist-count (vec difficulty)
+    "COUNT for DIFFICULTY inside VEC, a vector of {difficulty,count} alists."
+    (catch 'hit
+      (dotimes (i (length vec) 0)
+        (let-alist (aref vec i)
+          (when (equal .difficulty difficulty) (throw 'hit (or .count 0)))))))
+
+  (defun +leetcode--alist-pct (vec difficulty)
+    "PERCENTAGE for DIFFICULTY, or nil when LeetCode has none to give."
+    (catch 'hit
+      (dotimes (i (length vec) nil)
+        (let-alist (aref vec i)
+          (when (equal .difficulty difficulty) (throw 'hit .percentage))))))
+
+  (defun +leetcode--calendar-days (raw days)
+    "Submissions per day over the last DAYS, oldest first."
+    (let ((cal (ignore-errors
+                 (json-parse-string (or raw "{}") :object-type 'alist)))
+          (today (time-to-days (current-time)))
+          out)
+      ;; `push' prepends, and we walk i from today backwards, so the list
+      ;; comes out oldest-first already. An `nreverse' here put today at
+      ;; the LEFT -- the spike from yesterday appeared three weeks ago.
+      (dotimes (i days out)
+        (let* ((day (- today i))
+               (n (seq-reduce
+                   (lambda (acc c)
+                     (+ acc (if (= day (time-to-days
+                                        (seconds-to-time
+                                         (string-to-number (symbol-name (car c))))))
+                                (cdr c) 0)))
+                   cal 0)))
+          (push n out)))))
+
+  (defun +leetcode--calendar-total (raw)
+    "Every submission the calendar knows about (LeetCode keeps one year)."
+    (let ((cal (ignore-errors (json-parse-string (or raw "{}") :object-type 'alist))))
+      (seq-reduce (lambda (acc c) (+ acc (cdr c))) cal 0)))
+
+  (defun +leetcode--calendar-weeks (raw n)
+    "The last N seven-day blocks, most recent first.
+Each element is (LABEL DAYS TOTAL), DAYS running oldest to newest inside
+the block. Rolling blocks ending today, not calendar weeks: \"this week\"
+should mean the last seven days, not \"since Monday\" -- on a Monday
+morning the calendar version is empty and says nothing."
+    (let ((days (+leetcode--calendar-days raw (* 7 n)))
+          out)
+      (dotimes (w n (nreverse out))
+        (let* ((end (- (length days) (* 7 w)))
+               (chunk (seq-subseq days (max 0 (- end 7)) end)))
+          (push (list (pcase w
+                        (0 "This week")
+                        (1 "Last week")
+                        (_ (format "%d weeks ago" w)))
+                      chunk
+                      (apply #'+ chunk))
+                out)))))
+
+  (defconst +leetcode--spark ["▁" "▂" "▃" "▄" "▅" "▆" "▇" "█"]
+    "Sparkline ramp, one glyph per eighth of the tallest bar.")
+
+  (defun +leetcode--sparkline (counts)
+    "Render COUNTS as a sparkline scaled to its own maximum."
+    (let ((peak (apply #'max 1 counts)))
+      (mapconcat
+       (lambda (n)
+         (if (zerop n)
+             (propertize "·" 'face '+leetcode-dash-dim)
+           (propertize (aref +leetcode--spark
+                             (min 7 (floor (* 7.99 (/ (float n) peak)))))
+                       'face 'success)))
+       counts "")))
+
+  (defun +leetcode--top-tags (n)
+    "The N tags you have solved most, from the problems loaded so far."
+    (let ((h (make-hash-table :test #'equal)))
+      (dolist (p (leetcode-problems-problems leetcode--problems))
+        (when (equal (leetcode-problem-status p) "SOLVED")
+          (dolist (tag (leetcode-problem-tags p))
+            (puthash tag (1+ (gethash tag h 0)) h))))
+      (seq-take (sort (let (out) (maphash (lambda (k v) (push (cons k v) out)) h) out)
+                      (lambda (a b) (> (cdr a) (cdr b))))
+                n)))
+
+  (defun +leetcode--stats ()
+    "Count problems by difficulty: ((DIFFICULTY SOLVED TOTAL) ...)."
+    (let ((tbl (list (list "easy" 0 0) (list "medium" 0 0) (list "hard" 0 0))))
+      (dolist (p (leetcode-problems-problems leetcode--problems) tbl)
+        (when-let ((row (assoc (downcase (or (leetcode-problem-difficulty p) "")) tbl)))
+          (cl-incf (nth 2 row))
+          (when (equal (leetcode-problem-status p) "SOLVED")
+            (cl-incf (nth 1 row)))))))
+
+  (defun +leetcode--verdict (id)
+    "LeetCode's own verdict for problem ID: `solved', `attempted', `todo'.
+Returns nil when the problem is not among the pages fetched, which is a
+different thing from \"not attempted\" and is shown differently."
+    (when-let ((p (leetcode--get-problem-by-id id)))
+      (pcase (leetcode-problem-status p)
+        ("SOLVED"    'solved)
+        ("ATTEMPTED" 'attempted)
+        (_           'todo))))
+
+  (defun +leetcode--sessions ()
+    "Problems started: ((ID TITLE DIFFICULTY STATE VERDICT) ...), by ID.
+STATE is `open' when a code buffer is still alive, `file' when only the
+solution on disk remains. VERDICT is what LeetCode says about it."
+    (let ((h (make-hash-table :test #'equal)))
+      ;; Disk first, buffers second: an open buffer wins.
+      (when (file-directory-p leetcode-directory)
+        (dolist (f (directory-files leetcode-directory nil "\\`[0-9]+_"))
+          (let* ((id (car (split-string f "_")))
+                 (p (leetcode--get-problem-by-id id)))
+            (puthash id (list id
+                              (if p (leetcode-problem-title p)
+                                (file-name-base (string-join (cdr (split-string f "_")) "_")))
+                              (and p (leetcode-problem-difficulty p))
+                              'file
+                              (+leetcode--verdict id))
+                     h))))
+      (dolist (b (buffer-list))
+        (when (buffer-local-value 'leetcode-solution-mode b)
+          (when-let* ((slug (ignore-errors (leetcode--get-slug-title b)))
+                      (p (leetcode--get-problem slug)))
+            (puthash (leetcode-problem-id p)
+                     (list (leetcode-problem-id p) (leetcode-problem-title p)
+                           (leetcode-problem-difficulty p) 'open
+                           (+leetcode--verdict (leetcode-problem-id p)))
+                     h))))
+      (sort (hash-table-values h)
+            (lambda (a b) (< (string-to-number (car a)) (string-to-number (car b)))))))
+
+  (defun +leetcode-resume (id)
+    "Resume problem ID: its file and its four windows."
+    (interactive)
+    (unless leetcode--lang (setq leetcode--lang leetcode-prefer-language))
+    (let* ((p (leetcode--get-problem-by-id id))
+           (name (and p (leetcode--get-code-buffer-name (leetcode-problem-title p))))
+           (buf (and name (get-buffer name))))
+      (if buf
+          ;; Already open: keep the buffer exactly as it is — undo
+          ;; history, point, unsaved edits — and only lay the windows out
+          ;; around it.
+          (progn (pop-to-buffer buf) (leetcode-restore-layout))
+        ;; Cold: `leetcode-solve-problem' fetches statement and snippets,
+        ;; opens the file and lays out the windows.
+        (leetcode-solve-problem id))))
+
+  (defun +leetcode-dashboard-resume ()
+    "Resume the problem on the current line."
+    (interactive)
+    (if-let ((id (get-text-property (point) '+leetcode-id)))
+        (+leetcode-resume id)
+      (user-error "No problem on this line")))
+
+  (defface +leetcode-dash-title '((t :height 1.6 :weight bold))
+    "The word LeetCode at the top of the dashboard.")
+
+  (defun +leetcode--rule (label width)
+    "A section heading followed by a hairline out to WIDTH."
+    (concat "  " (propertize label 'face '+leetcode-dash-heading) "  "
+            (propertize (make-string (max 0 (- width (length label) 4)) ?─)
+                        'face '+leetcode-dash-dim)
+            "\n\n"))
+
+  (defun +leetcode--dashboard-render ()
+    "Write the dashboard contents into the current buffer."
+    (let* ((inhibit-read-only t)
+           (W 66)
+           (user (or (leetcode-user-username leetcode--user) ""))
+           (prof (cdr (assq 'data (or +leetcode--profile '())))))
+      (erase-buffer)
+      (insert "\n  " (propertize "LeetCode" 'face '+leetcode-dash-title)
+              (if (string-empty-p user) ""
+                (concat "   " (propertize user 'face '+leetcode-dash-dim)))
+              "\n\n")
+
+      (if (null prof)
+          (insert "  " (propertize "No data yet." 'face '+leetcode-dash-dim)
+                  "\n  Sign in and open the list once (SPC l l), then press g.\n\n")
+        (let-alist prof
+          ;; ── Progress ───────────────────────────────────────────────
+          (insert (+leetcode--rule "Progress" W))
+          ;; Two different questions, so two different devices.
+          ;;
+          ;; The PERCENTAGE answers "how far through the catalogue" -- and
+          ;; early on it is honestly tiny: 11 of 4042 is 0.3 %. A bar drawn
+          ;; from that ratio is a flat line for every row, which is why the
+          ;; first version said nothing.
+          ;;
+          ;; The BAR therefore answers a question you can actually read at
+          ;; this stage: how your solves are spread across difficulties. It
+          ;; is scaled to your own best row, so Easy fills it and Medium
+          ;; shows as the fraction of Easy that it is.
+          (let* ((counts (mapcar (lambda (d)
+                                   (+leetcode--alist-count
+                                    .matchedUser.submitStatsGlobal.acSubmissionNum d))
+                                 '("Easy" "Medium" "Hard")))
+                 (peak (apply #'max 1 counts)))
+            (dolist (d '("All" "Easy" "Medium" "Hard"))
+              (let* ((done (+leetcode--alist-count
+                            .matchedUser.submitStatsGlobal.acSubmissionNum d))
+                     (tot  (+leetcode--alist-count .allQuestionsCount d))
+                     (beat (+leetcode--alist-pct
+                            .matchedUser.problemsSolvedBeatsStats d))
+                     (name (if (equal d "All") "Total" d)))
+                (insert (string-trim-right
+                         (format "  %s %5d / %-5d %6.1f %%   %s  %s"
+                                (propertize (format "%-7s" name)
+                                            'face (if (equal d "All") 'bold
+                                                    (+leetcode--difficulty-face d)))
+                                done tot
+                                (if (> tot 0) (* 100.0 (/ (float done) tot)) 0.0)
+                                ;; No bar on Total: it is the sum of the
+                                ;; three below, so a fourth bar would only
+                                ;; repeat them.
+                                (if (equal d "All")
+                                    (make-string 20 ?\s)
+                                  (+leetcode--bar done peak 20))
+                                ;; LeetCode's own wording. "top 71 %" is the
+                                ;; same number worn the other way round, and
+                                ;; it flatters -- it would not match what the
+                                ;; site shows you.
+                                (if (numberp beat)
+                                    (propertize (format "beats %.0f %%" beat)
+                                                'face '+leetcode-dash-dim)
+                                  "")))
+                        ;; Trimmed, not padded: without a percentile the
+                        ;; row ended in two stray spaces.
+                        "\n"))))
+          (insert "  " (propertize "bars compare your own difficulties; the percent is the catalogue"
+                                   'face '+leetcode-dash-dim)
+                  "\n\n")
+
+          ;; ── Activity ───────────────────────────────────────────────
+          (insert (+leetcode--rule "Activity" W))
+          ;; One row per week, seven cells each, the week's total on the
+          ;; right. The single 21-cell sparkline that was here before could
+          ;; not answer "how much did I do last week" -- you had to count
+          ;; glyphs and guess where one week ended.
+          (let* ((raw .matchedUser.userCalendar.submissionCalendar)
+                 (weeks (+leetcode--calendar-weeks raw 4))
+                 (streak (or .matchedUser.userCalendar.streak 0)))
+            (insert (format "  %-13s %-16s %s %s\n"
+                            (propertize "Streak" 'face '+leetcode-dash-dim)
+                            (propertize (format "%d day%s" streak (if (= 1 streak) "" "s"))
+                                        'face (if (> streak 0) 'success '+leetcode-dash-dim))
+                            (propertize "Active days  " 'face '+leetcode-dash-dim)
+                            (format "%d" (or .matchedUser.userCalendar.totalActiveDays 0))))
+            (insert "\n")
+            ;; No M T W S header: these are ROLLING seven-day blocks ending
+            ;; today, so a Monday column would be a lie six days out of
+            ;; seven. The arrow says what the axis is instead.
+            (insert (format "  %-13s %s\n"
+                            ""
+                            (propertize "older ─────────→ today"
+                                        'face '+leetcode-dash-dim)))
+            (dolist (wk weeks)
+              (insert (format "  %-13s %s   %s\n"
+                              (propertize (nth 0 wk) 'face '+leetcode-dash-dim)
+                              ;; The glyph height is the raw count, not a
+                              ;; ratio: one bar means one submission in every
+                              ;; row. A per-week scale would make a quiet week
+                              ;; look as busy as a loud one.
+                              (mapconcat (lambda (n)
+                                           (if (zerop n)
+                                               (propertize " · " 'face '+leetcode-dash-dim)
+                                             (propertize
+                                              (format " %s " (aref +leetcode--spark
+                                                                   (min 7 (1- (max 1 n)))))
+                                              'face 'success)))
+                                         (nth 1 wk) "")
+                              (if (zerop (nth 2 wk))
+                                  (propertize "0" 'face '+leetcode-dash-dim)
+                                (propertize (number-to-string (nth 2 wk)) 'face 'success)))))
+            ;; Aligned under the weekly totals, not floating in the middle
+            ;; of the row: it is the same quantity over a longer window, so
+            ;; it belongs in the same column.
+            (insert (format "  %-13s %-21s   %s\n"
+                            (propertize "Past year" 'face '+leetcode-dash-dim)
+                            ""
+                            (propertize (number-to-string
+                                         (+leetcode--calendar-total raw))
+                                        'face '+leetcode-dash-dim))))
+          (insert "\n")
+
+          ;; ── Strengths ──────────────────────────────────────────────
+          ;; Computed locally, so it only knows the pages already fetched.
+          ;; Saying so is the difference between a statistic and a guess.
+          (let ((tags (+leetcode--top-tags 5))
+                (loaded (length (leetcode-problems-problems leetcode--problems))))
+            (when tags
+              (insert (+leetcode--rule "Strengths" W))
+              (let ((peak (cdar tags)))
+                (dolist (tg tags)
+                  (insert (format "  %-20s %3d  %s\n"
+                                  (truncate-string-to-width (car tg) 20) (cdr tg)
+                                  (propertize (make-string
+                                               (max 1 (round (* 18 (/ (float (cdr tg)) peak))))
+                                               ?▬)
+                                              'face 'success)))))
+              (insert "  " (propertize (format "from %d problems loaded — G in the list fetches more"
+                                               loaded)
+                                       'face '+leetcode-dash-dim)
+                      "\n\n")))))
+
+      ;; ── Problems started ─────────────────────────────────────────
+      (insert (+leetcode--rule "Problems started" W))
+      (let ((sessions (+leetcode--sessions)))
+        (if (null sessions)
+            (insert "  " (propertize "None yet.\n" 'face '+leetcode-dash-dim))
+          (dolist (s sessions)
+            (let* ((verdict (nth 4 s))
+                   ;; The glyph is LeetCode's verdict, not the state of your
+                   ;; buffer -- that is the question you actually ask of this
+                   ;; list. The buffer state stays, dimmed, at the end.
+                   (mark (pcase verdict
+                           ('solved    (propertize "✓" 'face 'success))
+                           ('attempted (propertize "●" 'face 'leetcode-medium-face))
+                           ('todo      (propertize "○" 'face '+leetcode-dash-dim))
+                           (_          (propertize "·" 'face '+leetcode-dash-dim))))
+                   (label (pcase verdict
+                            ('solved    (propertize "accepted"  'face 'success))
+                            ('attempted (propertize "attempted" 'face 'leetcode-medium-face))
+                            ('todo      (propertize "not sent"  'face '+leetcode-dash-dim))
+                            (_          (propertize "unknown"   'face '+leetcode-dash-dim))))
+                   (line (format "  %s %4s  %-30s %-7s %-10s %s\n"
+                                 mark
+                                 (nth 0 s)
+                                 (truncate-string-to-width (or (nth 1 s) "?") 30 nil nil "…")
+                                 (propertize (+leetcode--difficulty-name (nth 2 s))
+                                             'face (+leetcode--difficulty-face (nth 2 s)))
+                                 label
+                                 (propertize (if (eq (nth 3 s) 'open) "open" "")
+                                             'face '+leetcode-dash-dim))))
+              (insert (propertize (string-trim-right line) '+leetcode-id (nth 0 s))
+                      "\n")))))
+
+      (insert "\n  " (propertize "RET resume   l list   d daily   g refresh   ? help   q close"
+                                 'face '+leetcode-dash-dim)
+              "\n")
+      (goto-char (point-min))))
+
+  (defvar +leetcode-dashboard-mode-map
+    (let ((map (make-sparse-keymap)))
+      (suppress-keymap map)
+      (define-key map (kbd "RET") #'+leetcode-dashboard-resume)
+      (define-key map "g" #'+leetcode-dashboard-refresh)
+      (define-key map "l" #'leetcode)
+      (define-key map "d" #'leetcode-daily)
+      (define-key map "?" #'+leetcode-cheatsheet)
+      (define-key map "q" #'+leetcode-dashboard-quit)
+      map)
+    "Keymap for the LeetCode dashboard.")
+
+  (define-derived-mode +leetcode-dashboard-mode special-mode "LC Dashboard"
+    "LeetCode dashboard."
+    (setq-local truncate-lines t)
+    (setq-local line-spacing 3)
+    (display-line-numbers-mode -1)
+    (hl-line-mode +1)
+    ;; Same reason as elsewhere in this package: modes derived from
+    ;; `special-mode' are driven from the keyboard, and evil has to see
+    ;; the map.
+    (when (featurep 'evil)
+      (setq evil-normal-state-local-map +leetcode-dashboard-mode-map)))
+
+  (defun +leetcode-dashboard-refresh ()
+    "Re-fetch the profile, then redraw."
+    (interactive)
+    (setq +leetcode--profile (+leetcode--fetch-profile))
+    (with-current-buffer (get-buffer-create +leetcode-dashboard-buffer)
+      (+leetcode--dashboard-render)))
+
+  (defun +leetcode-dashboard ()
+    "Open the LeetCode dashboard, floating unless `+leetcode-dashboard-float' is nil."
+    (interactive)
+    (unless +leetcode--profile
+      (setq +leetcode--profile (+leetcode--fetch-profile)))
+    (with-current-buffer (get-buffer-create +leetcode-dashboard-buffer)
+      (unless (derived-mode-p '+leetcode-dashboard-mode) (+leetcode-dashboard-mode))
+      (+leetcode--dashboard-render))
+    (if (and +leetcode-dashboard-float
+             (require 'posframe nil t)
+             (posframe-workable-p))
+        (let ((frame (posframe-show
+                      +leetcode-dashboard-buffer
+                      :poshandler #'posframe-poshandler-frame-center
+                      :width 84
+                      :height (min 34 (- (frame-height) 6))
+                      :internal-border-width 2
+                      :internal-border-color (face-attribute 'font-lock-comment-face
+                                                             :foreground nil t)
+                      :background-color (face-attribute 'default :background nil t)
+                      :accept-focus t
+                      :hidehandler nil)))
+          ;; posframe leaves focus on the parent, so the keymap would not
+          ;; get the keys. RET has to reach the dashboard for it to be of
+          ;; any use.
+          (select-frame-set-input-focus frame))
+      (switch-to-buffer +leetcode-dashboard-buffer)))
+
+  ;; ── Cheat sheet ───────────────────────────────────────────────────
+  (defvar +leetcode-cheatsheet
+    '(("Get in"
+       ("SPC l l" "Problem list")
+       ("SPC l b" "Dashboard")
+       ("SPC l d" "Daily problem")
+       ("SPC l o" "Resume a problem you started"))
+      ("Solve"
+       ("SPC l t" "Run the tests against the input")
+       ("SPC l s" "Submit")
+       ("SPC l w" "Lay the four windows out again"))
+      ("Move around"
+       ("SPC l g c" "Code")
+       ("SPC l g p" "Statement (problem)")
+       ("SPC l g i" "Input")
+       ("SPC l g o" "Output (result)")
+       ("SPC l g l" "Problem list"))
+      ("Housekeeping"
+       ("SPC l r" "Refresh the list")
+       ("SPC l R" "Refetch from LeetCode")
+       ("SPC l q" "Close everything")
+       ("SPC l ?" "This cheat sheet"))
+      ("In the statement"
+       ("c" "Go to the code") ("i" "Go to the input") ("o" "Go to the result")
+       ("t" "Test") ("s" "Submit") ("q" "Close"))
+      ("In the code"
+       ("SPC m l t" "Test") ("SPC m l s" "Submit")
+       ("SPC m l w" "Lay the windows out again")
+       ("C-c C-t / C-c C-s" "Test / submit (the package's own keys)"))
+      ("In the list"
+       ("RET" "Open the statement") ("c" "Solve") ("s" "Filter by title")
+       ("d" "Filter by difficulty") ("z" "Refresh") ("q" "Close")))
+    "LeetCode cheat sheet: sections of (KEY DESCRIPTION).")
+
+  (defun +leetcode-cheatsheet ()
+    "Show the LeetCode key bindings."
+    (interactive)
+    (with-current-buffer (get-buffer-create "*leetcode-help*")
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (special-mode)
+        (setq-local line-spacing 3)
+        (display-line-numbers-mode -1)
+        (when (featurep 'evil) (setq evil-normal-state-local-map special-mode-map))
+        (insert "\n  " (propertize "LeetCode — cheat sheet"
+                                   'face '(:height 1.4 :weight bold)) "\n")
+        (dolist (section +leetcode-cheatsheet)
+          (insert "\n  " (propertize (car section) 'face '+leetcode-dash-heading) "\n")
+          (dolist (row (cdr section))
+            (insert (format "    %-22s %s\n"
+                            (propertize (car row) 'face 'help-key-binding)
+                            (cadr row)))))
+        (insert "\n  " (propertize "q to close" 'face '+leetcode-dash-dim) "\n")
+        (goto-char (point-min))))
+    (switch-to-buffer "*leetcode-help*"))
+
+  ;; ── Local keys ────────────────────────────────────────────────────
+  ;; Bound DIRECTLY in the keymaps, with no state prefix:
+  ;; `leetcode--set-evil-local-map' installs these maps as-is into
+  ;; `evil-normal-state-local-map', so a plain binding is live in normal
+  ;; state as well as everywhere else.
   (map! :map leetcode--problems-mode-map
-        :n "q" #'quit-window
-        :n "r" #'leetcode-refresh))
+        "q" #'quit-window
+        "r" #'leetcode-refresh)
+
+  (map! :map leetcode--problem-detail-mode-map
+        "RET" #'+leetcode-detail-solve
+        "q" #'+leetcode-detail-quit
+        "c" #'+leetcode-goto-code
+        "i" #'+leetcode-goto-testcase
+        "o" #'+leetcode-goto-result
+        "t" #'+leetcode-try
+        "s" #'+leetcode-submit)
+
+  ;; In the code buffer, Doom's localleader — under an "l" prefix rather
+  ;; than at the root. `leetcode-solution-mode' is a MINOR mode: its
+  ;; bindings come ahead of the major mode's. Put straight on SPC m t, it
+  ;; masked python-mode's pytest menu, silently, and precisely where a
+  ;; Python developer types "t" for "test". Under SPC m l nothing is
+  ;; covered.
+  (map! :map leetcode-solution-mode-map
+        :localleader
+        (:prefix ("l" . "leetcode")
+         :desc "Test"              "t" #'+leetcode-try
+         :desc "Submit"            "s" #'+leetcode-submit
+         :desc "Lay windows out"   "w" #'leetcode-restore-layout
+         :desc "Statement"         "p" #'+leetcode-goto-description
+         :desc "Test input"        "i" #'+leetcode-goto-testcase
+         :desc "Result"            "o" #'+leetcode-goto-result)))
 
 (map! :leader
       (:prefix ("l" . "leetcode")
-       :desc "Problem list"  "l" #'leetcode
-       :desc "Daily problem" "d" #'leetcode-daily
-       :desc "Refresh"       "r" #'leetcode-refresh
-       :desc "Run tests"     "t" #'leetcode-try
-       :desc "Submit"        "s" #'leetcode-submit
-       :desc "Quit"          "q" #'leetcode-quit))
+       ;; Get in
+       :desc "Problem list"        "l" #'leetcode
+       :desc "Dashboard"           "b" #'+leetcode-dashboard
+       :desc "Daily problem"       "d" #'leetcode-daily
+       :desc "Resume a problem"    "o" #'+leetcode-open-session
+       ;; Solve
+       :desc "Test"                "t" #'+leetcode-try
+       :desc "Submit"              "s" #'+leetcode-submit
+       :desc "Lay windows out"     "w" #'leetcode-restore-layout
+       ;; Housekeeping
+       :desc "Refresh"             "r" #'leetcode-refresh
+       :desc "Refetch from LeetCode" "R" #'leetcode-refresh-fetch
+       :desc "Close everything"    "q" #'leetcode-quit
+       :desc "Cheat sheet"         "?" #'+leetcode-cheatsheet
+       (:prefix ("g" . "go to")
+        :desc "Code"      "c" #'+leetcode-goto-code
+        :desc "Statement" "p" #'+leetcode-goto-description
+        :desc "Input"     "i" #'+leetcode-goto-testcase
+        :desc "Result"    "o" #'+leetcode-goto-result
+        :desc "List"      "l" #'+leetcode-goto-list)))
+
+;; ── LeetCode gets its own workspace ─────────────────────────────────
+;; LeetCode opens four windows and keeps a pile of transient buffers
+;; alive. Dropped into whatever workspace you happened to be in, it
+;; buries the layout you were working in; `SPC TAB d' would then be the
+;; only way back, and your files would be mixed in with *leetcode-*
+;; buffers in every buffer list.
+;;
+;; The four commands below are the ONLY ways in -- every other LeetCode
+;; key acts on a session that is already open, so it is already in the
+;; right workspace and needs no advice.
+;;
+;; `:before' rather than a wrapper command: the bindings, `M-x', and the
+;; calls LeetCode makes internally all go through the same path, so there
+;; is no second entry point left uncovered.
+(defvar +leetcode-workspace-name "leetcode"
+  "Name of the workspace LeetCode is confined to.")
+
+(defun +leetcode-ensure-workspace (&rest _)
+  "Switch to the LeetCode workspace, creating it only if absent.
+Does nothing when already there -- re-entering would otherwise reset the
+window configuration of a session in progress."
+  (when (and (bound-and-true-p persp-mode)
+             (not (equal (+workspace-current-name) +leetcode-workspace-name)))
+    (+workspace-switch +leetcode-workspace-name t)
+    (+workspace/display)))
+
+(dolist (cmd '(leetcode
+               leetcode-daily
+               +leetcode-dashboard
+               +leetcode-open-session))
+  (advice-add cmd :before #'+leetcode-ensure-workspace))
+
 
 ;; ══════════════════════════════════════════════════════════════════════
 ;;  Modern IDE setup (2026-08-21)

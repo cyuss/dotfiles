@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# leetcode-cookies — print LeetCode cookies as "<name> <value>" lines,
+# the format leetcode.el feeds to `url-cookie-store'.
+#
+#   leetcode-cookies            read the first browser that has a session
+#   leetcode-cookies --which    name the browser it would read, and the
+#                               session's expiry date — nothing secret
+#
+# Why not `my_cookies', which leetcode.el installs by itself: it walks
+# Chrome, Chromium, Brave, Firefox, Edge, Vivaldi, Opera — and stops at
+# the first one that answers. Arc is in none of that list. On a machine
+# where Arc is the browser you actually use, `my_cookies' quietly hands
+# over a Chrome session from months ago; LeetCode then answers
+# "user is not authenticated" and the failure looks like a bug in Emacs.
+#
+# So: Arc first, the others after. browser_cookie3 has supported Arc for
+# a while — leetcode.el's helper simply predates it.
+#
+# An EXPIRED session is reported, not silently skipped. That distinction
+# is the whole point: "no browser has a LeetCode session" and "your
+# session ran out on the 28th" call for different things from you.
+# ─────────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+# browser_cookie3 lives in the venv pipx built for my_cookies. Fall back
+# to any python3 that already has it, so this keeps working if the venv
+# is rebuilt elsewhere.
+PY=""
+for candidate in \
+  "$HOME/Library/Application Support/pipx/venvs/my-cookies/bin/python" \
+  "$(command -v python3 || true)"
+do
+  [ -n "$candidate" ] && [ -x "$candidate" ] || continue
+  if "$candidate" -c 'import browser_cookie3' 2>/dev/null; then PY="$candidate"; break; fi
+done
+
+if [ -z "$PY" ]; then
+  echo "leetcode-cookies: browser_cookie3 not found." >&2
+  echo "  pipx install my_cookies      (it pulls browser_cookie3 in)" >&2
+  exit 1
+fi
+
+exec "$PY" - "${1:-}" <<'PYEOF'
+import os, sys, time
+from concurrent.futures import ThreadPoolExecutor
+import browser_cookie3 as bc
+
+WANTED = ("LEETCODE_SESSION", "csrftoken", "cf_clearance", "ip_check")
+# Arc first: on this machine it is the browser in daily use. The rest
+# follow in browser_cookie3's own order.
+BROWSERS = [("Arc", bc.arc), ("Chrome", bc.chrome), ("Brave", bc.brave),
+            ("Firefox", bc.firefox), ("Edge", bc.edge), ("Chromium", bc.chromium),
+            ("Vivaldi", bc.vivaldi), ("Opera", bc.opera)]
+
+# Each browser gets a time budget. Some loaders block for a long while
+# on a profile that is missing, locked, or waiting on a Keychain prompt
+# nobody answers -- without this the whole command hangs and Emacs hangs
+# with it, since leetcode.el calls us through `shell-command-to-string'.
+BUDGET = 8  # seconds per browser
+
+def session_from(loader):
+    """Return {name: cookie} for leetcode.com, or None if unreadable."""
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        jar = pool.submit(loader, domain_name="leetcode.com").result(timeout=BUDGET)
+    except Exception:
+        return None
+    finally:
+        # Do not wait: a loader stuck on a prompt would block the exit.
+        pool.shutdown(wait=False)
+    found = {}
+    for c in jar:
+        if c.name in WANTED:
+            # Several profiles can hold the same name; keep the one that
+            # lives longest, which is the freshest login.
+            prev = found.get(c.name)
+            if prev is None or (c.expires or 0) > (prev.expires or 0):
+                found[c.name] = c
+    return found or None
+
+which = sys.argv[1] if len(sys.argv) > 1 else ""
+now = time.time()
+first_expired = None
+
+for name, loader in BROWSERS:
+    got = session_from(loader)
+    if not got or "LEETCODE_SESSION" not in got:
+        continue
+    exp = got["LEETCODE_SESSION"].expires or 0
+    if exp and exp < now:
+        # Remember it, but keep looking: another browser may be current.
+        if first_expired is None:
+            first_expired = (name, exp)
+        continue
+    if which:
+        when = time.strftime("%Y-%m-%d", time.localtime(exp)) if exp else "session cookie"
+        print(f"{name}: LeetCode session valid until {when}")
+    else:
+        for cname, c in got.items():
+            print(f"{cname} {c.value}")
+    # `os._exit' skips interpreter cleanup -- which is the point, a loader
+    # stuck on a Keychain prompt would otherwise hold the process open --
+    # but it also skips flushing stdout. Without this the cookies were
+    # written and then dropped: exit code 0, not a single line out, and
+    # LeetCode answering "user is not authenticated".
+    sys.stdout.flush()
+    os._exit(0)
+
+if first_expired:
+    name, exp = first_expired
+    when = time.strftime("%Y-%m-%d", time.localtime(exp))
+    print(f"leetcode-cookies: {name} has a LeetCode session but it expired on {when}.",
+          file=sys.stderr)
+    print("  Open leetcode.com in that browser and sign in again.", file=sys.stderr)
+    sys.stderr.flush()
+    os._exit(2)
+
+print("leetcode-cookies: no browser holds a LeetCode session.", file=sys.stderr)
+print("  Sign in at leetcode.com in Arc, Chrome, Brave, Firefox or Edge.", file=sys.stderr)
+sys.stderr.flush()
+os._exit(3)
+PYEOF
