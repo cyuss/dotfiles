@@ -108,7 +108,7 @@ quel ordre, et avec quelles couleurs.
 ### Suspendu
 Le préfixe `Ctrl+b` a cessé de répondre en cours de journée. Cause non
 identifiée : restauration d'abord, isolation ensuite. Sont neutralisés en
-commentaire dans `herdr/config.toml`, tous marqués `[SUSPENDU 2026-08-27]` :
+commentaire dans `herdr/config.toml`, tous marqués `[SUSPENDED 2026-08-27]` :
 
 | Réglage | Touche |
 |---|---|

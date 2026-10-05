@@ -13,10 +13,10 @@ create_missing = true
 
 # Prefix new workspace labels with their Navigator kind (project: / dir:).
 #
-# Passe a false : dans une sidebar de 28 colonnes, « project: » mangeait
-# 9 caracteres sur chaque libelle pour une information que l'icone et le
-# contexte donnent deja. « un-projet-long » se lit, « project: un-proj… »
-# non. Navigator continue de memoriser le kind de son cote.
+# Set to false: in a 28-column sidebar, "project: " ate 9 chars on every
+# label for info the icon and context already give. "a-long-project" reads
+# fine, "project: a-long-pr…" doesn't. Navigator still remembers the kind
+# on its side.
 prefix_workspace_labels = false
 
 # Search engine: "nucleo" | "skim" | "simple"
@@ -27,12 +27,12 @@ engine = "nucleo"
 
 # Source priority controls initial ordering and tie/near-tie ranking.
 # Accepted names: agent, server/remote, workspace/open, project, session, zoxide, root, quick, plugin.
-# Trois etages, dans cet ordre :
-#   1. ce qui EXISTE et tourne     workspace, agent, session, server
-#   2. ce qui se CREE              plugin (les entrees de herdr-nav-create)
-#   3. ce qui n'est qu'un MODELE   project
-# Les 28 projets restent accessibles (Ctrl-P) mais ne peuvent plus occuper
-# le haut de la liste.
+# Three tiers, in this order:
+#   1. what EXISTS and runs        workspace, agent, session, server
+#   2. what you can CREATE         plugin (entries from herdr-nav-create)
+#   3. what's just a TEMPLATE      project
+# The 28 projects are still there (Ctrl-P) but can't take over the top of
+# the list anymore.
 source_order = ["workspace", "agent", "session", "server", "plugin", "project", "zoxide", "root", "quick"]
 
 # How strongly source_order influences search ranking.
@@ -52,22 +52,21 @@ preview = true
 # entries expand to a second full-path line. Set false for the compact list.
 detailed_rows = true
 
-# ── Vue arborescente : les tabs sous leur space ──────────────────────
-# Les tabs d'un space apparaissent comme lignes enfant, dans la section
-# « open », juste sous lui :
+# ── Tree view: tabs under their space ────────────────────────────────
+# A space's tabs show up as child rows in the "open" section, right
+# under it:
 #
-#   [3] project: un-projet-long         2 tabs · 3 panes
+#   [3] project: a-long-project         2 tabs · 3 panes
 #     ├ agent                           tab 1
 #     └ run                             tab 4 · 2 panes
 #
-# C'est l'equivalent de `choose-tree` dans tmux. L'ordre tient parce que
-# le tri du picker retombe sur l'ordre d'insertion a score egal.
-# Ctrl-X sur une ligne enfant ferme le TAB, pas le space.
+# Same idea as tmux's `choose-tree`. The order holds because the picker
+# falls back to insertion order on equal scores.
+# Ctrl-X on a child row closes the TAB, not the space.
 tab_children = true
 
-# En dessous de ce nombre de tabs, pas d'enfants : l'unique tab d'un space
-# ferait doublon avec la ligne du space sans rien apprendre. Mettre 1 pour
-# tout afficher malgre tout.
+# Below this many tabs, no children: a space's only tab would just repeat
+# the space row and tell you nothing. Set to 1 to show everything anyway.
 tab_children_min = 2
 
 # Check GitHub releases in the background at most once per day. Network errors
@@ -88,27 +87,27 @@ vim_filter_search = false
 # Source filter shortcuts. Defaults: server=ctrl-s, agent=ctrl-a, quick=ctrl-q,
 # workspace=ctrl-w, project=ctrl-p, zoxide=ctrl-z, root=ctrl-r, session=ctrl-l.
 #
-# Une lettre = l'initiale de ce qu'elle filtre. Les defauts melangeaient
-# des initiales (w, a, p, q) et des touches arbitraires (l pour session,
-# s pour server) : impossible a retenir sans consulter l'aide.
+# One letter = the initial of what it filters. The defaults mixed
+# initials (w, a, p, q) with random keys (l for session, s for server):
+# impossible to remember without the help screen.
 #
-#   Ctrl-W  Workspaces        les spaces ouverts
-#   Ctrl-A  Agents            les agents qui tournent
-#   Ctrl-L  Sessions          defaut du plugin
-#   Ctrl-G  Gateways          serveurs herdr distants
-#   Ctrl-N  Nouveau           tout ce qui se cree
-#   Ctrl-P  Projets           les modeles herdr-plus
+#   Ctrl-W  Workspaces        open spaces
+#   Ctrl-A  Agents            running agents
+#   Ctrl-L  Sessions          plugin default
+#   Ctrl-G  Gateways          remote herdr servers
+#   Ctrl-N  New               everything you can create
+#   Ctrl-P  Projects          herdr-plus templates
 #
-# CTRL-S EST INTERDIT, et ce n'est pas une preference.
-# `stty -a' sur ce terminal donne `ixon' actif et `stop = ^S' : Ctrl-S est
-# le XOFF du controle de flux logiciel. Il GELE la sortie du terminal —
-# on tape, plus rien ne s'affiche, l'ecran semble casse. (Ctrl-Q degele.)
-# Une precedente version mettait les sessions sur ctrl-s pour l'initiale ;
-# c'etait un bug. Le defaut du plugin lui-meme place les serveurs sur
-# ctrl-s : meme piege, jamais declenche ici faute de serveur configure.
+# CTRL-S IS OFF LIMITS, and it's not a matter of taste.
+# `stty -a' on this terminal shows `ixon' on and `stop = ^S': Ctrl-S is
+# the software flow control XOFF. It FREEZES terminal output: you type,
+# nothing shows, the screen looks broken. (Ctrl-Q unfreezes.)
+# An older version put sessions on ctrl-s for the initial; that was a bug.
+# The plugin's own default puts servers on ctrl-s: same trap, never hit
+# here since no server is configured.
 #
-# Sont a eviter pour la meme raison : ^Q (start), ^Z (susp), ^C (intr),
-# ^D (eof), ^H (backspace). Ctrl-C/U/X/B/O/H restent au picker lui-meme.
+# Avoid these for the same reason: ^Q (start), ^Z (susp), ^C (intr),
+# ^D (eof), ^H (backspace). Ctrl-C/U/X/B/O/H stay with the picker itself.
 [picker.filter_keys]
 workspace = "ctrl-w"
 agent     = "ctrl-a"
@@ -145,22 +144,22 @@ open_workspaces = true
 # Herdr Plus project templates from:
 # ~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects/*.toml
 #
-# ACTIF, mais classe APRES le vivant dans source_order : Ctrl-P les isole,
-# comme Ctrl-W isole les spaces et Ctrl-L les sessions.
-# Picker dedie et groupe : prefix+p.
+# ON, but ranked AFTER the live stuff in source_order: Ctrl-P isolates
+# them, like Ctrl-W for spaces and Ctrl-L for sessions.
+# Dedicated grouped picker: prefix+p.
 herdr_plus_projects = true
 
 # zoxide history from `zoxide query -l`.
 #
-# DESACTIVE : 37 entrees, soit plus de la moitie de l'index. zoxide a deja
-# son picker dedie avec preview : prefix+alt+z.
+# OFF: 37 entries, more than half the index. zoxide already has its own
+# picker with preview: prefix+alt+z.
 zoxide = false
 
 # Direct filesystem scan of [[roots]] below.
 #
-# DESACTIVE : les [[roots]] par defaut (~/workspace, ~/projects) n'existent
-# pas sur cette machine — la source ne rendait rien. Tes projets sont dans
-# ~/Desktop/projects et sont couverts par prefix+alt+o.
+# OFF: the default [[roots]] (~/workspace, ~/projects) don't exist on this
+# machine, so the source returned nothing. Projects live in
+# ~/Desktop/projects and are covered by prefix+alt+o.
 roots = false
 
 # Agent panes from Herdr pane metadata. Selecting focuses the agent.
@@ -173,9 +172,9 @@ sessions = true
 
 # Herdr Plus Quick Actions.
 #
-# DESACTIVE : cette source n'apportait qu'UNE entree, dont l'action etait
-# d'ouvrir un autre picker. Un picker dans un picker n'est pas un chemin,
-# c'est un detour. Les quick actions ont leur touche : prefix+alt+a.
+# OFF: this source added just ONE entry, whose action was to open another
+# picker. A picker inside a picker is a detour, not a path. Quick actions
+# have their own key: prefix+alt+a.
 herdr_plus_quick_actions = false
 
 [theme]
@@ -233,14 +232,14 @@ local = true
 # notify_error = true
 #
 
-# ── Creer, depuis le navigator ────────────────────────────────────────
-# herdr-nav-create emet les entrees ; herdr-new execute l'action.
-#   ⚡ scratch      space jetable (shell + opencode) dans ~/scratch/<date>
-#   ＋ space ici    space sur le repertoire du pane focalise, calcule a
-#                   chaque ouverture du picker
-#   ＋ session X    nouvelle fenetre Alacritty sur une session nommee ;
-#                   kind = "session" -> l'entree apparait sous Ctrl-L,
-#                   a cote des sessions qui existent deja
+# ── Create, from the navigator ────────────────────────────────────────
+# herdr-nav-create emits the entries; herdr-new runs the action.
+#   ⚡ scratch      throwaway space (shell + opencode) in ~/scratch/<date>
+#   ＋ space ici    space on the focused pane's directory, computed each
+#                   time the picker opens
+#   ＋ session X    new Alacritty window on a named session;
+#                   kind = "session" -> the entry shows under Ctrl-L,
+#                   next to the sessions that already exist
 [[integrations]]
 id = "create"
 label = "créer"
@@ -250,26 +249,25 @@ open = "$HOME/.config/workflow-tools/herdr-new {{id}} {{path}}"
 notify_success = true
 notify_error = true
 
-# ── Les tabs, sous leur space ─────────────────────────────────────────
-# DESACTIVE — remplace par la vraie vue arborescente, cote plugin.
+# ── Tabs, under their space ───────────────────────────────────────────
+# OFF, replaced by the real tree view on the plugin side.
 #
-# Cette integration marchait, mais elle rangeait ses entrees dans une
-# section « tabs » a part. La raison est dans le code du plugin
-# (src/integrations/command.rs) : le champ `kind` d'une entree
-# d'integration n'est interprete que pour trois valeurs —
+# This integration worked, but put its entries in a separate "tabs"
+# section. The reason is in the plugin code (src/integrations/command.rs):
+# an integration entry's `kind` field only means something for three
+# values:
 #   "server" | "remote-terminal"  ->  Source::Server
 #   "session"                     ->  Source::Session
-#   tout le reste                 ->  Source::Integration
-# Il n'existe AUCUN chemin vers Source::Workspace, c'est-a-dire vers la
-# section « open ». Une integration ne peut donc pas, par construction,
-# poser des lignes sous les spaces.
+#   anything else                 ->  Source::Integration
+# There's NO path to Source::Workspace, i.e. the "open" section. So an
+# integration simply can't put rows under spaces.
 #
-# La vue arborescente est maintenant native : voir [picker].tab_children
-# plus haut. Les tabs sont des lignes enfant de la source `open`, dans
-# l'ordre space -> ses tabs, comme `choose-tree` de tmux.
+# The tree view is now native: see [picker].tab_children above. Tabs are
+# child rows of the `open` source, in space -> its tabs order, like tmux's
+# `choose-tree`.
 #
-# Remettre `enabled = true` ci-dessous ferait apparaitre chaque tab DEUX
-# fois : une fois sous son space, une fois dans la section « tabs ».
+# Setting `enabled = true` below would show each tab TWICE: once under
+# its space, once in the "tabs" section.
 [[integrations]]
 id = "tabs"
 label = "tabs"
@@ -279,21 +277,20 @@ open = "$HOME/.config/workflow-tools/herdr-nav-goto-tab {{id}} {{path}}"
 notify_success = false
 notify_error = true
 
-# ── Toutes les actions de plugin ──────────────────────────────────────
-# Le filtre Ctrl-N s'appelle « plugin » mais montre la source
-# `Source::Integration`, c'est-a-dire les blocs [[integrations]] de CE
-# fichier — pas les plugins herdr. D'ou l'impression qu'il n'y a que la
-# gestion des spaces.
+# ── All plugin actions ────────────────────────────────────────────────
+# The Ctrl-N filter is called "plugin" but shows `Source::Integration`,
+# i.e. the [[integrations]] blocks of THIS file, not herdr plugins. Hence
+# the feeling it only had space management.
 #
-# Cette integration y verse les 61 actions reellement exposees par les
-# 20 plugins installes (`herdr plugin action list`). Ctrl-N devient donc
-# le catalogue complet : creations maison + toutes les actions.
+# This integration feeds it the 61 actions actually exposed by the 20
+# installed plugins (`herdr plugin action list`). So Ctrl-N becomes the
+# full catalog: homemade create entries + every action.
 #
-# Les actions du navigator lui-meme sont retirees de la liste : les
-# invoquer depuis le navigator ouvrirait un navigator dans le navigator.
+# The navigator's own actions are left out: running them from the
+# navigator would open a navigator inside the navigator.
 #
-# Autre chemin vers la meme chose, deja en place : prefix+a
-# (jt.command-palette), qui liste tout ce qui est bindable.
+# Another way to the same thing, already set up: prefix+a
+# (jt.command-palette), which lists everything bindable.
 [[integrations]]
 id = "actions"
 label = "action"

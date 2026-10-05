@@ -28,8 +28,8 @@
 		<string>exec "$HOME/.config/workflow-tools/herdr-space-metadata" --watch 45</string>
 	</array>
 
-	<!-- launchd ne fournit pas le PATH d'un shell de login : sans ceci,
-	     ni `herdr` ni `git` ne sont trouves. -->
+	<!-- launchd doesn't give you a login shell's PATH: without this,
+	     neither `herdr` nor `git` is found. -->
 	<key>EnvironmentVariables</key>
 	<dict>
 		<key>PATH</key>
@@ -39,9 +39,9 @@
 	<key>RunAtLoad</key>
 	<true/>
 
-	<!-- Le script boucle et ne sort jamais de lui-meme : KeepAlive ne sert
-	     qu'a le relancer s'il est tue. Serveur herdr arrete = il dort, il
-	     ne sort pas — donc pas de cycle de relance en boucle. -->
+	<!-- The script loops and never exits on its own: KeepAlive only
+	     restarts it if it gets killed. herdr server stopped = it sleeps,
+	     it doesn't exit, so no restart loop. -->
 	<key>KeepAlive</key>
 	<true/>
 	<key>ThrottleInterval</key>

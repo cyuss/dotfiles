@@ -20,9 +20,9 @@ index c8f2181..35b0c3b 100644
      }
  
      pub(crate) fn close_selected_workspace(&mut self) -> Result<(), String> {
-+        // Sur une ligne ENFANT (un tab), Ctrl-X ferme le tab, pas le space.
-+        // Sans ce garde-fou, viser un tab fermerait tout le space qui le
-+        // contient — c'est le genre de surprise qu'on ne pardonne qu'une fois.
++        // On a CHILD row (a tab), Ctrl-X closes the tab, not the space.
++        // Without this guard, aiming at a tab would close the whole space
++        // around it. The kind of surprise you only forgive once.
 +        if let Some((tab_id, title)) = self
 +            .selected_entry()
 +            .and_then(|e| Some((e.tab_id.clone()?, e.title.clone())))
@@ -62,21 +62,21 @@ index eb9e1e6..4ed5555 100644
      pub(crate) preview: bool,
      #[serde(default = "yes")]
      pub(crate) detailed_rows: bool,
-+    /// Afficher les tabs d'un space comme lignes enfant, dans la source
-+    /// `open`. C'est la vue arborescente facon `choose-tree` de tmux.
-+    /// Dessiner le cadre titre du picker.
++    /// Show a space's tabs as child rows in the `open` source.
++    /// It's the tree view, like tmux's `choose-tree`.
++    /// Draw the picker's own titled frame.
 +    ///
-+    /// Eteint par defaut : herdr encadre DEJA le pane du plugin et y
-+    /// inscrit son libelle (« Herdr Navigator »). Le cadre propre au
-+    /// plugin produisait donc deux boites imbriquees portant le meme
-+    /// titre. A remettre a true si `ui.pane_borders = false` cote herdr.
++    /// Off by default: herdr ALREADY frames the plugin pane and writes
++    /// its label in it ("Herdr Navigator"). The plugin's own frame
++    /// gave two nested boxes with the same title. Set back to true if
++    /// herdr has `ui.pane_borders = false`.
 +    #[serde(default)]
 +    pub(crate) own_frame: bool,
 +    #[serde(default = "yes")]
 +    pub(crate) tab_children: bool,
-+    /// En dessous de ce nombre de tabs, on n'affiche pas les enfants :
-+    /// l'unique tab d'un space ferait doublon avec la ligne du space,
-+    /// sans rien apprendre. Mettre 1 pour tout montrer.
++    /// Below this many tabs, children aren't shown: a space's only
++    /// tab would just repeat the space row and tell you nothing.
++    /// Set to 1 to show everything.
 +    #[serde(default = "default_tab_children_min")]
 +    pub(crate) tab_children_min: i64,
      #[serde(default = "yes")]
@@ -171,21 +171,21 @@ index aec7b97..107db2b 100644
          .unwrap_or(PickerDecision::Open)
  }
  
-+/// Le pane du picker tourne-t-il encore le navigator ?
++/// Is the picker pane still running the navigator?
 +///
-+/// C'est la question qui manquait. Quand le processus `ui` meurt sans que
-+/// son pane soit ferme, herdr laisse un SHELL dans le pane — mais le pane
-+/// garde son libelle « Herdr Navigator ». `picker_pane_decision` le
-+/// retrouvait alors indefiniment et focalisait ce shell mort : prefix+w
-+/// semblait ne plus rien faire, et il fallait la souris pour s'en sortir.
++/// That was the missing check. When the `ui` process dies without its
++/// pane closing, herdr leaves a SHELL in the pane, but the pane keeps
++/// its "Herdr Navigator" label. `picker_pane_decision` kept finding it
++/// and focused that dead shell: prefix+w seemed to do nothing, and you
++/// needed the mouse to get out.
 +///
-+/// On interroge donc le processus au premier plan. Un pane dont le
-+/// premier plan n'est pas le navigator est perime.
++/// So we ask for the foreground process. A pane whose foreground isn't
++/// the navigator is stale.
 +fn picker_pane_is_live(pane_id: &str) -> bool {
 +    let Ok(info) = herdr::herdr_json(["pane", "process-info", "--pane", pane_id]) else {
-+        // Pas de reponse : on ne peut rien affirmer. On garde le
-+        // comportement d'origine (focaliser) plutot que de fermer un pane
-+        // peut-etre vivant.
++        // No answer: can't say anything. Keep the original behavior
++        // (focus) instead of closing a pane that might be alive.
++        //
 +        return true;
 +    };
 +    let Some(procs) = info
@@ -210,15 +210,15 @@ index aec7b97..107db2b 100644
 +            if picker_pane_is_live(&id) {
 +                run_plugin_pane_cmd("focus", &id)
 +            } else {
-+                // Pane perime : on le ferme et on repart proprement, plutot
-+                // que de laisser prefix+w inerte jusqu'a intervention
-+                // manuelle.
++                // Stale pane: close it and start clean, instead of leaving
++                // prefix+w dead until someone fixes it by hand.
 +                //
-+                // `pane close` et non `plugin pane close` : des que le
-+                // processus du plugin meurt, herdr perd l'association
-+                // plugin<->pane et `plugin pane close` repond
-+                // `plugin_pane_not_found`. C'est justement le cas qu'on
-+                // essaie de rattraper ici.
++                //
++                // `pane close`, not `plugin pane close`: as soon as the
++                // plugin process dies, herdr loses the plugin<->pane link
++                // and `plugin pane close` answers `plugin_pane_not_found`.
++                // Which is exactly the case we're trying to catch here.
++                //
 +                let _ = Command::new(herdr_bin())
 +                    .args(["pane", "close", &id])
 +                    .status();
@@ -236,10 +236,10 @@ index 44b8e7a..9e598cf 100644
      pub(crate) path: PathBuf,
      pub(crate) workspace_id: Option<String>,
      pub(crate) workspace_label: Option<String>,
-+    /// Renseigne uniquement sur les lignes ENFANT d'un workspace : un tab.
-+    /// C'est ce qui distingue une ligne de tab d'une ligne de space, alors
-+    /// que les deux portent `Source::Workspace` — indispensable pour que le
-+    /// rendu et Ctrl-X visent le bon objet.
++    /// Only set on CHILD rows of a workspace: a tab. That's what tells a
++    /// tab row from a space row, since both carry `Source::Workspace`.
++    /// Needed so rendering and Ctrl-X hit the right thing.
++    ///
 +    pub(crate) tab_id: Option<String>,
      pub(crate) agent_target: Option<String>,
      pub(crate) project: Option<Project>,
@@ -265,8 +265,8 @@ index 7943837..0327e91 100644
  ) -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>, bool, bool) {
      let ws_json = herdr_json(["workspace", "list"]).unwrap_or(Value::Null);
      let pane_json = herdr_json(["pane", "list"]).unwrap_or(Value::Null);
-+    // Les tabs de chaque space, pour les lignes enfant de la source `open`.
-+    // Un seul appel : on regroupe ensuite par workspace_id.
++    // Each space's tabs, for the child rows of the `open` source.
++    // One call, then we group by workspace_id.
 +    let tab_json = if tab_children {
 +        herdr_json(["tab", "list"]).unwrap_or(Value::Null)
 +    } else {
@@ -329,9 +329,9 @@ index 7943837..0327e91 100644
                  canonical: OnceLock::new(),
              });
 +
-+            // Les tabs du space, juste apres lui. Le tri final retombe sur
-+            // l'ordre d'insertion a score egal (`app::apply_filter`), donc a
-+            // requete vide l'arborescence tient : space, puis ses tabs.
++            // The space's tabs, right after it. The final sort falls back on
++            // insertion order for equal scores (`app::apply_filter`), so with
++            // an empty query the tree holds: space, then its tabs.
 +            if tab_children {
 +                let kids = tabs_by_ws.get(id).map(Vec::as_slice).unwrap_or(&[]);
 +                if kids.len() as i64 >= tab_children_min.max(1) {
@@ -346,15 +346,15 @@ index 7943837..0327e91 100644
      (entries, map, snapshot_changed, has_live_workspace_list)
  }
  
-+/// Une ligne ENFANT : un tab, sous son space, dans la source `open`.
++/// A CHILD row: a tab, under its space, in the `open` source.
 +///
-+/// Elle porte `Source::Workspace` pour apparaitre dans la meme section que
-+/// les spaces (c'est ce que la vue arborescente demande) et `tab_id` pour
-+/// que le rendu et Ctrl-X sachent qu'il s'agit d'un tab et pas d'un space.
++/// It carries `Source::Workspace` to show up in the same section as the
++/// spaces (that's what the tree view needs) and `tab_id` so rendering
++/// and Ctrl-X know it's a tab and not a space.
 +///
-+/// L'action passe par `RunCommand` plutot que par une variante dediee :
-+/// on focalise le space PUIS le tab. L'ordre compte — focaliser le space
-+/// apres le tab ramenerait sur le tab actif du space, pas sur celui choisi.
++/// The action goes through `RunCommand` instead of a dedicated variant:
++/// focus the space THEN the tab. Order matters, focusing the space after
++/// the tab would land on the space's active tab, not the chosen one.
 +fn tab_entry(
 +    t: &Value,
 +    position: usize,
@@ -364,25 +364,25 @@ index 7943837..0327e91 100644
 +    last: bool,
 +) -> Entry {
 +    let tab_id = t.get("tab_id").and_then(|v| v.as_str()).unwrap_or("");
-+    // POSITION d'affichage, et surtout PAS le champ `number`.
++    // Display POSITION, and definitely NOT the `number` field.
 +    //
-+    // `number` est un compteur de creation : il suit le tab_id (« wC:t4 »
-+    // -> 4) et garde les trous laisses par les tabs fermes. herdr, lui,
-+    // numerote la barre d'onglets par POSITION — un space dont on a ferme
-+    // un tab affiche donc « [2] » sur un tab dont `number` vaut 4.
++    // `number` is a creation counter: it follows the tab_id ("wC:t4"
++    // -> 4) and keeps the gaps left by closed tabs. herdr numbers the
++    // tab bar by POSITION, so a space with a closed tab shows "[2]" on
++    // a tab whose `number` is 4.
 +    //
-+    // Afficher « tab 4 » etait donc trompeur a deux titres : ca ne
-+    // correspond pas a ce que montre la barre d'onglets, et `switch_tab =
-+    // "prefix+1..9"` est une liaison INDEXEE, qui vise la position. Lire
-+    // « tab 4 » et taper prefix+4 ne menait nulle part.
++    // Showing "tab 4" was wrong twice: it doesn't match the tab bar,
++    // and `switch_tab = "prefix+1..9"` is an INDEXED binding, it
++    // targets the position. Reading "tab 4" and hitting prefix+4 went
++    // nowhere.
 +    let panes = t.get("pane_count").and_then(|v| v.as_i64()).unwrap_or(1);
 +    let status = t
 +        .get("agent_status")
 +        .and_then(|v| v.as_str())
 +        .unwrap_or("unknown");
 +    let focused = t.get("focused").and_then(|v| v.as_bool()).unwrap_or(false);
-+    // herdr prefixe ses libelles du numero d'affichage (« [2] zsh ») ; le
-+    // numero est deja dans `number`, on evite « ├ [2] zsh · tab 2 ».
++    // herdr prefixes its labels with the display number ("[2] zsh");
++    // the number is already shown, so avoid "├ [2] zsh · tab 2".
 +    let raw = t.get("label").and_then(|v| v.as_str()).unwrap_or("tab");
 +    let name = strip_index_prefix(raw);
 +    let branch = if last { "└" } else { "├" };
@@ -399,8 +399,8 @@ index 7943837..0327e91 100644
 +        source: Source::Workspace,
 +        tab_id: Some(tab_id.into()),
 +        title: format!("  {branch} {name}"),
-+        // Meme forme que pour un space : `entry_status` lit le prefixe
-+        // `agent:` et `entry_metadata` ce qui suit le premier ` · `.
++        // Same shape as for a space: `entry_status` reads the `agent:`
++        // prefix and `entry_metadata` what follows the first ` · `.
 +        subtitle: format!("agent:{status} · {meta}"),
 +        path: path.to_path_buf(),
 +        workspace_id: Some(ws_id.into()),
@@ -415,14 +415,14 @@ index 7943837..0327e91 100644
 +            notify_error: true,
 +        },
 +        source_label: None,
-+        // `ws_label` est deja dans le haystack via `workspace_label` : taper
-+        // le nom du space fait donc remonter le space ET ses tabs.
++        // `ws_label` is already in the haystack via `workspace_label`: typing
++        // the space name brings up the space AND its tabs.
 +        search_terms: vec![tab_id.into(), name.to_string(), status.into()],
 +        canonical: OnceLock::new(),
 +    }
 +}
 +
-+/// « [12] run » -> « run ». Laisse le texte intact s'il n'y a pas de prefixe.
++/// "[12] run" -> "run". Leaves the text alone if there's no prefix.
 +fn strip_index_prefix(label: &str) -> &str {
 +    let rest = label.trim_start();
 +    let Some(rest) = rest.strip_prefix('[') else {
@@ -500,8 +500,8 @@ index 7943837..0327e91 100644
 +            2,
 +        );
 +
-+        // Le space, puis ses tabs dans l'ordre : c'est l'ordre d'insertion
-+        // qui porte l'arborescence a requete vide.
++        // The space, then its tabs in order: insertion order is what
++        // holds the tree together with an empty query.
 +        assert_eq!(entries.len(), 3);
 +        assert_eq!(entries[0].title, "[1] alpha");
 +        assert!(entries[0].tab_id.is_none());
@@ -509,15 +509,15 @@ index 7943837..0327e91 100644
 +        assert_eq!(entries[1].tab_id.as_deref(), Some("w1:t1"));
 +        assert_eq!(entries[2].title, "  \u{2514} run");
 +        assert_eq!(entries[2].tab_id.as_deref(), Some("w1:t2"));
-+        // Le sous-titre porte la POSITION d'affichage, pas le champ
-+        // `number` : ici les deux coincident, le test suivant couvre le
-+        // cas ou ils divergent.
++        // The subtitle shows the display POSITION, not the `number`
++        // field: here they're the same, the next test covers the case
++        // where they differ.
 +        assert!(entries[1].subtitle.contains("tab 1"));
 +        assert!(entries[2].subtitle.contains("tab 2"));
-+        // Le libelle du space est dans le haystack de l'enfant : taper
-+        // « alpha » fait remonter le space ET ses tabs.
++        // The space label is in the child's haystack: typing
++        // "alpha" brings up the space AND its tabs.
 +        assert!(entries[2].haystack().contains("alpha"));
-+        // L'action focalise le space PUIS le tab.
++        // The action focuses the space THEN the tab.
 +        match &entries[2].action {
 +            EntryAction::RunCommand { command, .. } => {
 +                let ws = command.find("workspace focus w1").unwrap();
@@ -530,10 +530,10 @@ index 7943837..0327e91 100644
 +
 +    #[test]
 +    fn child_rows_number_by_position_not_by_creation_counter() {
-+        // Un space dont on a ferme des tabs : les `number` gardent les
-+        // trous (1 puis 7), mais herdr affiche « [1] » et « [2] ». C'est
-+        // la position que la ligne enfant doit montrer — `switch_tab` est
-+        // une liaison indexee, qui vise elle aussi la position.
++        // A space with closed tabs: the `number`s keep the gaps
++        // (1 then 7), but herdr shows "[1]" and "[2]". The child row
++        // must show the position, `switch_tab` is an indexed binding
++        // that targets the position too.
 +        let ws_json: Value = serde_json::from_str(
 +            r#"{"result":{"workspaces":[
 +                 {"workspace_id":"w1","label":"alpha","tab_count":2,"pane_count":2,
@@ -591,7 +591,7 @@ index 7943837..0327e91 100644
 +            .unwrap()],
 +        );
 +
-+        // Seuil par defaut : 2. L'unique tab ferait doublon avec le space.
++        // Default threshold: 2. The only tab would repeat the space.
 +        let (entries, _, _, _) = workspaces_from_json(
 +            &ws_json,
 +            &HashMap::new(),
@@ -602,7 +602,7 @@ index 7943837..0327e91 100644
 +        );
 +        assert_eq!(entries.len(), 1);
 +
-+        // Seuil a 1 : on le montre quand meme.
++        // Threshold at 1: show it anyway.
 +        let (entries, _, _, _) = workspaces_from_json(
 +            &ws_json,
 +            &HashMap::new(),
@@ -664,9 +664,9 @@ index 42ab234..4f83430 100644
 -        .title(" Herdr Navigator ")
 -        .borders(Borders::ALL)
 -        .border_style(Style::default().fg(app.theme.accent));
-+    // herdr encadre deja le pane du plugin et y ecrit son libelle. Redessiner
-+    // ici un cadre titre du meme nom donnait deux boites imbriquees, dont
-+    // l'interieure n'apportait rien. Voir `picker.own_frame`.
++    // herdr already frames the plugin pane and writes its label. Drawing a
++    // titled frame with the same name here gave two nested boxes, the inner
++    // one adding nothing. See `picker.own_frame`.
 +    let mut outer = Block::default().style(Style::default().bg(app.theme.panel_bg));
 +    if app.config.picker.own_frame {
 +        outer = outer
