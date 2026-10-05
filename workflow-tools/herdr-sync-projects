@@ -2,15 +2,15 @@
 # ─────────────────────────────────────────────────────────────────────
 # herdr-sync-projects
 #
-# Génère un template herdr-plus par dépôt git de ~/Desktop/projects.
-# Les tabs sont adaptés à la stack détectée (make / compose / node / …).
+# Generates one herdr-plus template per git repo in ~/Desktop/projects.
+# Tabs depend on the detected stack (make / compose / node / …).
 #
-# Écrit UNIQUEMENT les fichiers qu'il gère (en-tête GENERATED) : un
-# template que tu édites à la main est laissé intact, et les fichiers
-# générés dont le repo a disparu sont supprimés.
+# Only writes the files it owns (GENERATED header): a template you edit
+# by hand is left alone, and generated files whose repo is gone get
+# deleted.
 #
-#   herdr-sync-projects            # synchronise
-#   herdr-sync-projects --dry-run  # montre sans écrire
+#   herdr-sync-projects            # sync
+#   herdr-sync-projects --dry-run  # show without writing
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -32,12 +32,12 @@ for repo in "$PROJECTS_ROOT"/*/; do
   out="$OUT_DIR/${name}.toml"
   seen+=("$out")
 
-  # Fichier repris à la main : on n'y touche pas.
+  # Hand-edited file: don't touch it.
   if [[ -f $out ]] && ! head -1 "$out" | grep -q "GENERATED-BY herdr-sync-projects"; then
     kept=$((kept + 1)); continue
   fi
 
-  # ── Détection de stack (pilote le groupe et le tab "run") ──
+  # ── Stack detection (drives the group and the "run" tab) ──
   group="divers"; run_cmd=""
   [[ -f "$repo/pyproject.toml" || -f "$repo/requirements.txt" ]] && group="python"
   [[ -f "$repo/package.json" ]]                                  && group="node"
@@ -85,7 +85,7 @@ for repo in "$PROJECTS_ROOT"/*/; do
   added=$((added + 1))
 done
 
-# Purge des templates générés dont le dépôt n'existe plus.
+# Purge generated templates whose repo no longer exists.
 for f in "$OUT_DIR"/*.toml; do
   [[ -e $f ]] || continue
   head -1 "$f" | grep -q "GENERATED-BY herdr-sync-projects" || continue

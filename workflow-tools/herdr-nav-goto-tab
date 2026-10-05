@@ -2,13 +2,12 @@
 # ─────────────────────────────────────────────────────────────────────
 # herdr-nav-goto-tab <tab_id> <workspace_id>
 #
-# L'action « open » de l'integration `tabs` du navigator.
+# The "open" action of the navigator's `tabs` integration.
 #
-# On focalise le SPACE d'abord, le tab ensuite. `herdr tab focus` suffit
-# probablement a lui seul, mais rien ne le garantit pour un tab situe
-# dans un space non focalise — et l'ordre inverse serait faux : focaliser
-# le space apres le tab ramenerait sur le tab actif du space, pas sur
-# celui qu'on a choisi.
+# Focus the SPACE first, then the tab. `herdr tab focus` alone is probably
+# enough, but nothing guarantees it for a tab in an unfocused space. And
+# the reverse order is wrong: focusing the space after the tab jumps back
+# to the space's active tab, not the one you picked.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -22,8 +21,8 @@ if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
   [[ -S $s ]] && export HERDR_SOCKET_PATH="$s"
 fi
 
-# Le workspace_id est le prefixe du tab_id (« w4:t1 » -> « w4 ») ; on
-# l'utilise en repli si l'appelant ne l'a pas passe.
+# workspace_id is the tab_id prefix ("w4:t1" -> "w4"). Used as a fallback
+# if the caller didn't pass it.
 [[ -n $WS ]] || WS="${TAB%%:*}"
 
 [[ -n $WS ]] && herdr workspace focus "$WS" >/dev/null 2>&1

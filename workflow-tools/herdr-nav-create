@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# herdr-nav-create — la source "creer" du navigator (prefix+w).
+# herdr-nav-create — the navigator's "create" source (prefix+w).
 #
-# Emet un tableau JSON d'entrees que herdr-navigator affiche a cote des
-# spaces, sessions et agents. Chaque entree porte :
-#   id       le sous-commande herdr-new a lancer
-#   path     son argument (repertoire, ou nom de session)
-#   kind     "session" -> l'entree se range avec les sessions (Ctrl-L),
-#            vide      -> elle se range dans les integrations (fin de liste)
+# Prints a JSON array of entries that herdr-navigator shows next to
+# spaces, sessions and agents. Each entry has:
+#   id       the herdr-new subcommand to run
+#   path     its argument (directory, or session name)
+#   kind     "session" -> entry goes with the sessions (Ctrl-L),
+#            empty     -> it goes with the integrations (end of list)
 #
-# Les sessions deja existantes ne sont PAS proposees : la source native du
-# navigator les liste deja, avec attache directe.
+# Sessions that already exist are NOT offered: the navigator's native
+# source already lists them, with direct attach.
 #
-# Presets modifiables : ~/.config/workflow-tools/herdr-session-presets
-# (un nom par ligne, # pour commenter).
+# Editable presets: ~/.config/workflow-tools/herdr-session-presets
+# (one name per line, # for comments).
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -25,7 +25,7 @@ if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
   [[ -S $s ]] && export HERDR_SOCKET_PATH="$s"
 fi
 
-# Repertoire du pane focalise : c'est le "ici" de "nouveau space ici".
+# Focused pane's directory: the "here" in "new space here".
 CWD=$(herdr pane current 2>/dev/null | "$PY" -c '
 import json, sys
 try: print(json.load(sys.stdin)["result"]["pane"]["cwd"])
@@ -33,10 +33,10 @@ except Exception: print("")
 ' 2>/dev/null)
 [[ -n ${CWD:-} ]] || CWD="$HOME"
 
-# `herdr session list --json` rend {"sessions": [...]} A LA RACINE, sans
-# l'enveloppe {"result": ...} des autres commandes. On accepte les deux :
-# une exception silencieuse ici vidait la liste, et toutes les sessions
-# etaient reproposees a la creation, y compris celles qui tournaient deja.
+# `herdr session list --json` returns {"sessions": [...]} at the ROOT, no
+# {"result": ...} wrapper like the other commands. Accept both: a silent
+# exception here used to empty the list, and every session got offered
+# for creation again, even the ones already running.
 EXISTING=$(herdr session list --json 2>/dev/null | "$PY" -c '
 import json, sys
 try:
@@ -65,24 +65,23 @@ items = [
      "path": home, "kind": ""},
     {"id": "space", "title": "+ space ici",
      "subtitle": short, "path": cwd, "kind": ""},
-    # Renommer / fermer / supprimer : herdr sait le faire sur le space
-    # COURANT (prefix+/ et prefix+') et Ctrl-X ferme celui de la ligne
-    # choisie, mais rien ne couvre le renommage d'un autre space ni le
-    # versant session. Ces deux entrees ouvrent un selecteur dedie.
+    # Rename / close / delete: herdr does it for the CURRENT space
+    # (prefix+/ and prefix+') and Ctrl-X closes the selected line's one,
+    # but nothing renames another space or handles sessions. These two
+    # entries open a dedicated picker.
     {"id": "manage-space", "title": "✎ gérer un space",
      "subtitle": "renommer ou fermer", "path": home, "kind": ""},
     {"id": "manage-session", "title": "✎ gérer une session",
      "subtitle": "renommer ou supprimer", "path": home, "kind": ""},
 ]
 
-# Une session ne se cree pas dans un pane : c'est un serveur separe, donc
-# une fenetre Alacritty a elle. On ne propose que celles qui manquent.
+# A session isn't created in a pane: it's a separate server, so it gets
+# its own Alacritty window. Only offer the missing ones.
 #
-# kind = "" et non "session" : ces entrees vivent sous Ctrl-N avec les
-# autres creations, pas sous Ctrl-S avec les sessions existantes. Une
-# entree qui CREE et une entree qui ATTACHE ne se ressemblent que par le
-# mot "session" ; les melanger obligeait a lire chaque ligne pour savoir
-# laquelle faisait quoi. Ctrl-S = j'y vais, Ctrl-N = je le fabrique.
+# kind = "" and not "session": these live under Ctrl-N with the other
+# create entries, not under Ctrl-S with existing sessions. Mixing
+# "create" and "attach" entries meant reading every line to tell them
+# apart. Ctrl-S = go there, Ctrl-N = make it.
 for name in presets:
     if name in existing:
         continue

@@ -1,41 +1,35 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# finder-merge — replie toutes les fenetres Finder en UNE, a onglets.
+# finder-merge — fold every Finder window into ONE window with tabs.
 #
-# POURQUOI
-# AeroSpace tuile des FENETRES. Chaque fenetre Finder occupe donc un
-# emplacement, et Finder finit par manger la moitie du pavage.
+# Why: AeroSpace tiles windows, so each Finder window takes a slot and
+# Finder ends up eating half the layout. Tabs live inside one window:
+# ten tabs = one window = one slot. Window > "Merge All Windows" does
+# exactly that.
 #
-# Les onglets, eux, vivent DANS une fenetre : dix onglets = une fenetre =
-# un emplacement. Le menu Fenetre > « Merge All Windows » fait exactement
-# cette conversion.
-#
-# CE QUI NE MARCHE PAS, et qui a ete essaye ici :
+# Tried and doesn't work on this macOS:
 #   defaults write -g AppleWindowTabbingMode -string always
 #   defaults write com.apple.finder FinderSpawnTab -bool true
-# Ni l'un ni l'autre ne change le comportement de Cmd+N dans Finder sur
-# cette version de macOS — verifie en comptant les fenetres avant/apres,
-# avec et sans, Finder relance entre chaque essai. Dans Finder, Cmd+N est
-# « Nouvelle fenetre » et Cmd+T « Nouvel onglet » : ce sont deux commandes
-# distinctes, pas un reglage.
+# Neither changes what Cmd+N does in Finder (checked by counting windows
+# before/after, Finder restarted between tries). Cmd+N is "New Window"
+# and Cmd+T is "New Tab", two separate commands, not a setting.
 #
-# APPEL
-#   finder-merge          replie maintenant
-# Appele aussi automatiquement par AeroSpace a chaque nouvelle fenetre
-# Finder (regle on-window-detected).
+# Usage
+#   finder-merge          merge now
+# AeroSpace also calls it on every new Finder window (on-window-detected).
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
-# Rien a faire si Finder n'a pas au moins deux fenetres : le clic de menu
-# couterait une activation d'application pour rien, et volerait le focus.
+# Nothing to do with fewer than two windows. The menu click would
+# activate Finder for nothing and steal focus.
 n=$(osascript -e 'tell application "Finder" to return (count of every window)' 2>/dev/null || echo 0)
 [[ ${n:-0} -ge 2 ]] || exit 0
 
 osascript <<'APPLESCRIPT' >/dev/null 2>&1
 tell application "System Events"
   tell process "Finder"
-    -- Le menu n'est cliquable que si l'element existe : sur une seule
-    -- fenetre, macOS le grise ou le retire.
+    -- With a single window macOS greys out or removes the item,
+    -- hence the try.
     try
       click menu item "Merge All Windows" of menu 1 of menu bar item "Window" of menu bar 1
     end try

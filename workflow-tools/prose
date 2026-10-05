@@ -1,53 +1,52 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# prose — relire un texte : grammaire, accords, style.
+# prose — proofread a text: grammar, agreement, style.
 #
-#   prose fichier.md          verifie (francais par defaut)
-#   prose -e fichier.md       en anglais
-#   prose -s fichier.md       + regles de STYLE (vale), en plus de la
-#                             grammaire — anglais uniquement
-#   prose README.md doc.md    plusieurs fichiers
-#   git diff | prose -        depuis un tuyau
-#   prose -a texte.md         TOUT activer (texte litteraire) : par defaut
-#                             les regles inadaptees a la doc technique sont
-#                             desactivees — chiffres a ecrire en lettres,
-#                             espaces insecables, « fautes de frappe » sur
-#                             les identifiants de code.
+#   prose file.md             check it (French by default)
+#   prose -e file.md          in English
+#   prose -s file.md          + STYLE rules (vale) on top of grammar,
+#                             English only
+#   prose README.md doc.md    several files
+#   git diff | prose -        from a pipe
+#   prose -a text.md          turn EVERYTHING on (literary text). By
+#                             default the rules that make no sense for
+#                             tech docs are off: numbers spelled out,
+#                             non-breaking spaces, "typos" on code
+#                             identifiers.
 #
-# Deux moteurs, et ils ne font pas la meme chose :
+# Two engines, and they don't do the same job:
 #
-#   LanguageTool  grammaire, accords, conjugaison, typographie. Il
-#                 comprend REELLEMENT le francais — subjonctif, accord
-#                 du determinant, « a » vs « a ». C'est le moteur par
-#                 defaut. Tourne en local (Java), rien n'est envoye.
+#   LanguageTool  grammar, agreement, conjugation, typography. It
+#                 actually understands French (subjunctive, article
+#                 agreement, "a" vs "à"). Default engine. Runs
+#                 locally (Java), nothing is sent anywhere.
 #
-#   vale          regles de STYLE (voix passive, tournures lourdes,
-#                 mots vides). Ses jeux de regles sont anglophones :
-#                 on ne l'active qu'avec -s, et seulement en anglais,
-#                 plutot que de faire croire a une couverture francaise
-#                 qui n'existe pas.
+#   vale          STYLE rules (passive voice, clunky phrasing, filler
+#                 words). Its rule sets are English-only, so it only
+#                 runs with -s and only in English, instead of
+#                 pretending to cover French when it doesn't.
 #
-# Premier lancement : LanguageTool charge son modele de langue, comptez
-# quelques secondes. Les suivants sont rapides.
+# First run: LanguageTool loads its language model, give it a few
+# seconds. Later runs are fast.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
 LANG_CODE=fr
 STYLE=0
-TECH=1          # par defaut on ecrit de la doc technique, pas un roman
+TECH=1          # by default I write tech docs, not a novel
 files=()
 
-# Regles qui n'ont aucun sens dans de la documentation technique :
-#   TYPOGRAPHIE_*     chiffres a ecrire en lettres — faux dans un tableau
-#   FRENCH_WHITESPACE espace insecable avant : ; ! ? — le markdown s'en moque
-#   MORFOLOGIK_*      « faute de frappe » sur les identifiants (count, len...)
-#   UPPERCASE_SENTENCE_START  les titres et les listes commencent souvent bas
-# Identifiants releves sur un vrai fichier (languagetool --json | .rule.id) :
-#   FR_SPELLING_RULE  46 fois sur docs/README.md, uniquement sur « doom »,
-#                     « herdr », « aerospace »... : le dictionnaire francais
-#                     ne connait pas les noms d'outils.
-#   MOT_TRAIT_MOT      9 fois : « doom-reference » n'est pas un mot compose.
-#   APOS_INCORRECT    11 fois : l'apostrophe droite ' des extraits de code.
+# Rules that make no sense for tech docs:
+#   TYPOGRAPHIE_*     spell out numbers (wrong in a table)
+#   FRENCH_WHITESPACE non-breaking space before : ; ! ? (markdown doesn't care)
+#   MORFOLOGIK_*      "typos" on identifiers (count, len...)
+#   UPPERCASE_SENTENCE_START  headings and list items often start lowercase
+# IDs taken from a real file (languagetool --json | .rule.id):
+#   FR_SPELLING_RULE  46 hits on docs/README.md, all on "doom", "herdr",
+#                     "aerospace"...: the French dictionary doesn't know
+#                     tool names.
+#   MOT_TRAIT_MOT      9 hits: "doom-reference" isn't a compound word.
+#   APOS_INCORRECT    11 hits: the straight ' in code snippets.
 TECH_RULES_FR="FR_SPELLING_RULE,MOT_TRAIT_MOT,APOS_INCORRECT,FRENCH_WHITESPACE,WHITESPACE_RULE,NOMBRES_EN_LETTRES,NOMBRES_EN_LETTRES_2,UPPERCASE_SENTENCE_START"
 TECH_RULES_EN="MORFOLOGIK_RULE_EN_US,UPPERCASE_SENTENCE_START,COMMA_PARENTHESIS_WHITESPACE,WHITESPACE_RULE,EN_QUOTES"
 
@@ -56,7 +55,7 @@ while [[ $# -gt 0 ]]; do
     -e|--en|--english) LANG_CODE=en-US; shift ;;
     -f|--fr|--french)  LANG_CODE=fr;    shift ;;
     -s|--style)        STYLE=1;         shift ;;
-    -a|--all|--prose)  TECH=0;          shift ;;   # texte litteraire : tout activer
+    -a|--all|--prose)  TECH=0;          shift ;;   # literary text: turn everything on
     -h|--help)         sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)                 files+=("$1");   shift ;;
   esac
@@ -70,7 +69,7 @@ if [[ $TECH -eq 1 ]]; then
   else                            DISABLED="--disable $TECH_RULES_EN"; fi
 fi
 
-# Depuis un tuyau : LanguageTool veut un fichier, on lui en fabrique un.
+# From a pipe: LanguageTool wants a file, so make one.
 tmp=""
 if [[ ${files[0]} == "-" ]]; then
   tmp=$(mktemp -t prose).md
@@ -80,7 +79,7 @@ fi
 cleanup() { [[ -n $tmp ]] && rm -f "$tmp"; }
 trap cleanup EXIT
 
-# ── Grammaire ────────────────────────────────────────────────────────
+# ── Grammar ──────────────────────────────────────────────────────────
 found=0
 for f in "${files[@]}"; do
   [[ -r $f ]] || { echo "prose: illisible : $f" >&2; continue; }
@@ -96,9 +95,8 @@ matches = data.get("matches", [])
 if not matches:
     sys.exit(0)
 
-# LanguageTool ne donne pas le numero de ligne, seulement un OFFSET dans
-# le document. On reconstruit la table des debuts de ligne une seule fois,
-# puis chaque offset se resout par dichotomie.
+# LanguageTool gives no line number, only an OFFSET into the document.
+# Build the table of line starts once, then bisect each offset.
 starts = [0]
 try:
     with open(os.environ["LT_FILE"], encoding="utf-8", errors="replace") as fh:
@@ -113,7 +111,7 @@ def lineno(off):
         return "?"
     return bisect.bisect_right(starts, off)
 
-# Couleurs seulement si la sortie est un terminal.
+# Colors only when output is a terminal.
 tty = sys.stderr.isatty()
 C = (lambda s, c: f"\033[{c}m{s}\033[0m") if tty else (lambda s, c: s)
 for m in matches:
@@ -137,7 +135,7 @@ print(f"__COUNT__{len(matches)}")
   fi
 done
 
-# ── Style (anglais seulement) ────────────────────────────────────────
+# ── Style (English only) ─────────────────────────────────────────────
 if [[ $STYLE -eq 1 ]]; then
   if [[ $LANG_CODE == fr ]]; then
     printf '\n\033[33m--style ignore\033[0m : les jeux de regles de vale sont anglophones.\n'

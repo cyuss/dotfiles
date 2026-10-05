@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# zsh-completions-refresh — regenere les completions que carapace ne
-# couvre pas, a partir des outils eux-memes.
+# zsh-completions-refresh — regenerate the completions carapace doesn't
+# cover, straight from the tools themselves.
 #
-# carapace connait 653 commandes (gh, docker, jj, kubectl, aws, cargo…)
-# mais pas uv, ruff, herdr ni mise. Ces quatre-la savent generer leur
-# propre completion zsh : on la met en cache dans un fpath dedie plutot
-# que de la regenerer a chaque demarrage de shell.
+# carapace knows 653 commands (gh, docker, jj, kubectl, aws, cargo…) but
+# not uv, ruff, herdr or mise. Those can generate their own zsh
+# completion, so cache it in a dedicated fpath instead of regenerating
+# it on every shell start.
 #
-# A relancer apres une mise a jour de ces outils.
+# Rerun after updating these tools.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/zsh/completions"
 mkdir -p "$DEST"
 ok=0; ko=0
 
-gen() {  # $1 = nom du fichier _xxx, $2... = commande
+gen() {  # $1 = _xxx file name, $2... = command
   local name="$1"; shift
   if out=$("$@" 2>/dev/null) && [[ -n $out ]]; then
     printf '%s\n' "$out" > "$DEST/$name"

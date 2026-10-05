@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# herdr-new — creer un space ou une session, sans quitter le clavier.
+# herdr-new — create a space or a session, without leaving the keyboard.
 #
-#   herdr-new scratch            space jetable : ~/scratch/<horodatage>
-#   herdr-new space [cwd]        space sur un repertoire (defaut : cwd du
-#                                pane focalise) ; focalise l'existant
-#   herdr-new session <nom>      nouvelle fenetre Alacritty sur cette session
-#   herdr-new manage-space       selecteur : renommer / fermer un space
-#   herdr-new manage-session     selecteur : renommer / supprimer une session
+#   herdr-new scratch            throwaway space: ~/scratch/<timestamp>
+#   herdr-new space [cwd]        space on a directory (default: focused
+#                                pane's cwd), focuses it if it exists
+#   herdr-new session <name>     new Alacritty window on that session
+#   herdr-new manage-space       picker: rename / close a space
+#   herdr-new manage-session     picker: rename / delete a session
 #
-# Appele a la main, ou par les entrees "creer" du navigator (prefix+w).
+# Run by hand, or by the navigator's "create" entries (prefix+w).
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -24,7 +24,7 @@ fi
 
 jqp() { "$PY" -c "import json,sys; d=json.load(sys.stdin); print(eval('d'+sys.argv[1]))" "$1"; }
 
-# Cree le space, puis les tabs supplementaires. Rend l'id du space.
+# Creates the space, then the extra tabs. Returns the space id.
 make_space() { # $1 = cwd, $2 = label
   local out ws
   out=$(herdr workspace create --cwd "$1" --label "$2" --focus)
@@ -32,9 +32,9 @@ make_space() { # $1 = cwd, $2 = label
   printf '%s' "$ws"
 }
 
-# Ajoute un tab qui lance une commande. Le tab reste en arriere-plan pour
-# que le premier garde le focus.
-add_tab() { # $1 = ws, $2 = label, $3 = cwd, $4 = commande (optionnelle)
+# Adds a tab that runs a command. The tab stays in the background so the
+# first one keeps focus.
+add_tab() { # $1 = ws, $2 = label, $3 = cwd, $4 = command (optional)
   local out pane
   out=$(herdr tab create --workspace "$1" --label "$2" --cwd "$3" --no-focus)
   [[ -n ${4:-} ]] || return 0
@@ -42,8 +42,8 @@ add_tab() { # $1 = ws, $2 = label, $3 = cwd, $4 = commande (optionnelle)
   herdr pane run "$pane" "$4" >/dev/null
 }
 
-# Un space porte-t-il deja ce libelle ? (le plugin automatic-rename
-# prefixe par "[N] ", on l'ignore)
+# Does a space already have this label? (the automatic-rename plugin
+# prefixes "[N] ", ignore that)
 find_space() { # $1 = label
   herdr workspace list 2>/dev/null | "$PY" -c '
 import json, re, sys
@@ -96,9 +96,9 @@ except Exception: print("")
     [[ -n $name ]] || { echo "usage: herdr-new session <nom>" >&2; exit 1; }
     [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || { echo "nom invalide : $name" >&2; exit 1; }
     [[ -x $ALACRITTY ]] || { echo "Alacritty introuvable : $ALACRITTY" >&2; exit 1; }
-    # Une session est un serveur separe : elle a besoin de sa propre
-    # fenetre. `msg create-window` reutilise le process Alacritty en cours
-    # (ipc_socket = true) au lieu d'en lancer un second.
+    # A session is a separate server, it needs its own window.
+    # `msg create-window` reuses the running Alacritty process
+    # (ipc_socket = true) instead of starting a second one.
     "$ALACRITTY" msg create-window --title "herdr · $name" \
       -e /bin/zsh -lc "exec herdr --session $name" 2>/dev/null \
       || open -na Alacritty --args -e /bin/zsh -lc "exec herdr --session $name"

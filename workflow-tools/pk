@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# pk — trouver un processus par son nom, et le tuer. Rien d'autre.
+# pk — find a process by name and kill it. That's it.
 #
-#   pk              la liste, triee par CPU
-#   pk <motif>      la liste, pre-filtree
-#   pk -m           triee par memoire
-#   pk -u           seulement TES processus (defaut : tous)
+#   pk              the list, sorted by CPU
+#   pk <pattern>    the list, pre-filtered
+#   pk -m           sorted by memory
+#   pk -u           only YOUR processes (default: all)
 #
-# Dans la liste :
-#   taper        recherche floue sur le nom ET la ligne de commande
-#   Tab          selectionner plusieurs processus
-#   Entree       SIGTERM  — demande poliment au process de s'arreter
-#   Ctrl-X       SIGKILL  — le systeme le tue, il ne peut rien nettoyer
-#   Ctrl-N       choisir un autre signal (HUP, INT, QUIT, STOP, CONT, USR1…)
-#   Ctrl-Y       copier le PID
-#   Ctrl-O       basculer le tri CPU <-> memoire
-#   Ctrl-R       rafraichir
-#   Ctrl-/       plier/deplier l'apercu
-#   Echap        sortir sans rien faire
+# In the list:
+#   type         fuzzy search on the name AND the command line
+#   Tab          select several processes
+#   Enter        SIGTERM  (politely asks the process to stop)
+#   Ctrl-X       SIGKILL  (the kernel kills it, no cleanup possible)
+#   Ctrl-N       pick another signal (HUP, INT, QUIT, STOP, CONT, USR1…)
+#   Ctrl-Y       copy the PID
+#   Ctrl-O       toggle sort CPU <-> memory
+#   Ctrl-R       refresh
+#   Ctrl-/       fold/unfold the preview
+#   Esc          quit without doing anything
 #
-# Garde-fous : PID 1 est refuse, et une poignee de processus critiques de
-# macOS demandent une confirmation explicite. Tout le reste part sans
-# ceremonie — c'est un outil pour quelqu'un qui sait ce qu'il fait.
+# Safety: PID 1 is refused, and a handful of critical macOS processes
+# ask for confirmation. Everything else goes without fuss, this is a tool
+# for someone who knows what they're doing.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -40,13 +40,13 @@ for a in "$@"; do
   esac
 done
 
-# ── Mode interne : produire la liste ─────────────────────────────────
+# ── Internal mode: build the list ────────────────────────────────────
 PK_STATE="${TMPDIR:-/tmp}/pk-sort.$UID"
 
 if [[ "${1:-}" == "--toggle-sort" ]]; then
-  # fzf fige son environnement au lancement : un `transform' ne peut pas
-  # faire varier PK_SORT. L'etat du tri vit donc dans un fichier, que la
-  # touche bascule avant de redemander la liste.
+  # fzf freezes its env at launch, so a `transform' can't change PK_SORT.
+  # The sort state lives in a file instead, the key flips it and then
+  # asks for the list again.
   cur=$(cat "$PK_STATE" 2>/dev/null || echo cpu)
   [[ $cur == cpu ]] && echo mem > "$PK_STATE" || echo cpu > "$PK_STATE"
   exec "$0" --list "$(cat "$PK_STATE")" "$2"
@@ -57,11 +57,10 @@ if [[ "${1:-}" == "--list" ]]; then
   ps_args=(-A)
   [[ $scope == user ]] && ps_args=(-u "$(id -un)")
 
-  # Deux appels a ps, et pas un seul : `comm` comme `args' contiennent des
-  # espaces (« Google Chrome Helper (Renderer) »), donc un format qui les
-  # met au milieu est impossible a decouper. En les mettant chacun EN
-  # DERNIER de son propre appel, « premier champ = pid, tout le reste = la
-  # valeur » devient sans ambiguite. On rejoint sur le pid.
+  # Two ps calls, not one: both `comm` and `args' have spaces in them
+  # ("Google Chrome Helper (Renderer)"), so a format with them in the
+  # middle can't be split. With each one LAST in its own call, "first
+  # field = pid, rest = value" is unambiguous. Then join on the pid.
   ps "${ps_args[@]}" -o pid=,comm= 2>/dev/null > "${TMPDIR:-/tmp}/pk-comm.$$"
   ps "${ps_args[@]}" -o pid=,user=,%cpu=,%mem=,args= 2>/dev/null \
   | awk -v sk="$sort_key" -v skip="${PK_SELF:-0}" '
@@ -86,7 +85,7 @@ if [[ "${1:-}" == "--list" ]]; then
   exit 0
 fi
 
-# ── Mode interne : apercu d'un processus ─────────────────────────────
+# ── Internal mode: preview of a process ──────────────────────────────
 if [[ "${1:-}" == "--preview" ]]; then
   pid="$2"
   [[ -n $pid ]] || exit 0
@@ -108,7 +107,7 @@ if [[ "${1:-}" == "--preview" ]]; then
   exit 0
 fi
 
-# ── Mode interne : envoyer un signal ─────────────────────────────────
+# ── Internal mode: send a signal ─────────────────────────────────────
 if [[ "${1:-}" == "--signal" ]]; then
   sig="$2"; shift 2
   CRITIQUES='^(launchd|kernel_task|WindowServer|loginwindow|Finder|Dock|SystemUIServer|coreaudiod|opendirectoryd)$'
@@ -137,7 +136,7 @@ if [[ "${1:-}" == "--signal" ]]; then
   exit 0
 fi
 
-# ── L'interface ──────────────────────────────────────────────────────
+# ── The UI ───────────────────────────────────────────────────────────
 command -v fzf >/dev/null || { echo "fzf requis : brew install fzf" >&2; exit 1; }
 S="$0"
 
@@ -145,7 +144,7 @@ LIST="$S --list \$PK_SORT \$PK_SCOPE"
 export PK_SORT="$SORT" PK_SCOPE="$SCOPE" PK_SELF="$SELF"
 echo "$SORT" > "$PK_STATE"
 
-# {+1} = les PID de TOUTES les lignes selectionnees (premier champ).
+# {+1} = the PIDs of ALL selected lines (first field).
 "$S" --list "$SORT" "$SCOPE" | fzf \
   --multi \
   --query "$QUERY" \

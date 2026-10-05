@@ -1,9 +1,9 @@
-# Sessions herdr proposees a la creation dans le navigator
-# (prefix+w, filtre Ctrl-N). Un nom par ligne, # pour commenter.
+# herdr sessions offered for creation in the navigator
+# (prefix+w, Ctrl-N filter). One name per line, # for comments.
 #
-# Celles qui existent deja disparaissent automatiquement de la liste :
-# la source native du navigator les propose alors a l'attache, sous Ctrl-S.
+# The ones that already exist drop off the list on their own: the
+# navigator's native source offers them for attach instead, under Ctrl-S.
 #
-# Vide = aucune proposition de creation de session. C'est l'etat actuel :
-# `perso' existe deja.
-# Pour en proposer une, ajouter une ligne.
+# Empty = no session creation offered. That's the current state:
+# `perso' already exists.
+# To offer one, add a line.

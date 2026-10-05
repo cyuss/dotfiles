@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
-"""typing-report — analyse ta frappe REELLE contre ta VRAIE disposition.
+"""typing-report — analyze what you REALLY type against your ACTUAL layout.
 
-    typing-report                 tout : shell + commits + prose
-    typing-report -s shell        seulement l'historique atuin
-    typing-report -s git          seulement tes messages de commit
-    typing-report -s files F...   des fichiers precis
-    typing-report -n 20           allonge les classements
-    typing-report -k autre.keymap un autre keymap
+    typing-report                 everything: shell + commits + prose
+    typing-report -s shell        only the atuin history
+    typing-report -s git          only your commit messages
+    typing-report -s files F...   specific files
+    typing-report -n 20           longer rankings
+    typing-report -k other.keymap another keymap
 
-Ce que font les outils existants (monkeytype, typioca, ttyper) : ils
-mesurent ta vitesse sur UN TEXTE QU'ILS CHOISISSENT. Utile pour
-s'entrainer, inutile pour regler un clavier.
+Existing tools (monkeytype, typioca, ttyper) measure your speed on A
+TEXT THEY PICK. Fine for practice, useless for tuning a keyboard.
 
-Ce que fait celui-ci : il lit ce que tu as REELLEMENT tape — ton
-historique atuin, tes messages de commit, tes fichiers — et le fait
-passer a travers zmk/corne.keymap. Il repond donc a des questions que
-seul ton couple corpus + disposition permet de trancher :
+This one reads what you actually typed (atuin history, commit messages,
+your files) and runs it through zmk/corne.keymap. So it answers
+questions only your own corpus + layout can settle:
 
-  · quelle proportion de ma frappe exige une couche ?
-  · quels caracteres me coutent le plus cher, en volume ?
-  · quels bigrammes tombent sur le meme doigt (SFB) ?
-  · quels enchainements risquent de declencher un mod de home row ?
-  · quels mots reviennent assez souvent pour meriter un combo ?
+  · how much of my typing needs a layer?
+  · which characters cost me the most, by volume?
+  · which bigrams land on the same finger (SFB)?
+  · which sequences risk firing a home row mod?
+  · which words come up often enough to deserve a combo?
 
-Aucune donnee ne sort de la machine.
+No data leaves the machine.
 """
 import argparse, collections, os, re, subprocess, sys, unicodedata
 from pathlib import Path
@@ -31,16 +29,16 @@ from pathlib import Path
 HOME = Path.home()
 DEFAULT_KEYMAP = HOME / ".config" / "zmk" / "corne.keymap"
 
-# ── Geometrie du Corne 42 touches ────────────────────────────────────
+# ── Corne 42-key geometry ────────────────────────────────────────────
 #      0  1  2  3  4  5        6  7  8  9 10 11
 #     12 13 14 15 16 17       18 19 20 21 22 23
 #     24 25 26 27 28 29       30 31 32 33 34 35
 #              36 37 38       39 40 41
 #
-# Colonnes -> doigts. Six colonnes pour quatre doigts : la colonne
-# exterieure est une colonne d'auriculaire supplementaire, l'interieure
-# un etirement de l'index. Verifie contre la rangee de repos du keymap :
-# col1=A col2=S col3=D col4=F -> auriculaire, annulaire, majeur, index.
+# Columns -> fingers. Six columns for four fingers: the outer one is an
+# extra pinky column, the inner one an index stretch. Checked against
+# the keymap's home row: col1=A col2=S col3=D col4=F -> pinky, ring,
+# middle, index.
 FINGER_BY_COL = {
     0: "auriculaire", 1: "auriculaire", 2: "annulaire",
     3: "majeur",      4: "index",       5: "index-etire",
@@ -52,7 +50,7 @@ def hand_of(pos):
     return "gauche" if (pos % 12) < 6 else "droite"
 
 def finger_of(pos):
-    """Renvoie (main, doigt) ou None pour les pouces."""
+    """Return (hand, finger), with "pouce" as the finger for thumbs."""
     if pos >= 36:
         return (hand_of(pos), "pouce")
     c = pos % 12
@@ -63,9 +61,9 @@ def finger_of(pos):
 def row_of(pos):
     return 3 if pos >= 36 else pos // 12
 
-HOME_ROW = {13, 14, 15, 16, 19, 20, 21, 22}   # les touches portant un mod
+HOME_ROW = {13, 14, 15, 16, 19, 20, 21, 22}   # keys that carry a mod
 
-# ── Codes ZMK -> caracteres (QWERTY US) ──────────────────────────────
+# ── ZMK codes -> characters (US QWERTY) ──────────────────────────────
 KC = {
     "A":"a","B":"b","C":"c","D":"d","E":"e","F":"f","G":"g","H":"h","I":"i",
     "J":"j","K":"k","L":"l","M":"m","N":"n","O":"o","P":"p","Q":"q","R":"r",
@@ -90,19 +88,19 @@ KC = {
     "LT":"<","LESS_THAN":"<","GT":">","GREATER_THAN":">",
     "QMARK":"?","QUESTION":"?","TILDE":"~","TILDE2":"~",
 }
-# Caracteres qui exigent Shift sur la couche de base (QWERTY US).
+# Characters that need Shift on the base layer (US QWERTY).
 SHIFTED_ON_BASE = {
     "!":"1","@":"2","#":"3","$":"4","%":"5","^":"6","&":"7","*":"8",
     "(":"9",")":"0","_":"-","+":"=","{":"[","}":"]","|":"\\",
     ":":";",'"':"'","<":",",">":".","?":"/","~":"`",
 }
 
-# ── Lecture du keymap ────────────────────────────────────────────────
+# ── Reading the keymap ───────────────────────────────────────────────
 def parse_keymap(path):
-    """-> [(nom_couche, [42 liaisons brutes])] dans l'ordre du fichier."""
+    """-> [(layer_name, [42 raw bindings])] in file order."""
     src = path.read_text(encoding="utf-8", errors="replace")
-    # On se limite au bloc `keymap { ... }` : sinon les macros et les
-    # behaviors, qui contiennent eux aussi `bindings = <...>`, polluent.
+    # Stick to the `keymap { ... }` block. Macros and behaviors also have
+    # `bindings = <...>` and would pollute the result.
     m = re.search(r"keymap\s*\{(.*)\n\s*\};", src, re.S)
     if not m:
         sys.exit(f"typing-report: pas de bloc keymap dans {path}")
@@ -118,18 +116,18 @@ def parse_keymap(path):
     return layers
 
 def binding_char(tok):
-    """Caractere produit par une liaison, ou None."""
+    """Character produced by a binding, or None."""
     parts = tok.split()
     head = parts[0]
     if head == "&kp" and len(parts) == 2:
         return KC.get(parts[1])
-    # &hm MOD X et &mt MOD X : le TAP est le dernier argument.
+    # &hm MOD X and &mt MOD X: the TAP is the last argument.
     if head in ("&hm", "&mt") and len(parts) == 3:
         return KC.get(parts[2])
     return None
 
 def build_map(layers):
-    """char -> (index_couche, position). La couche 0 gagne toujours."""
+    """char -> (layer_index, position). Layer 0 always wins."""
     base_name = layers[0][0]
     charmap, layer_names = {}, [n for n, _ in layers]
     for li, (_, toks) in enumerate(layers):
@@ -138,7 +136,7 @@ def build_map(layers):
             if ch is None or ch in charmap:
                 continue
             charmap[ch] = (li, pos)
-    # Majuscules et caracteres shiftes atteignables depuis la base.
+    # Uppercase and shifted characters reachable from the base layer.
     for ch, base in list(SHIFTED_ON_BASE.items()):
         if ch not in charmap and base in charmap:
             li, pos = charmap[base]
@@ -189,7 +187,7 @@ def corpus_files(paths):
                 pass
     return "\n".join(texts)
 
-# ── Analyse ──────────────────────────────────────────────────────────
+# ── Analysis ─────────────────────────────────────────────────────────
 def analyse(text, charmap, layer_names):
     chars   = collections.Counter()
     layers  = collections.Counter()
@@ -205,16 +203,14 @@ def analyse(text, charmap, layer_names):
     for ch in text:
         if ch in "\r":
             continue
-        # On normalise les accents : le clavier est en QWERTY US, « é »
-        # se tape en composant. On compte la lettre de base et on
-        # signale le volume d'accents a part.
+        # Accents get normalized: the keyboard is US QWERTY, "é" is
+        # composed. Count the base letter and report accents separately.
         entry = charmap.get(ch)
         key = ch
         if entry is None:
-            # QWERTY US n'a pas d'accent : « é » se compose. On rattache
-            # la frappe a sa lettre de BASE — sinon les statistiques par
-            # doigt ignoreraient tout le francais — et on compte le
-            # volume d'accents a part.
+            # US QWERTY has no accents, "é" is composed. Map it to its
+            # BASE letter (or the per-finger stats would skip all the
+            # French) and count the accents separately.
             nfd = unicodedata.normalize("NFD", ch)
             base = "".join(c for c in nfd if not unicodedata.combining(c))
             entry = charmap.get(base)
@@ -236,8 +232,8 @@ def analyse(text, charmap, layer_names):
             pf, cf = finger_of(ppos), finger_of(pos)
             if pf == cf and ppos != pos and cf[1] != "pouce":
                 sfb[(ppos, pos)] += 1
-            # Mod de home row suivi d'une touche de la MEME main : c'est
-            # la que `tap-preferred` a 200 ms se fait sentir.
+            # Home row mod followed by a key on the SAME hand: that's
+            # where `tap-preferred` at 200 ms bites.
             if ppos in HOME_ROW and hand_of(ppos) == hand_of(pos) and ppos != pos:
                 hrm[(ppos, pos)] += 1
         prev = (pos, li)
@@ -248,7 +244,7 @@ def analyse(text, charmap, layer_names):
 LABEL = {" ": "␣", "\n": "⏎", "\t": "⇥"}
 
 def reverse_map(charmap):
-    """position -> etiquette lisible, couche de base uniquement."""
+    """position -> readable label, base layer only."""
     rev = {}
     for ch, e in charmap.items():
         if e[0] == 0 and len(e) == 2:
@@ -262,7 +258,7 @@ def char_at(charmap, pos):
             return ch
     return f"@{pos}"
 
-# ── Rendu ────────────────────────────────────────────────────────────
+# ── Output ───────────────────────────────────────────────────────────
 def bar(frac, width=22):
     n = round(frac * width)
     return "█" * n + "·" * (width - n)
@@ -319,7 +315,7 @@ def main():
     print(f"  {C['d']}sources : {' · '.join(srcs)}{C['x']}")
     print(f"  {C['d']}{tot:,} frappes analysees, {len(r['chars'])} caracteres distincts{C['x']}\n")
 
-    # ── Couches ──────────────────────────────────────────────────────
+    # ── Layers ───────────────────────────────────────────────────────
     print(f"  {C['b']}Cout des couches{C['x']}")
     print(f"  {C['d']}Chaque frappe hors couche de base demande un maintien de pouce.{C['x']}\n")
     for name, n in r["layers"].most_common():
@@ -329,7 +325,7 @@ def main():
     off = tot - r["layers"][layer_names[0]]
     print(f"\n    {C['d']}-> {off/tot*100:.1f} % de ta frappe passe par une couche.{C['x']}\n")
 
-    # ── Repartition par doigt ────────────────────────────────────────
+    # ── Load per finger ──────────────────────────────────────────────
     print(f"  {C['b']}Charge par doigt{C['x']}\n")
     order = [("gauche", f) for f in ["auriculaire","annulaire","majeur","index","index-etire"]] \
           + [("gauche","pouce"), ("droite","pouce")] \
@@ -343,7 +339,7 @@ def main():
     lh = r["hands"]["gauche"] / tot * 100
     print(f"\n    {C['d']}mains : gauche {lh:.1f} %  ·  droite {100-lh:.1f} %{C['x']}\n")
 
-    # ── Caracteres les plus couteux ──────────────────────────────────
+    # ── Most expensive characters ────────────────────────────────────
     costly = [(ch, n) for ch, n in r["chars"].items()
               if charmap[ch][0] != 0 or len(charmap[ch]) > 2]
     costly.sort(key=lambda x: -x[1])
@@ -358,7 +354,7 @@ def main():
             print(f"    {C['c']}{disp:<8}{C['x']} {n:>8,}  {C['d']}{how}{C['x']}")
         print()
 
-    # ── Bigrammes meme doigt ─────────────────────────────────────────
+    # ── Same-finger bigrams ──────────────────────────────────────────
     if r["sfb"]:
         sfb_tot = sum(r["sfb"].values())
         print(f"  {C['b']}Bigrammes sur le meme doigt (SFB){C['x']}  "
@@ -371,7 +367,7 @@ def main():
             print(f"    {C['c']}{a1}{a2}{C['x']}   {n:>7,}  {C['d']}{f[0]} {f[1]}{C['x']}")
         print()
 
-    # ── Risque mods de home row ──────────────────────────────────────
+    # ── Home row mod risk ────────────────────────────────────────────
     if r["hrm"]:
         hrm_tot = sum(r["hrm"].values())
         print(f"  {C['b']}Enchainements depuis un mod de home row{C['x']}  "
@@ -383,7 +379,7 @@ def main():
                   f"{C['d']}{hand_of(p1)}{C['x']}")
         print()
 
-    # ── Mots frequents ───────────────────────────────────────────────
+    # ── Frequent words ───────────────────────────────────────────────
     words = collections.Counter(
         w for w in re.findall(r"[a-zA-Z][a-zA-Z-]{2,}", text) if len(w) >= 4)
     print(f"  {C['b']}Mots les plus tapes{C['x']}  {C['d']}candidats a un combo ou une macro{C['x']}\n")

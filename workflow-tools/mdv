@@ -1,39 +1,37 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# mdv — lire du Markdown rendu, dans le terminal.
+# mdv — read rendered Markdown in the terminal.
 #
-#   mdv fichier.md        rend le fichier
-#   mdv                   parcourt les .md du repertoire courant (TUI)
-#   mdv ~/.config/docs    parcourt un dossier
-#   cat x.md | mdv        depuis un tuyau
-#   mdv -w 120 f.md       forcer une largeur
-#   mdv -b fichier.md     NAVIGUER : sommaire lateral, liens cliquables,
-#                         historique, signets  (frogmouth)
-#   mdv -l fichier.md     APERCU VIF : re-rend a chaque sauvegarde
-#                         (watchexec) — l'ecran d'a cote pendant qu'on ecrit
+#   mdv file.md           render the file
+#   mdv                   browse the .md files in the current dir (TUI)
+#   mdv ~/.config/docs    browse a folder
+#   cat x.md | mdv        from a pipe
+#   mdv -w 120 f.md       force a width
+#   mdv -b file.md        BROWSE: side outline, clickable links,
+#                         history, bookmarks  (frogmouth)
+#   mdv -l file.md        LIVE preview: re-renders on every save
+#                         (watchexec), the screen next to the editor
 #
-# Nomme `mdv' et pas `md' : `md' est deja un alias vers `mkdir -p' dans
-# ~/.config/zsh/aliases.zsh, et c'est un reflexe qu'on ne remplace pas.
+# Called `mdv' and not `md': `md' is already an alias for `mkdir -p' in
+# ~/.config/zsh/aliases.zsh, and that habit stays.
 #
-# Pourquoi ce script plutot que `glow' directement : dans glow 3.0.0 le
-# fichier ~/.config/glow/glow.yml et la variable GLAMOUR_STYLE sont
-# IGNORES — verifie, la largeur et le style declares n'ont aucun effet.
-# Seul le drapeau `-s' est honore. Ce script porte donc le theme, et en
-# profite pour adapter la largeur a la fenetre.
+# Why a wrapper and not plain `glow': glow 3.0.0 ignores both
+# ~/.config/glow/glow.yml and GLAMOUR_STYLE (checked, width and style
+# there do nothing). Only the `-s' flag works. So the theme lives here,
+# and the width follows the window while we're at it.
 #
-# IMAGES : impossible ici, et ce n'est pas glow. Alacritty (0.16.1) n'a
-# aucun protocole graphique — ni sixel, ni le protocole kitty. Les
-# visionneuses qui affichent des images en terminal (mdcat, timg, chafa
-# en mode pixel) ont toutes besoin de l'un des deux. Rien a configurer
-# tant qu'on reste sur Alacritty ; kitty ou WezTerm le permettraient.
+# No images, and that's not glow's fault. Alacritty (0.16.1) has no
+# graphics protocol (no sixel, no kitty protocol), and every terminal
+# image viewer (mdcat, timg, chafa in pixel mode) needs one of them.
+# Nothing to configure while on Alacritty. kitty or WezTerm could do it.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
 STYLE="${MD_STYLE:-$HOME/.config/glow/premium-noir.json}"
 [[ -r $STYLE ]] || STYLE=dark
 
-# Largeur : la fenetre moins les marges de glow, plafonnee a 100.
-# Au-dela, l'oeil perd la ligne — et sur un ultrawide glow prendrait tout.
+# Width: window minus glow's margins, capped at 100. Wider than that the
+# eye loses the line, and on an ultrawide glow would take everything.
 cols=$(tput cols 2>/dev/null || echo 100)
 WIDTH=$(( cols - 6 )); [[ $WIDTH -gt 100 ]] && WIDTH=100
 [[ $WIDTH -lt 40 ]] && WIDTH=40
@@ -49,20 +47,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ── Mode navigation : frogmouth ─────────────────────────────────────
-# Ce que glow ne sait pas faire : un sommaire lateral, des liens qu'on
-# suit, un historique avant/arriere et des signets. Pour un dossier de
-# documentation qu'on PARCOURT plutot qu'on lit d'un trait.
-#   t  sommaire   /  recherche   ,/.  historique   b  signets   q  quitter
+# ── Browse mode: frogmouth ──────────────────────────────────────────
+# What glow can't do: side outline, links you can follow, back/forward
+# history and bookmarks. For a docs folder you browse, not read in one go.
+#   t  outline    /  search      ,/.  history      b  bookmarks  q  quit
 if [[ $MODE == browse ]]; then
   command -v frogmouth >/dev/null 2>&1 || {
     echo "mdv: frogmouth absent — uv tool install frogmouth" >&2; exit 1; }
   exec frogmouth "${args[@]}"
 fi
 
-# ── Mode apercu vif : re-rend a chaque sauvegarde ───────────────────
-# On surveille le FICHIER, pas le dossier : sinon chaque fichier
-# temporaire d'Emacs (#truc.md#, .#truc.md) declencherait un re-rendu.
+# ── Live preview: re-render on every save ───────────────────────────
+# Watch the FILE, not the folder, or every Emacs temp file (#foo.md#,
+# .#foo.md) would trigger a re-render.
 if [[ $MODE == live ]]; then
   command -v watchexec >/dev/null 2>&1 || {
     echo "mdv: watchexec absent — brew install watchexec" >&2; exit 1; }
@@ -71,13 +68,13 @@ if [[ $MODE == live ]]; then
        glow -s "$STYLE" -w "$WIDTH" "${args[0]}"
 fi
 
-# Depuis un tuyau : glow lit stdin avec `-`.
+# From a pipe: glow reads stdin with `-`.
 if [[ ! -t 0 && ${#args[@]} -eq 0 ]]; then
   exec glow -s "$STYLE" -w "$WIDTH" -
 fi
 
-# Sans argument, ou sur un dossier : le mode TUI, qui liste les .md
-# trouves et permet de naviguer. C'est ce qui rend ~/.config/docs lisible.
+# No argument, or a folder: TUI mode, which lists the .md files and lets
+# you move around. That's what makes ~/.config/docs readable.
 if [[ ${#args[@]} -eq 0 ]]; then
   exec glow -s "$STYLE" -w "$WIDTH" -t .
 fi
@@ -85,7 +82,7 @@ if [[ -d "${args[0]}" ]]; then
   exec glow -s "$STYLE" -w "$WIDTH" -t "${args[0]}"
 fi
 
-# Un fichier : pagine seulement s'il depasse l'ecran.
+# A file: page it only if it doesn't fit on screen.
 lines=$(glow -s "$STYLE" -w "$WIDTH" "${args[@]}" 2>/dev/null | wc -l)
 if [[ ${lines:-0} -gt $(( $(tput lines 2>/dev/null || echo 40) - 2 )) ]]; then
   exec glow -s "$STYLE" -w "$WIDTH" -p "${args[@]}"

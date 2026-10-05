@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# herdr-nav-actions — toutes les actions de plugin, dans le navigator.
+# herdr-nav-actions — every plugin action, in the navigator.
 #
-# POURQUOI
-# Le filtre Ctrl-N du navigator s'appelle « plugin », mais il ne montre
-# PAS les plugins herdr : il montre la source `Source::Integration`,
-# c'est-a-dire les blocs [[integrations]] de sa propre config. D'ou
-# l'impression qu'il n'y a que la gestion des spaces.
+# WHY
+# The navigator's Ctrl-N filter is called "plugin", but it does NOT show
+# herdr plugins. It shows `Source::Integration`, i.e. the [[integrations]]
+# blocks from its own config. So it looks like there's only space stuff.
 #
-# Les vraies actions de plugin vivent derriere `herdr plugin action`.
-# Ce script les collecte toutes (64 actions, 20 plugins ici) et les
-# expose dans le meme picker.
+# The real plugin actions live behind `herdr plugin action`. This
+# collects them all (64 actions, 20 plugins here) and puts them in the
+# same picker.
 #
-# CONTEXTES
-# Une action declare ses contextes : global, workspace, pane. Celles qui
-# exigent un pane (« attacher un moniteur a CE pane ») sont marquees,
-# parce qu'invoquees depuis le picker elles s'appliquent au pane qui
-# etait focalise avant l'ouverture.
+# CONTEXTS
+# An action declares its contexts: global, workspace, pane. The ones that
+# need a pane ("attach a monitor to THIS pane") get a marker, because
+# from the picker they apply to the pane that had focus before it opened.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -30,8 +28,8 @@ fi
 RAW=$(herdr plugin action list 2>/dev/null)
 [[ -n $RAW ]] || { echo "[]"; exit 0; }
 
-# Les actions du navigator lui-meme sont retirees : les invoquer DEPUIS
-# le navigator ouvrirait un navigator dans le navigator.
+# Drop the navigator's own actions: running them FROM the navigator
+# would open a navigator inside the navigator.
 RAW="$RAW" "$PY" - <<'PYEOF'
 import json, os, sys
 
@@ -52,8 +50,8 @@ for a in sorted(actions, key=lambda x: (x.get("plugin_id", ""), x.get("title", "
     if not action:
         continue
 
-    # Le titre porte deja « Plugin: action » chez la plupart des plugins.
-    # On ne re-prefixe donc pas, on complete seulement quand il manque.
+    # Most plugins already title it "Plugin: action". So no re-prefix,
+    # only fill it in when it's missing.
     title = (a.get("title") or f"{plugin}: {action}").strip()
 
     sub = (a.get("description") or "").strip()
@@ -64,7 +62,7 @@ for a in sorted(actions, key=lambda x: (x.get("plugin_id", ""), x.get("title", "
         sub = plugin
 
     items.append({
-        # L'id porte les deux morceaux ; herdr-nav-invoke les separe.
+        # The id carries both parts, herdr-nav-invoke splits them.
         "id": f"{plugin}\t{action}",
         "title": title,
         "subtitle": sub,

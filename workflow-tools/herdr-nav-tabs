@@ -1,41 +1,37 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# herdr-nav-tabs — la sous-liste des tabs, sous chaque space, dans le
-# navigator (prefix+w).
+# herdr-nav-tabs — the tab sub-list under each space, in the navigator
+# (prefix+w).
 #
-# POURQUOI UN SCRIPT
-# herdr-navigator n'a pas de source « tab » : ses sources sont workspace,
-# agent, session, server, project, zoxide, root, quick, plugin. Il n'a pas
-# non plus de vue arborescente — c'est un picker plat. Le seul point
-# d'extension prevu est [[integrations]] : une commande `collect` qui
-# imprime un tableau JSON, une commande `open` lancee sur la selection.
+# WHY A SCRIPT
+# herdr-navigator has no "tab" source: its sources are workspace, agent,
+# session, server, project, zoxide, root, quick, plugin. No tree view
+# either, it's a flat picker. The only extension point is [[integrations]]:
+# a `collect` command that prints a JSON array, an `open` command run on
+# the selection.
 #
-# OBSOLETE — l'integration est desactivee dans config.toml.
-# La vue arborescente est maintenant NATIVE (picker.tab_children), via un
-# correctif du plugin : voir ~/.config/herdr/patches/.
+# OBSOLETE. The integration is disabled in config.toml.
+# The tree view is now NATIVE (picker.tab_children), through a plugin
+# patch: see ~/.config/herdr/patches/.
 #
-# Ce script est conserve comme repli : si le correctif ne peut plus etre
-# reapplique apres une mise a jour du plugin, remettre enabled = true rend
-# les tabs accessibles, dans une section « tabs » separee.
+# Kept as a fallback: if the patch stops applying after a plugin update,
+# set enabled = true again and tabs show up in a separate "tabs" section.
 #
-# CE QUE CA DONNE
-# Une entree par tab, titree « <space> › <tab> ». Le nom du space etant
-# DANS le titre, taper ce nom fait remonter le space et tous ses tabs
-# ensemble.
+# WHAT YOU GET
+# One entry per tab, titled "<space> › <tab>". The space name is IN the
+# title, so typing it brings up the space and all its tabs together.
 #
-# ATTENTION : kind = "workspace" NE range PAS l'entree avec les spaces.
-# Le plugin n'interprete `kind` que pour "server"/"remote-terminal" ->
-# Source::Server et "session" -> Source::Session ; tout le reste tombe
-# dans Source::Integration. Aucun chemin ne mene a la section « open » :
-# c'est precisement pourquoi le correctif natif existe.
+# HEADS UP: kind = "workspace" does NOT group the entry with the spaces.
+# The plugin only reads `kind` for "server"/"remote-terminal" ->
+# Source::Server and "session" -> Source::Session. Everything else lands
+# in Source::Integration. No path leads to the "open" section, which is
+# exactly why the native patch exists.
 #
-# Les spaces a UN SEUL tab sont ignores : leur unique tab ferait doublon
-# avec la ligne du space, sans rien apprendre. Passer SHOW_SINGLE=1 pour
-# les inclure malgre tout.
+# Spaces with a SINGLE tab are skipped: that tab would just duplicate the
+# space line. Set SHOW_SINGLE=1 to include them anyway.
 #
-# Les sessions ne sont PAS imbriquees ici, et ce n'est pas un oubli : une
-# session est un serveur herdr separe, pas un enfant d'un space. Elle a
-# son propre filtre, Ctrl-L.
+# Sessions are NOT nested here, on purpose: a session is a separate herdr
+# server, not a child of a space. It has its own filter, Ctrl-L.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -49,17 +45,17 @@ fi
 WS=$(herdr workspace list 2>/dev/null)
 TABS=$(herdr tab list 2>/dev/null)
 
-# Serveur absent ou muet : un tableau vide, jamais une erreur. Le navigator
-# afficherait le message d'erreur comme une entree.
+# Server missing or silent: empty array, never an error. The navigator
+# would show the error message as an entry.
 [[ -n $WS && -n $TABS ]] || { echo "[]"; exit 0; }
 
 WS="$WS" TABS="$TABS" SHOW_SINGLE="${SHOW_SINGLE:-0}" "$PY" - <<'PYEOF'
 import json, os, re, sys
 
 def unwrap(raw, key):
-    """Les commandes CLI rendent {"result": {...}} ; certaines rendent la
-    charge a la racine. On accepte les deux — une exception silencieuse
-    ici viderait la liste sans rien dire."""
+    """CLI commands return {"result": {...}}, some return the payload at
+    the root. Accept both, a silent exception here would empty the list
+    without a word."""
     try:
         d = json.loads(raw)
     except Exception:
@@ -70,15 +66,15 @@ workspaces = unwrap(os.environ.get("WS", ""), "workspaces")
 tabs       = unwrap(os.environ.get("TABS", ""), "tabs")
 show_single = os.environ.get("SHOW_SINGLE") == "1"
 
-# herdr prefixe ses libelles du numero d'affichage : « [2] zsh ». Le numero
-# est deja dans le champ `number`, on le retire du texte pour ne pas avoir
-# « [3] projet › [2] run ».
+# herdr prefixes labels with the display number: "[2] zsh". The number is
+# already in the `number` field, so strip it from the text to avoid
+# "[3] project › [2] run".
 NUM = re.compile(r"^\s*\[\d+\]\s*")
 def clean(label, fallback=""):
     return NUM.sub("", (label or "").strip()) or fallback
 
-# Etat d'agent -> pastille. Seuls les etats qui APPELLENT une action sont
-# marques ; « unknown » et « idle » restent muets pour ne pas bruiter.
+# Agent state -> dot. Only states that NEED you get a mark. "unknown" and
+# "idle" stay quiet to keep the noise down.
 DOT = {
     "working":   "◐",
     "blocked":   "●",
@@ -106,9 +102,8 @@ for w in sorted(workspaces, key=lambda x: x.get("number", 0)):
         dot   = DOT.get(t.get("agent_status") or "", "")
         panes = t.get("pane_count") or 1
 
-        # Le nom du space est dans le TITRE, pas seulement dans le
-        # sous-titre : c'est le titre qui est indexe par le matcher, donc
-        # c'est ce qui fait remonter les tabs avec leur space.
+        # Space name goes in the TITLE, not just the subtitle: the matcher
+        # indexes the title, so that's what pulls tabs up with their space.
         title = f"{wname} › {tname}"
         if dot:
             title = f"{title}  {dot}"
@@ -124,8 +119,8 @@ for w in sorted(workspaces, key=lambda x: x.get("number", 0)):
             "title":    title,
             "subtitle": " · ".join(bits),
             "path":     wid or "",
-            # Range l'entree avec les spaces : Ctrl-W montre alors les deux
-            # niveaux, space puis ses tabs.
+            # Group with the spaces: Ctrl-W then shows both levels, space
+            # then its tabs.
             "kind":     "workspace",
         })
 

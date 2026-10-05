@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# repos-status — l'etat de tous les depots d'un coup.
+# repos-status — the state of every repo at once.
 #
-# Une ligne par depot qui demande quelque chose : suivi modifie, commits
-# non pousses, commits en retard. Les depots propres sont comptes, pas
-# listes. Les depots sont inspectes EN PARALLELE (~8 a la fois), sinon
-# 28 depots x 3 appels git prennent une quinzaine de secondes.
+# One line per repo that needs something: modified tracked files,
+# unpushed commits, commits behind. Clean repos are counted, not listed.
+# Repos are checked IN PARALLEL (~8 at a time), otherwise 28 repos x 3
+# git calls take around fifteen seconds.
 #
 #   repos-status              ~/Desktop/projects
-#   repos-status ~/autre      un autre dossier
-#   repos-status --all        montre aussi les depots propres
-#   repos-status --untracked  compte aussi les fichiers non suivis (LENT)
+#   repos-status ~/other      another folder
+#   repos-status --all        also show clean repos
+#   repos-status --untracked  also count untracked files (SLOW)
 #
-# Par defaut `git status -uno` : on ne scanne PAS les fichiers non suivis.
-# C'est ce scan qui coute — un depot dont le .venv ou le .tox n'est pas
-# ignore peut mettre 18 s la ou -uno met 15 ms — et ce n'est pas le signal
-# utile ici : ce qui demande une action, c'est le suivi modifie et le
-# decalage avec l'amont.
+# Defaults to `git status -uno`, so untracked files are NOT scanned.
+# That scan is the expensive part (a repo with an unignored .venv or
+# .tox can take 18 s vs 15 ms with -uno), and it's not the useful signal
+# here anyway. What needs action is modified tracked files and drift
+# from upstream.
 #
-# Variables : REPOS_STATUS_TIMEOUT (defaut 5 s par appel git)
-#             REPOS_STATUS_JOBS    (defaut 8)
+# Variables: REPOS_STATUS_TIMEOUT (default 5 s per git call)
+#            REPOS_STATUS_JOBS    (default 8)
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -29,11 +29,11 @@ UNTRACKED=0
 TMO="${REPOS_STATUS_TIMEOUT:-5}"
 JOBS="${REPOS_STATUS_JOBS:-8}"
 
-# ── Mode interne : inspecte UN depot et emet une ligne "etat<TAB>texte".
+# ── Internal mode: check ONE repo and print a "state<TAB>text" line.
 if [[ "${1:-}" == "--one" ]]; then
   d="$2"; UNTRACKED="$3"; TMO="$4"
-  # Les dossiers qui ne sont pas des depots sortent en silence : sinon ils
-  # ressortaient tous en "trop lent", ce qui etait faux et bruyant.
+  # Folders that aren't repos exit quietly. Otherwise they all showed up
+  # as "too slow", which was wrong and noisy.
   [[ -e "$d/.git" ]] || exit 0
   TO=$(command -v timeout || command -v gtimeout || true)
   g() { if [[ -n $TO ]]; then "$TO" "$TMO" git -C "$d" "$@"; else git -C "$d" "$@"; fi; }

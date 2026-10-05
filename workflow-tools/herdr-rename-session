@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# herdr-rename-session <ancien> <nouveau>
+# herdr-rename-session <old> <new>
 #
-# herdr n'a pas de `session rename` : une session nommee EST un dossier
-# ~/.config/herdr/sessions/<nom>/ (session.json + herdr.sock). Renommer =
-# arreter le serveur, deplacer le dossier, reattacher.
+# herdr has no `session rename`: a named session IS a folder
+# ~/.config/herdr/sessions/<name>/ (session.json + herdr.sock). Rename =
+# stop the server, move the folder, reattach.
 #
-# La session `default` (~/.config/herdr) ne se renomme pas : elle n'a pas
-# de nom, c'est celle qu'ouvre `herdr` tout court.
+# The `default` session (~/.config/herdr) can't be renamed: it has no
+# name, it's the one plain `herdr` opens.
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -20,7 +20,7 @@ old="${1:-}"; new="${2:-}"
 [[ -d "$SESSIONS_DIR/$old" ]] || { echo "session inconnue : $old ($SESSIONS_DIR/$old)" >&2; exit 1; }
 [[ ! -e "$SESSIONS_DIR/$new" ]] || { echo "existe deja : $new" >&2; exit 1; }
 
-# Le serveur doit etre arrete : son socket est ancre sur l'ancien chemin.
+# Server has to be stopped: its socket is tied to the old path.
 if herdr session list 2>/dev/null | awk -v s="$old" '$1==s && $2=="running"{found=1} END{exit !found}'; then
   echo "arret de la session $old…"
   herdr session stop "$old" >/dev/null

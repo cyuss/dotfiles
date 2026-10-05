@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 # ─────────────────────────────────────────────────────────────────────
-# herdr-usagebar-statusline — pont entre Claude Code et la sidebar herdr.
+# herdr-usagebar-statusline — bridge between Claude Code and the herdr sidebar.
 #
-# Claude Code appelle sa commande `statusLine` a chaque rendu, en lui
-# passant sur stdin un JSON qui contient deux choses qu'on ne trouve
-# NULLE PART ailleurs :
+# Claude Code runs its `statusLine` command on every render, passing a
+# JSON on stdin with two things you can't get ANYWHERE else:
 #
-#   rate_limits            -> sans quoi usagebar ne peut pas remplir $limit
-#   model.display_name     -> le modele reellement en cours ("Opus 5")
+#   rate_limits            -> without it usagebar can't fill $limit
+#   model.display_name     -> the model actually running ("Opus 5")
 #
-# Ce script fait donc deux passes sur la meme entree :
-#   1. publie $model comme jeton de pane, pour la sidebar herdr ;
-#   2. transmet le JSON brut, INTACT, au script du plugin usagebar.
+# So this does two things with the same input:
+#   1. publishes $model as a pane token, for the herdr sidebar;
+#   2. passes the raw JSON, UNTOUCHED, to the usagebar plugin script.
 #
-# Le chemin du plugin contient un hash (usagebar-33803b79d616) : on le
-# resout a l'appel, pour ne pas casser au prochain reinstall.
+# The plugin path has a hash in it (usagebar-33803b79d616), so resolve it
+# at call time to not break on the next reinstall.
 #
-# CONTRAT d'une commande statusLine : rapide, et JAMAIS bruyante. Elle est
-# rappelee a chaque rendu et sa sortie s'affiche a la place du statut.
-# D'ou : aucune sortie, et exit 0 quoi qu'il arrive.
+# statusLine command rules: fast, and never noisy. It runs on every render
+# and its output replaces the status. So: no output, and exit 0 no matter
+# what.
 # ─────────────────────────────────────────────────────────────────────
 import glob
 import json
@@ -30,7 +29,7 @@ TTL_MS = 86_400_000
 
 
 def publish_model(payload):
-    """$model : le modele en cours, pour la ligne 2 du panneau des agents."""
+    """$model: the current model, for line 2 of the agents panel."""
     pane = os.environ.get("HERDR_PANE_ID")
     if not pane or not os.environ.get("HERDR_SOCKET_PATH"):
         return
@@ -46,7 +45,7 @@ def publish_model(payload):
 
 
 def forward(raw):
-    """Le plugin usagebar veut le JSON tel quel : on ne le reserialise pas."""
+    """The usagebar plugin wants the JSON as is, so don't re-serialize it."""
     hits = glob.glob(os.path.expanduser(
         "~/.config/herdr/plugins/github/usagebar-*/bin/run-statusline.sh"))
     if not hits:

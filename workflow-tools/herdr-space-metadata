@@ -1,37 +1,37 @@
 #!/usr/bin/env python3
 # ─────────────────────────────────────────────────────────────────────
-# herdr-space-metadata — alimente le jeton $sync des lignes de space.
+# herdr-space-metadata — feeds the $sync token on space rows.
 #
-# Pourquoi ce script existe : les lignes de space de la sidebar herdr
-# n'acceptent que cinq jetons integres (state_icon, state_text, workspace,
-# branch, git_status). Tout le reste passe par des METADONNEES DE WORKSPACE,
-# que herdr ne produit pas lui-meme — il faut les lui pousser :
+# Why: herdr sidebar space rows only take five built-in tokens
+# (state_icon, state_text, workspace, branch, git_status). Anything else
+# goes through WORKSPACE METADATA, which herdr doesn't produce itself.
+# You have to push it:
 #
-#   herdr workspace report-metadata <id> --source X --token NOM=VALEUR
+#   herdr workspace report-metadata <id> --source X --token NAME=VALUE
 #
-# C'est exactement le mecanisme qu'utilise usagebar cote pane pour $context
-# et $limit. Ici, cote space.
+# Same mechanism usagebar uses on the pane side for $context and $limit.
+# This is the space side.
 #
-# Ce qu'on affiche, et pourquoi : `git_status` (integre) montre deja l'etat
-# de l'arbre de travail. Ce qui n'etait visible NULLE PART, c'est l'ecart
-# avec l'amont — les commits qu'on a oublie de pousser.
+# What it shows: `git_status` (built-in) already shows the working tree
+# state. What was visible NOWHERE is the gap with upstream, i.e. commits
+# I forgot to push.
 #
-#   ↑2   2 commits d'avance sur l'amont
-#   ↓1   1 commit de retard
-#   ⚑3   3 stashes en attente
+#   ↑2   2 commits ahead of upstream
+#   ↓1   1 commit behind
+#   ⚑3   3 pending stashes
 #
-# Le workspace n'expose pas de cwd (verifie : `herdr workspace get` renvoie
-# label/tabs/panes, pas de chemin). On le derive donc des panes, qui eux
-# portent leur cwd.
+# The workspace has no cwd (checked: `herdr workspace get` returns
+# label/tabs/panes, no path). So it's derived from the panes, which do
+# carry their cwd.
 #
-#   herdr-space-metadata              une passe, puis sortie
-#   herdr-space-metadata --watch      boucle (defaut : 45 s)
-#   herdr-space-metadata --watch 20   boucle, intervalle choisi
-#   herdr-space-metadata --clear      efface le jeton partout
-#   herdr-space-metadata -v           detaille ce qui est pousse
+#   herdr-space-metadata              one pass, then exit
+#   herdr-space-metadata --watch      loop (default: 45 s)
+#   herdr-space-metadata --watch 20   loop, custom interval
+#   herdr-space-metadata --clear      clear the token everywhere
+#   herdr-space-metadata -v           show what gets pushed
 #
-# Le TTL est pose a 4x l'intervalle : si ce script meurt, les jetons
-# s'effacent d'eux-memes au lieu d'afficher indefiniment une valeur fausse.
+# TTL is 4x the interval: if this script dies, the tokens clear on their
+# own instead of showing a wrong value forever.
 # ─────────────────────────────────────────────────────────────────────
 import json
 import os
@@ -45,7 +45,7 @@ DEFAULT_INTERVAL = 45
 
 
 def run(cmd, cwd=None, timeout=5):
-    """Renvoie stdout strippe, ou None si la commande echoue."""
+    """Returns stripped stdout, or None if the command fails."""
     try:
         r = subprocess.run(
             cmd, cwd=cwd, timeout=timeout,
@@ -59,7 +59,7 @@ def run(cmd, cwd=None, timeout=5):
 
 
 def workspace_dirs():
-    """workspace_id -> cwd, derive des panes (le workspace n'expose pas de cwd)."""
+    """workspace_id -> cwd, derived from panes (the workspace has no cwd)."""
     out = run(["herdr", "pane", "list"])
     if not out:
         return {}
@@ -70,15 +70,15 @@ def workspace_dirs():
     dirs = {}
     for pane in panes:
         ws, cwd = pane.get("workspace_id"), pane.get("cwd")
-        # Premier pane rencontre : c'est le plus ancien du space, donc le plus
-        # representatif. Les suivants d'un meme space sont ignores.
+        # First pane seen is the oldest in the space, so the most
+        # representative. Later ones from the same space are skipped.
         if ws and cwd and ws not in dirs:
             dirs[ws] = cwd
     return dirs
 
 
 def sync_state(cwd):
-    """'↑2 ↓1 ⚑3', ou '' si rien a signaler / hors depot git."""
+    """'↑2 ↓1 ⚑3', or '' if nothing to report / not a git repo."""
     if not os.path.isdir(cwd):
         return ""
     if run(["git", "rev-parse", "--is-inside-work-tree"], cwd=cwd) != "true":
@@ -86,9 +86,9 @@ def sync_state(cwd):
 
     parts = []
 
-    # @{upstream}...HEAD : gauche = commits de l'amont absents en local
-    # (retard), droite = commits locaux absents de l'amont (avance).
-    # Echoue silencieusement si la branche n'a pas d'amont — cas normal.
+    # @{upstream}...HEAD: left = upstream commits missing locally (behind),
+    # right = local commits missing upstream (ahead).
+    # Fails silently if the branch has no upstream, which is normal.
     counts = run(
         ["git", "rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
         cwd=cwd,
@@ -115,7 +115,7 @@ def publish(ws, value, ttl_ms, verbose=False):
     if value:
         cmd = base + ["--token", f"{TOKEN}={value}", "--ttl-ms", str(ttl_ms)]
     else:
-        # Un token vide resterait affiche tel quel : on l'efface franchement.
+        # An empty token would still be shown as is, so clear it outright.
         cmd = base + ["--clear-token", TOKEN]
     ok = run(cmd) is not None
     if verbose:
@@ -149,7 +149,7 @@ def main():
             clear = True
         elif a == "--watch":
             watch = True
-            # Intervalle optionnel juste apres --watch.
+            # Optional interval right after --watch.
             if i + 1 < len(args) and args[i + 1].isdigit():
                 i += 1
                 interval = max(5, int(args[i]))
@@ -170,7 +170,7 @@ def main():
     while True:
         try:
             pass_once(ttl_ms, verbose, clear)
-        except Exception as exc:  # une passe ratee ne doit pas tuer la boucle
+        except Exception as exc:  # a failed pass must not kill the loop
             print(f"passe ignoree : {exc}", file=sys.stderr)
         time.sleep(interval)
 

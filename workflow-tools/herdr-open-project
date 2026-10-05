@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# herdr-open-project <nom> — ouvre un template herdr-plus, OU le focalise
-# s'il est deja ouvert.
+# herdr-open-project <name> — opens a herdr-plus template, OR focuses it
+# if it's already open.
 #
-# Pourquoi ce script existe : `herdr-plus open <nom>` appelle toujours
-# workspaceCreate (verifie dans projects.go). Sur un projet ponctuel c'est
-# ce qu'on veut ; sur un space de base auquel on revient dix fois par jour,
-# ca empile les doublons. Ici on cherche d'abord un space existant.
+# Why: `herdr-plus open <name>` always calls workspaceCreate (checked in
+# projects.go). Fine for a one-off project, but for a base space I go back
+# to ten times a day it piles up duplicates. So look for an existing space
+# first.
 #
-# Le plugin automatic-rename prefixe les libelles par "[N] " — la
-# comparaison ignore ce prefixe.
+# The automatic-rename plugin prefixes labels with "[N] ", the match
+# ignores that prefix.
 #
 #   herdr-open-project quotidien
-#   herdr-open-project --new quotidien   force un nouveau space
+#   herdr-open-project --new quotidien   force a new space
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -21,9 +21,9 @@ FORCE_NEW=0
 NAME="${1:-}"
 [[ -n $NAME ]] || { echo "usage: herdr-open-project [--new] <nom-du-template>" >&2; exit 1; }
 
-# On n'exige PAS HERDR_ENV : un binding `type = "shell"` n'injecte pas
-# forcement le contexte du pane. Ce qu'il faut vraiment, c'est la socket.
-# herdr-plus, lui, la lit dans HERDR_SOCKET_PATH — on la pose si elle manque.
+# Don't require HERDR_ENV: a `type = "shell"` binding doesn't always pass
+# the pane context. What's really needed is the socket. herdr-plus reads
+# it from HERDR_SOCKET_PATH, so set it if it's missing.
 if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
   default_sock="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
   [[ -S $default_sock ]] || { echo "serveur herdr injoignable" >&2; exit 1; }
@@ -33,7 +33,7 @@ fi
 
 PY=$(command -v python3.13 || command -v /opt/homebrew/bin/python3 || command -v python3)
 
-# Un space existant porte-t-il ce nom ? (libelle depouille de "[N] ")
+# Does an existing space have this name? (label stripped of "[N] ")
 if [[ $FORCE_NEW -eq 0 ]]; then
   ws=$(herdr workspace list 2>/dev/null | "$PY" -c '
 import json, re, sys
@@ -54,8 +54,8 @@ for w in data:
   fi
 fi
 
-# Sinon on le monte via herdr-plus, dont le chemin change a chaque
-# reinstallation : on le resout par l'API plutot que de le coder en dur.
+# Otherwise build it with herdr-plus. Its path changes on every reinstall,
+# so resolve it through the API instead of hardcoding it.
 ROOT=$(herdr plugin list --json 2>/dev/null | "$PY" -c '
 import json, sys
 try:

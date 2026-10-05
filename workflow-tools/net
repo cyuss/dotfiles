@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# net — wifi et bluetooth au clavier, sans quitter le terminal.
+# net — wifi and bluetooth from the keyboard, without leaving the terminal.
 #
-#   net              etat : wifi + bluetooth + appareils connectes
-#   net wifi         choisir un reseau et s'y connecter (fzf)
-#   net wifi scan    scan des reseaux alentour
-#   net wifi off|on  couper / rallumer la radio wifi
-#   net bt           choisir un appareil appaire, bascule connexion (fzf)
-#   net bt off|on    couper / rallumer la radio bluetooth
+#   net              status: wifi + bluetooth + connected devices
+#   net wifi         pick a network and connect to it (fzf)
+#   net wifi scan    scan nearby networks
+#   net wifi off|on  turn the wifi radio off / on
+#   net bt           pick a paired device, toggle its connection (fzf)
+#   net bt off|on    turn the bluetooth radio off / on
 #
-# macOS 26 : `airport` a ete SUPPRIME. Tout passe par `networksetup`
-# (integre) et `system_profiler`. Le bluetooth passe par blueutil.
+# macOS 26 removed `airport`. Everything goes through `networksetup`
+# (built in) and `system_profiler`. Bluetooth goes through blueutil.
 #
-# ATTENTION — Localisation : depuis macOS 14, lire le SSID courant ou
-# scanner exige que l'app appelante ait l'autorisation « Service de
-# localisation ». Sans elle, macOS renvoie <redacted> et
-# « You are not associated ». A activer pour Alacritty dans
-# Reglages > Confidentialite et securite > Service de localisation.
+# Heads up, Location: since macOS 14, reading the current SSID or
+# scanning needs the calling app to have Location Services permission.
+# Without it macOS returns <redacted> and "You are not associated".
+# Turn it on for Alacritty in System Settings > Privacy & Security >
+# Location Services.
+#
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -99,7 +100,7 @@ wifi_pick() {
           --header="Entrée = se connecter · Échap = annuler") || exit 0
   [[ -n $ssid ]] || exit 0
 
-  # Un reseau deja connu : macOS reprend le mot de passe dans le trousseau.
+  # Known network: macOS pulls the password from the keychain.
   if grep -qxF "$ssid" <<<"$prefs"; then
     networksetup -setairportnetwork "$DEV" "$ssid"
   else
@@ -118,8 +119,8 @@ bt_pick() {
   need blueutil blueutil
   need fzf fzf
   local line addr name connected
-  # awk et pas sed : le sed de macOS est un BSD sed, il ne connait pas
-  # l'alternation \| en expression reguliere basique.
+  # awk, not sed: macOS ships BSD sed, which has no \| alternation in
+  # basic regexes.
   line=$(blueutil --paired 2>/dev/null | awk '
     {
       addr = $2; sub(/,$/, "", addr)
@@ -136,8 +137,8 @@ bt_pick() {
   [[ -n $line ]] || exit 0
 
   addr=$(awk '{print $NF}' <<<"$line")
-  # Le nom vient de blueutil et non d'un decoupage de la ligne : les noms
-  # contiennent des apostrophes typographiques et des espaces.
+  # Get the name from blueutil instead of splitting the line: names have
+  # curly apostrophes and spaces in them.
   name=$(blueutil --info "$addr" 2>/dev/null \
          | awk '{ i=index($0,"name: \""); if(i){ r=substr($0,i+7); print substr(r,1,index(r,"\"")-1) } }')
   [[ -n $name ]] || name="$addr"
