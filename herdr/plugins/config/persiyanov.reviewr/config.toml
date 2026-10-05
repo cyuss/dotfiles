@@ -1,0 +1,14 @@
+# reviewr: the diff pane to the right of the agent (prefix+d).
+# Reread on every refresh / toggle, no restart needed.
+# One unknown key breaks the WHOLE file (the pane shows the error).
+
+# Theme added by ~/.config/herdr/patches/reviewr-vesper-theme.patch.
+# Without the patch (plugin updated without reapplying it), "vesper" is
+# rejected: switch back to "tokyo-night" for now, the closest dark one.
+theme = "vesper"
+
+# The pane is a narrow side split (~55 columns): a file list on the side
+# ate 32% of the diff's width. Stacked on top, it takes 25% of the height
+# and the diff keeps the full width.
+# `p` cycles the position, `z` hides it, `<` `>` resize it.
+navigator_position = "top"

@@ -143,3 +143,48 @@ avant le premier prompt. Plus aucun `pane run`.
 | `src/app.rs` | `open_project` et `focus_or_create_dir` passent la commande du 1er pane a `workspace create` |
 
 Reconstruire : `cargo build --release` dans le depot du plugin.
+
+## reviewr-vesper-theme.patch
+
+Le pane de diff a droite de l'agent (`prefix+d`, plugin `persiyanov.reviewr`)
+tournait sur son theme par defaut, `catppuccin` : lilas et pastels, a cote
+d'un herdr vesper quasi monochrome. reviewr ne propose pas `vesper` et
+refuse un nom inconnu — d'ou le correctif plutot qu'une simple cle de config.
+
+| Fichier | Modification |
+|---|---|
+| `src/theme.rs` | theme `vesper` (ancres = `[theme.custom]` de herdr) ; ajoute a la liste des tests de lisibilite |
+| `assets/vesper.tmTheme` | coloration syntaxique vesper (chaines mint, fonctions/nombres peche, mots-cles gris) |
+| `src/highlight.rs` | `vesper` dans le test qui verifie que chaque `.tmTheme` se charge |
+
+Choix des ancres : fond = celui du terminal (`#101216`), un seul accent chaud
+(`peach` = `#ffc799`) pour l'action principale ; `lavender` (bordure du pane
+focalise, touches secondaires) passe en gris argent `#c8c8c8` pour rester
+monochrome. Les fonds de diff sont derives et gardent un contraste >= 4.5.
+
+Reglages associes (sans correctif) dans
+`plugins/config/persiyanov.reviewr/config.toml` : `theme = "vesper"` et
+`navigator_position = "top"` (liste de fichiers au-dessus, diff pleine largeur).
+
+### Reappliquer apres une mise a jour du plugin
+
+```
+cd ~/.config/herdr/plugins/github/persiyanov.reviewr-*
+git apply ~/.config/herdr/patches/reviewr-vesper-theme.patch
+cargo build --release
+cp target/release/herdr-reviewr bin/herdr-reviewr
+```
+
+Le `cp` est indispensable : le pane lance `bin/herdr-reviewr` (binaire
+telecharge a l'installation), pas `target/`. Le binaire d'origine est garde
+a cote : `bin/herdr-reviewr.orig`.
+
+Sans le correctif, le pane affiche une erreur de config : mettre
+`theme = "tokyo-night"` en attendant.
+
+### Etat des tests
+
+Tous verts sauf `the_cli_fallback_resolves_the_config_dir_when_the_env_names_none`
+(`tests/pane_actions.rs`), qui echoue aussi sur le checkout d'origine.
+
+Base du correctif : `e7d8853` (v0.33.0).

@@ -1,0 +1,247 @@
+diff --git i/src/highlight.rs w/src/highlight.rs
+index 5d2af89..885a1f3 100644
+--- i/src/highlight.rs
++++ w/src/highlight.rs
+@@ -147,7 +147,7 @@ mod tests {
+         // (specs/theme.md). A loaded theme tokenizes rust into more than one span; a failed
+         // load would yield a single plain span — so this guards the parse path for every
+         // bundled theme, the only `SyntaxChoice` that can fail.
+-        for name in ["catppuccin", "tokyo-night", "tokyo-night-day", "rose-pine", "rose-pine-dawn"]
++        for name in ["catppuccin", "tokyo-night", "tokyo-night-day", "rose-pine", "rose-pine-dawn", "vesper"]
+         {
+             let h = Highlighter::new(theme::resolve(Some(name)).syntax);
+             let spans = h.highlight("let x = 1;\n", Some("rs"));
+diff --git i/src/theme.rs w/src/theme.rs
+index f26557b..3a3c968 100644
+--- i/src/theme.rs
++++ w/src/theme.rs
+@@ -142,6 +142,7 @@ fn build(name: &str) -> Option<Theme> {
+         "tokyo-night-day" => bundled("tokyo-night-day", Light, TOKYO_NIGHT_DAY_TM, TOKYO_NIGHT_DAY),
+         "rose-pine" => bundled("rose-pine", Dark, ROSE_PINE_TM, ROSE_PINE),
+         "rose-pine-dawn" => bundled("rose-pine-dawn", Light, ROSE_PINE_DAWN_TM, ROSE_PINE_DAWN),
++        "vesper" => bundled("vesper", Dark, VESPER_TM, VESPER),
+         _ => return None,
+     })
+ }
+@@ -217,6 +218,7 @@ const TOKYO_NIGHT_TM: &[u8] = include_bytes!("../assets/tokyo-night.tmTheme");
+ const TOKYO_NIGHT_DAY_TM: &[u8] = include_bytes!("../assets/tokyo-night-day.tmTheme");
+ const ROSE_PINE_TM: &[u8] = include_bytes!("../assets/rose-pine.tmTheme");
+ const ROSE_PINE_DAWN_TM: &[u8] = include_bytes!("../assets/rose-pine-dawn.tmTheme");
++const VESPER_TM: &[u8] = include_bytes!("../assets/vesper.tmTheme");
+ 
+ /// Catppuccin Latte: a light theme, derived from its anchors to exercise the derivation
+ /// path (and paired with `two-face`'s Latte syntax theme).
+@@ -266,6 +268,11 @@ const ROSE_PINE: Anchors =
+     anchors(0x191724, 0xe0def4, 0xeb6f92, 0x9ccfd8, 0xf6c177, 0xebbcba, 0xc4a7e7, 0x31748f);
+ const ROSE_PINE_DAWN: Anchors =
+     anchors(0xfaf4ed, 0x575279, 0xb4637a, 0x56949f, 0xea9d34, 0xd7827e, 0x907aa9, 0x286983);
++/// Vesper, tuned to match the herdr config: base is the terminal's own background, one warm
++/// accent (peach) for primary actions, and lavender turned silver so focus and secondary keys
++/// stay monochrome.
++const VESPER: Anchors =
++    anchors(0x101216, 0xe6e6e6, 0xff8080, 0x8ee6cb, 0xffc16b, 0xffc799, 0xb9a5d6, 0xc8c8c8);
+ 
+ /// Build `Anchors` from `0xRRGGBB` hex literals, so a palette reads as one compact row.
+ /// One argument per anchor slot — the count is the palette's shape, not accidental.
+@@ -474,6 +481,7 @@ mod tests {
+         ("tokyo-night-day", true),
+         ("rose-pine", false),
+         ("rose-pine-dawn", true),
++        ("vesper", false),
+     ];
+ 
+     #[test]
+diff --git 1/assets/vesper.tmTheme 2/assets/vesper.tmTheme
+new file mode 100644
+index 0000000..f1ab197
+--- /dev/null
++++ 2/assets/vesper.tmTheme
+@@ -0,0 +1,188 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++	<key>author</key>
++	<string>Adapted from Vesper by Rauno Freiberg (MIT)</string>
++	<key>name</key>
++	<string>Vesper</string>
++	<key>settings</key>
++	<array>
++		<dict>
++			<key>settings</key>
++			<dict>
++				<key>background</key><string>#101216</string>
++				<key>foreground</key><string>#E6E6E6</string>
++				<key>caret</key><string>#FFC799</string>
++				<key>selection</key><string>#FFFFFF20</string>
++				<key>lineHighlight</key><string>#FFFFFF08</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Comment</string>
++			<key>scope</key><string>comment, punctuation.definition.comment</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#6B6F76</string>
++				<key>fontStyle</key><string>italic</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Keyword / storage</string>
++			<key>scope</key><string>keyword, storage, storage.type, storage.modifier, keyword.control, keyword.operator.new, keyword.other</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#A0A0A0</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Operator / punctuation</string>
++			<key>scope</key><string>keyword.operator, punctuation, meta.brace, punctuation.separator, punctuation.terminator</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#8B8B8B</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>String</string>
++			<key>scope</key><string>string, string.quoted, punctuation.definition.string, markup.inline.raw</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#99FFE4</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Escape / regex</string>
++			<key>scope</key><string>constant.character.escape, string.regexp</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#8EE6CB</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Number / constant</string>
++			<key>scope</key><string>constant.numeric, constant.language, constant.other, support.constant, variable.other.constant, variable.other.enummember</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#FFC799</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Function</string>
++			<key>scope</key><string>entity.name.function, support.function, meta.function-call entity.name.function, variable.function</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#FFC799</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Type / class</string>
++			<key>scope</key><string>entity.name.type, entity.name.class, entity.other.inherited-class, support.type, support.class, entity.name.namespace, storage.type.primitive</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#FFCFA8</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Variable</string>
++			<key>scope</key><string>variable, variable.parameter, variable.other, meta.definition.variable</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#E6E6E6</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Property</string>
++			<key>scope</key><string>variable.other.property, variable.other.object.property, support.variable.property, meta.object-literal.key, entity.name.tag.yaml, support.type.property-name</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#D0D0D0</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Tag</string>
++			<key>scope</key><string>entity.name.tag, meta.tag.sgml</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#FFC799</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Attribute</string>
++			<key>scope</key><string>entity.other.attribute-name</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#A0A0A0</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Decorator / macro</string>
++			<key>scope</key><string>meta.decorator, entity.name.function.decorator, entity.name.function.macro, support.function.macro, meta.attribute</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#B9A5D6</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Heading</string>
++			<key>scope</key><string>markup.heading, entity.name.section</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#FFC799</string>
++				<key>fontStyle</key><string>bold</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Bold</string>
++			<key>scope</key><string>markup.bold</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#E6E6E6</string>
++				<key>fontStyle</key><string>bold</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Italic</string>
++			<key>scope</key><string>markup.italic</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#E6E6E6</string>
++				<key>fontStyle</key><string>italic</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Link</string>
++			<key>scope</key><string>markup.underline.link, string.other.link</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#8EE6CB</string>
++				<key>fontStyle</key><string>underline</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Inserted</string>
++			<key>scope</key><string>markup.inserted</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#8EE6CB</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Deleted</string>
++			<key>scope</key><string>markup.deleted</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#FF8080</string>
++			</dict>
++		</dict>
++		<dict>
++			<key>name</key><string>Invalid</string>
++			<key>scope</key><string>invalid, invalid.illegal</string>
++			<key>settings</key>
++			<dict>
++				<key>foreground</key><string>#FF8080</string>
++			</dict>
++		</dict>
++	</array>
++</dict>
++</plist>
