@@ -47,7 +47,7 @@ except Exception:
     print("")
 ' 2>/dev/null)
 
-PRESETS="perso hdj labo"
+PRESETS="perso"
 [[ -r $PRESET_FILE ]] && PRESETS=$(grep -vE '^\s*(#|$)' "$PRESET_FILE" | tr '\n' ' ')
 
 CWD="$CWD" EXISTING="${EXISTING:-}" PRESETS="$PRESETS" "$PY" - <<'PYEOF'

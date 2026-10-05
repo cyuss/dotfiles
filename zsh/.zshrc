@@ -177,9 +177,9 @@ pyenv() {
 #  ── Pour basculer, quand tu le décideras ───────────────────────────
 #  1. Enseigner à mise les versions que tu utilises déjà :
 #       mise use -g node@24 python@3.10.7 java@temurin-20
-#  2. Lui faire lire tes .nvmrc existants (mon-garage-auto: 22, shortio: 20) :
+#  2. Lui faire lire tes .nvmrc existants (un projet en Node 22, un autre en 20) :
 #       mise settings set idiomatic_version_file_enable_tools "node,python"
-#     NB: mon-garage-auto pinne Node 22, que nvm N'A PAS installé
+#     NB: un projet pinne Node 22, que nvm N'A PAS installé
 #     (18, 20, 24 seulement). mise le règlerait ; `nvm install 22` aussi.
 #  3. Décommenter la ligne ci-dessous.
 #  4. Retirer alors les blocs pyenv / nvm / jenv / chruby ci-dessus, et
@@ -196,7 +196,7 @@ pyenv() {
 #    mise ls-remote node · mise install node@22 · mise exec node@22 -- node -v
 
 # conda retiré : uv fait le travail.
-# L'installation est toujours là (~/miniconda3, 7,9 Go, env `ml-utils`).
+# L'installation est toujours là (~/miniconda3, 7,9 Go, plus un env).
 # Pour la restaurer :   eval "$(~/miniconda3/bin/conda shell.zsh hook)"
 # Pour la supprimer :   rm -rf ~/miniconda3 ~/.condarc ~/.conda
 

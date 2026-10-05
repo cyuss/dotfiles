@@ -6,7 +6,7 @@
 # commande montre a droite la description et la recette.
 #
 # Tes Makefile suivent le motif auto-documente `cible: ## description`
-# (verifie sur stats_hdj) : on lit donc la description dans le fichier,
+# (verifie sur un vrai depot) : on lit donc la description dans le fichier,
 # et la recette juste en dessous.
 # ─────────────────────────────────────────────────────────────────────
 set -uo pipefail

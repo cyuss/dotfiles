@@ -131,10 +131,10 @@ Le serveur survit au terminal : `Ctrl+B q` détache, `herdr` réattache, les age
 Un fichier = un projet. Le nom du fichier n'a aucune importance, seul le contenu compte.
 
 ```toml
-name = "footy-hub"
+name = "my-app"
 description = "…"
 group = "python"
-working_dir = "~/Desktop/projects/footy-hub"
+working_dir = "~/Desktop/projects/my-app"
 
 [[tabs]]
 name = "agent"

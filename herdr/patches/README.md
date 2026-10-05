@@ -9,7 +9,7 @@ d'un space apparaissent comme lignes enfant dans la source `open`,
 comme `choose-tree` dans tmux.
 
 ```
-[3] project: mon-garage-auto        2 tabs · 3 panes
+[3] project: un-projet-long         2 tabs · 3 panes
   ├ agent                           tab 1
   └ run                             tab 4 · 2 panes
 ```

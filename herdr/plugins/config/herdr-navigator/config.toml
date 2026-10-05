@@ -15,7 +15,7 @@ create_missing = true
 #
 # Passe a false : dans une sidebar de 28 colonnes, « project: » mangeait
 # 9 caracteres sur chaque libelle pour une information que l'icone et le
-# contexte donnent deja. « mon-garage-auto » se lit, « project: mon-gar… »
+# contexte donnent deja. « un-projet-long » se lit, « project: un-proj… »
 # non. Navigator continue de memoriser le kind de son cote.
 prefix_workspace_labels = false
 
@@ -56,7 +56,7 @@ detailed_rows = true
 # Les tabs d'un space apparaissent comme lignes enfant, dans la section
 # « open », juste sous lui :
 #
-#   [3] project: mon-garage-auto        2 tabs · 3 panes
+#   [3] project: un-projet-long         2 tabs · 3 panes
 #     ├ agent                           tab 1
 #     └ run                             tab 4 · 2 panes
 #

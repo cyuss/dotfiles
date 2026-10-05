@@ -5,8 +5,5 @@
 # la source native du navigator les propose alors a l'attache, sous Ctrl-S.
 #
 # Vide = aucune proposition de creation de session. C'est l'etat actuel :
-# `perso' existe deja, et les propositions `hdj' / `labo' ont ete retirees.
-# Pour en reproposer une, decommenter ou ajouter une ligne.
-#
-# hdj
-# labo
+# `perso' existe deja.
+# Pour en proposer une, ajouter une ligne.

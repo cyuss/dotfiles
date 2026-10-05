@@ -1231,9 +1231,9 @@ DIRECTION is -1 to move the view down, +1 to move it up."
   ;;    `ruff-isort' trie les imports, `ruff' formate — dans cet ordre.
   ;;
   ;;    Mesure avant activation (ruff format --diff) :
-  ;;      mon-garage-auto   2 / 235 fichiers seraient touches
-  ;;      fastapi-template  5 /  18
-  ;;      shortio          85 / 147   (vieux projet, jamais passe a ruff)
+  ;;      projet actif      2 / 235 fichiers seraient touches
+  ;;      autre projet      5 /  18
+  ;;      vieux projet     85 / 147   (jamais passe a ruff)
   ;;    Donc : quasiment aucun churn sur le projet actif.
   (setf (alist-get 'python-mode    apheleia-mode-alist) '(ruff-isort ruff))
   (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff))
@@ -1255,7 +1255,7 @@ DIRECTION is -1 to move the view down, +1 to move it up."
   (setf (alist-get 'toml-ts-mode   apheleia-mode-alist) nil))
 
 ;; JS/TS/web/JSON passent par prettier, deja installe. Verifie avant
-;; activation : sur mon-garage-auto, 0 / 173 fichiers JS/TS ne sont pas
+;; activation : sur le projet actif, 0 / 173 fichiers JS/TS ne sont pas
 ;; conformes — le formatage y est un non-evenement.
 ;;
 ;; Pour inhiber ponctuellement : C-u C-x C-s (prefixe sur la sauvegarde).
@@ -1279,7 +1279,7 @@ DIRECTION is -1 to move the view down, +1 to move it up."
       :n "g H" #'diff-hl-show-hunk)
 
 ;; Cout : diff-hl interroge git en asynchrone depuis Emacs 28. Mesure sur
-;; tes depots : `git status' met 0,06 s sur mon-garage-auto (519 fichiers)
+;; tes depots : `git status' met 0,06 s sur le plus gros (519 fichiers)
 ;; et 0,01 s ailleurs. Rien de perceptible.
 
 ;; ── nº 7 · evil-textobj-tree-sitter : objets textuels syntaxiques ───

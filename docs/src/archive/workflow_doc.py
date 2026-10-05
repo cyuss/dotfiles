@@ -45,12 +45,12 @@ d'écrire ces lignes.</p>
 ], classes=["d","c","d"]) + """
 <h3>Les tests, dépôt par dépôt</h3>
 """ + table(("Dépôt","Fichiers source","Fichiers de test"),[
- ("<code>stats_hdj</code>","26","<b>0</b>"),
- ("<code>target-cx</code>","23","5"),
- ("<code>fastapi-template</code>","13","1"),
- ("<code>planning_hdj</code>","12","<b>0</b>"),
- ("<code>ml-utils</code>","10","<b>0</b>"),
- ("<code>footy-hub</code>","5","<b>0</b>"),
+ ("<code>projet-1</code>","26","<b>0</b>"),
+ ("<code>projet-2</code>","23","5"),
+ ("<code>projet-3</code>","13","1"),
+ ("<code>projet-4</code>","12","<b>0</b>"),
+ ("<code>projet-5</code>","10","<b>0</b>"),
+ ("<code>projet-6</code>","5","<b>0</b>"),
 ], classes=["c","c","c"]) + note('warn','Le constat qui compte',
  "Ton <code>AGENTS.md</code> dit, mot pour mot : « Bug corrigé = test qui "
  "échouait avant et passe après. » Tu as écrit la règle, tu as un subagent "
@@ -262,7 +262,7 @@ s6 = """
 <p class=lede>Les outils qui n'ont pas besoin d'une justification longue :
 ils font une chose, tu la fais déjà à la main.</p>
 """ + table(("Outil","Ce qu'il remplace","Quand"),[
- ("<b><code>vd</code></b> (visidata)","Ouvrir un CSV dans pandas juste pour le regarder","CSV, Excel, Parquet, SQLite — tu manipules du xlsx dans <code>stats_hdj</code>"),
+ ("<b><code>vd</code></b> (visidata)","Ouvrir un CSV dans pandas juste pour le regarder","CSV, Excel, Parquet, SQLite — tu manipules du xlsx dans <code>projet-1</code>"),
  ("<b><code>posting</code></b>","<code>curl</code> recopié depuis l'historique","Tester une route FastAPI, garder les requêtes dans le dépôt"),
  ("<b><code>lnav</code></b>","<code>tail -f | grep</code>","Il comprend les formats et sait faire du SQL sur un log"),
  ("<code>jnv</code>","Réécrire un filtre <code>jq</code> dix fois","Explorer un JSON inconnu, interactivement"),

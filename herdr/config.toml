@@ -83,7 +83,7 @@ sidebar_width = 40
 sidebar_min_width = 22
 # 36 = le maximum par defaut de herdr. La largeur s'auto-ajuste aux libelles :
 # relever le plafond ne coute rien tant que les noms sont courts, et evite la
-# troncature sur « mon-garage-auto ». Meme probleme que le prefixe « project: »
+# troncature sur « un-projet-long ». Meme probleme que le prefixe « project: »
 # du navigator, traite par l'autre bout.
 sidebar_max_width = 52
 sidebar_collapsed_mode = "compact"

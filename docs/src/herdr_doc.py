@@ -168,7 +168,7 @@ S.append(section("05", "Le navigator",
     ])
   + "<h3>La vue arborescente — les tabs sous leur space</h3>"
   + "<p>Comme <code>choose-tree</code> dans tmux : les tabs d'un space apparaissent comme lignes enfant, dans la section <b>open</b>, juste sous lui.</p>"
-  + pre('<span class="a">open</span>   [3] project: mon-garage-auto      <span class="c">2 tabs · 3 panes</span>\n'
+  + pre('<span class="a">open</span>   [3] project: un-projet-long        <span class="c">2 tabs · 3 panes</span>\n'
         '<span class="a">open</span>     ├ agent                         <span class="c">tab 1</span>\n'
         '<span class="a">open</span>     └ run                           <span class="c">tab 2 · 2 panes</span>')
   + table(("détail", "comment ça marche"), [
@@ -202,10 +202,10 @@ S.append(section("06", "herdr-plus — projets & actions",
       ("prefix+alt+p", "gestionnaire de plugins"),
     ])
   + "<h3>Anatomie d'un template</h3>"
-  + pre('<span class="c"># ~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects/stats_hdj.toml</span>\n'
-        '<span class="k">name</span>  = <span class="s">"stats_hdj"</span>\n'
+  + pre('<span class="c"># ~/.config/herdr/plugins/config/cloudmanic.herdr-plus/projects/my-app.toml</span>\n'
+        '<span class="k">name</span>  = <span class="s">"my-app"</span>\n'
         '<span class="k">group</span> = <span class="s">"python"</span>          <span class="c"># regroupe le picker</span>\n'
-        '<span class="k">root</span>  = <span class="s">"~/Desktop/projects/stats_hdj"</span>\n\n'
+        '<span class="k">root</span>  = <span class="s">"~/Desktop/projects/my-app"</span>\n\n'
         '<span class="a">[[tabs]]</span>\n'
         '<span class="k">name</span>    = <span class="s">"code"</span>\n'
         '<span class="k">command</span> = <span class="s">"nvim ."</span>\n\n'
@@ -238,7 +238,7 @@ S.append(section("07", "Agents — états & quotas",
   + "<h3>Le panneau agents</h3>"
   + "<p>Règle appliquée : <b>une idée par ligne</b>, la plus importante en premier. La disposition précédente mettait <code>state_icon</code>, <code>workspace</code> et <code>tab</code> sur une seule ligne de 24 colonnes — tout était tronqué, et le projet, l'information la plus utile, était le premier sacrifié.</p>"
   + pre('<span class="s">◐</span> <span class="a">refactor du panier</span>      <span class="c">état + tâche en cours</span>\n'
-        '  <span class="a">mon-garage-auto</span>         <span class="c">DANS QUEL PROJET</span>\n'
+        '  <span class="a">un-projet-long  </span>         <span class="c">DANS QUEL PROJET</span>\n'
         '  <span class="c">run                     où exactement dedans</span>\n'
         '  <span class="c">⛁ 13%   5h 72%          ce qu\'il consomme</span>')
   + table(("famille", "jetons"), [
