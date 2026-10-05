@@ -806,6 +806,111 @@ surface, so the same number reads very differently in each app.")
                          (if (and cur (< cur 100)) 100 +transparency))))
 (map! :leader :desc "Toggle transparency" "t t" #'+toggle-transparency)
 
+;; ── Focus on new frames ─────────────────────────────────────────────
+;; `emacsclient -c -n' creates the frame and returns at once, without ever
+;; raising it. The daemon was not launched through LaunchServices, so macOS
+;; grants it no right to come to the front: the window opens BEHIND whatever
+;; is on screen. From Raycast it looks as though nothing happened at all.
+;;
+;; This belongs in the hook rather than in the .app launcher: it then covers
+;; every route to a new frame (Raycast, `emacsclient' from a shell, herdr),
+;; and it lives in the repo — the bundle does not.
+;;
+;; `server-after-make-frame-hook' runs with the new frame already selected,
+;; so there is no guessing which of several frames to raise.
+(defun +raise-new-frame-h ()
+  "Bring a newly created graphical frame to the front."
+  (when (display-graphic-p)
+    (select-frame-set-input-focus (selected-frame))))
+(add-hook 'server-after-make-frame-hook #'+raise-new-frame-h)
+
+;; ── Stale panes on a fresh frame ────────────────────────────────────
+;; Doom's :ui workspaces (persp-mode) restores the perspective's window
+;; configuration into EVERY new frame. That is what you want for real
+;; work -- your files come back. It is not what you want for a transient
+;; pane: close the frame mid-LeetCode and the next one opens with the
+;; dashboard on one side and a leftover *leetcode-result-N* on the other,
+;; the code and statement buffers having been killed in between.
+;;
+;; The rule is narrow on purpose. It fires only on a NEW frame, only when
+;; the dashboard is present -- which is precisely the "nothing is going on
+;; here yet" signal -- and only closes LeetCode's own transient panes. A
+;; frame you are actually working in never shows the dashboard, so a real
+;; layout is never touched.
+(defun +dismiss-stale-panes-h ()
+  "Collapse a restored layout that holds nothing but leftovers.
+A window is a leftover when it shows the dashboard -- the buffer every
+window falls back to once its own was killed -- or one of LeetCode's
+transient panes. If EVERY window in the frame is one of those, there is
+nothing to preserve and the frame becomes a single dashboard.
+
+The condition has to cover both shapes, because they are the same
+accident at different stages: right after closing the frame the panes
+still hold *leetcode-result-N*, and once those buffers are killed the
+windows survive showing *doom* twice over."
+  (let ((wins (window-list)))
+    (when (and (> (length wins) 1)
+               (seq-every-p
+                (lambda (w)
+                  (let ((b (window-buffer w)))
+                    (or (eq b (doom-fallback-buffer))
+                        (string-match-p "\\`\\*leetcode" (buffer-name b)))))
+                wins))
+      (when-let ((keep (seq-find (lambda (w) (eq (window-buffer w) (doom-fallback-buffer)))
+                                 wins)))
+        (ignore-errors (delete-other-windows keep))))))
+(add-hook 'server-after-make-frame-hook #'+dismiss-stale-panes-h)
+
+;; ── One workspace per project ───────────────────────────────────────
+;; Doom already creates a workspace named after the project when you
+;; switch to one, and switches BACK to it if it exists rather than making
+;; a second -- `+workspaces-switch-to-project-h' matches on the stored
+;; project root, not just the name.
+;;
+;; What stopped it here was the default `non-empty': from a workspace
+;; with no buffers yet, Doom recycles the current one instead of spawning
+;; a dedicated one. That is the common case right after starting Emacs --
+;; open your first project of the day and it lands in `main'.
+;;
+;; `t' means "always a dedicated workspace". The reuse of an existing one
+;; is unaffected: that branch runs before this setting is consulted.
+(setq +workspaces-on-switch-project-behavior t)
+
+;; ── C-x C-c closes the window, not Emacs ────────────────────────────
+;; With the daemon, `C-x C-c' doesn't quit Emacs. It goes through
+;; `server-save-buffers-kill-terminal', and for a frame opened with
+;; `emacsclient -n' (all of mine, the launcher passes -n) that does:
+;;
+;;   (save-some-buffers arg)   <- arg is nil, so it ASKS, file by
+;;                                file, in the minibuffer
+;;   (delete-frame)
+;;
+;; Hence the "it's stuck" feeling: the frame won't close until every
+;; question is answered, in a minibuffer you're not necessarily looking at.
+;;
+;; Those questions make no sense here. We're closing a WINDOW, not Emacs:
+;; buffers stay alive in the daemon, nothing is lost, they're right there
+;; in the next frame.
+;;
+;; Really quitting is still possible, on purpose: SPC q K.
+(defun +close-frame-not-emacs ()
+  "Close this frame, leaving the daemon and its buffers alone.
+Falls back to the standard behaviour outside a daemon, where closing the
+last frame really does mean quitting."
+  (interactive)
+  (if (and (daemonp) (frame-parameter nil 'client))
+      ;; FORCE, and it is not optional. `delete-frame' without it refuses
+      ;; to remove what it considers the last visible frame -- and on a
+      ;; daemon the initial terminal frame does not count as visible, so
+      ;; your only graphical frame IS the last one. Measured: the plain
+      ;; call does not merely refuse, it wedges the daemon, twice over,
+      ;; needing a SIGKILL. With FORCE it returns immediately, and the
+      ;; daemon staying alive with no frame is exactly the normal state.
+      (delete-frame nil t)
+    (save-buffers-kill-terminal)))
+
+(map! "C-x C-c" #'+close-frame-not-emacs)
+
 (add-hook 'after-save-hook #'evil-normal-state)
 
 ;; ── Large-file guard ────────────────────────────────────────────────
