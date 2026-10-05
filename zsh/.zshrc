@@ -270,3 +270,28 @@ if [[ -o interactive && -z $FASTFETCH_SHOWN ]] && command -v fastfetch >/dev/nul
   export FASTFETCH_SHOWN=1
   fastfetch
 fi
+
+# ══════════════════════════════════════════════════════════════════════
+#  herdr tab startup command
+#
+#  herdr-open-project creates each tab with HERDR_TAB_CMD in its env,
+#  and this is where that command starts.
+#
+#  Why not herdr-plus's way: it TYPES the command into the fresh shell's
+#  prompt and sends Enter. That races and loses regularly: the text
+#  shows up before ZLE is ready, or lands mid-redraw and
+#  zsh-syntax-highlighting recurses forever (zsh at 100% CPU, prompt
+#  frozen, command shown but never run). That's exactly the "just the
+#  command and no terminal" symptom. Here there's nothing to type, the
+#  var is already there before the first prompt.
+#
+#  `unset` first: the command gets a clean env and a subshell won't run
+#  it again. When it exits it hands back to this shell, so the tab
+#  stays usable.
+# ══════════════════════════════════════════════════════════════════════
+if [[ -o interactive && -n ${HERDR_TAB_CMD:-} ]]; then
+  _herdr_tab_cmd=$HERDR_TAB_CMD
+  unset HERDR_TAB_CMD
+  eval "$_herdr_tab_cmd"
+  unset _herdr_tab_cmd
+fi

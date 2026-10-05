@@ -1,12 +1,24 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # ─────────────────────────────────────────────────────────────────────
-# herdr-open-project <name> — opens a herdr-plus template, OR focuses it
-# if it's already open.
+# herdr-open-project <name> — opens a herdr-plus template, OR focuses
+# it if it's already open.
 #
-# Why: `herdr-plus open <name>` always calls workspaceCreate (checked in
-# projects.go). Fine for a one-off project, but for a base space I go back
-# to ten times a day it piles up duplicates. So look for an existing space
-# first.
+# Two reasons to exist instead of just calling `herdr-plus open`:
+#
+# 1. `herdr-plus open` always calls workspaceCreate. For a base space I
+#    go back to ten times a day, it piles up duplicates. So look for an
+#    existing space first.
+#
+# 2. herdr-plus runs tab commands by TYPING them into the prompt of the
+#    shell that just started, then sending Enter. Two races it often
+#    loses: the text lands before ZLE is ready, or it lands during a
+#    redraw and zsh-syntax-highlighting recurses forever (zsh at 100%
+#    CPU, prompt frozen, command shown but never run). That's the "just
+#    the command and no terminal" symptom.
+#
+#    Here the command rides in the pane's ENVIRONMENT (HERDR_TAB_CMD,
+#    set at creation with --env) and ~/.zshrc runs it before the first
+#    prompt. Nothing to type, so nothing to miss.
 #
 # The automatic-rename plugin prefixes labels with "[N] ", the match
 # ignores that prefix.
@@ -14,58 +26,206 @@
 #   herdr-open-project quotidien
 #   herdr-open-project --new quotidien   force a new space
 # ─────────────────────────────────────────────────────────────────────
-set -euo pipefail
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
 
-FORCE_NEW=0
-[[ "${1:-}" == "--new" ]] && { FORCE_NEW=1; shift; }
-NAME="${1:-}"
-[[ -n $NAME ]] || { echo "usage: herdr-open-project [--new] <nom-du-template>" >&2; exit 1; }
+# tomllib only exists from Python 3.11, and a herdr `type = "shell"`
+# binding runs detached: its PATH can easily hit macOS /usr/bin/python3
+# first, which is 3.9. Instead of failing on import, re-exec on a newer
+# interpreter.
+if sys.version_info < (3, 11):
+    for _cand in ("python3.13", "python3.12", "python3.11",
+                  "/opt/homebrew/bin/python3.13", "/opt/homebrew/bin/python3"):
+        _py = shutil.which(_cand) or (_cand if os.path.isfile(_cand) else None)
+        if not _py:
+            continue
+        _probe = subprocess.run([_py, "-c", "import tomllib"], capture_output=True)
+        if _probe.returncode == 0:
+            os.execv(_py, [_py, os.path.abspath(__file__), *sys.argv[1:]])
+    print("aucun Python >= 3.11 (tomllib) trouve", file=sys.stderr)
+    sys.exit(1)
 
-# Don't require HERDR_ENV: a `type = "shell"` binding doesn't always pass
-# the pane context. What's really needed is the socket. herdr-plus reads
-# it from HERDR_SOCKET_PATH, so set it if it's missing.
-if [[ -z ${HERDR_SOCKET_PATH:-} ]]; then
-  default_sock="${XDG_CONFIG_HOME:-$HOME/.config}/herdr/herdr.sock"
-  [[ -S $default_sock ]] || { echo "serveur herdr injoignable" >&2; exit 1; }
-  export HERDR_SOCKET_PATH="$default_sock"
-fi
-[[ -S $HERDR_SOCKET_PATH ]] || { echo "socket herdr absente : $HERDR_SOCKET_PATH" >&2; exit 1; }
+import tomllib
 
-PY=$(command -v python3.13 || command -v /opt/homebrew/bin/python3 || command -v python3)
 
-# Does an existing space have this name? (label stripped of "[N] ")
-if [[ $FORCE_NEW -eq 0 ]]; then
-  ws=$(herdr workspace list 2>/dev/null | "$PY" -c '
-import json, re, sys
-want = sys.argv[1].casefold()
-try:
-    data = json.load(sys.stdin)["result"]["workspaces"]
-except Exception:
-    sys.exit(0)
-for w in data:
-    label = re.sub(r"^\s*\[\d+\]\s*", "", w.get("label", ""))
-    if label.casefold() == want:
-        print(w["workspace_id"]); break
-' "$NAME")
-  if [[ -n ${ws:-} ]]; then
-    herdr workspace focus "$ws" >/dev/null
-    echo "focus $NAME ($ws)"
-    exit 0
-  fi
-fi
+def die(*msg):
+    print(*msg, file=sys.stderr)
+    sys.exit(1)
 
-# Otherwise build it with herdr-plus. Its path changes on every reinstall,
-# so resolve it through the API instead of hardcoding it.
-ROOT=$(herdr plugin list --json 2>/dev/null | "$PY" -c '
-import json, sys
-try:
-    for p in json.load(sys.stdin)["result"]["plugins"]:
-        if p.get("plugin_id") == "cloudmanic.herdr-plus":
-            print(p["plugin_root"]); break
-except Exception:
-    pass
-')
-[[ -n ${ROOT:-} && -x "$ROOT/bin/herdr-plus" ]] || {
-  echo "herdr-plus introuvable — herdr plugin install cloudmanic/herdr-plus" >&2; exit 1; }
 
-exec "$ROOT/bin/herdr-plus" open "$NAME"
+def herdr(*args):
+    """herdr CLI call, JSON result."""
+    out = subprocess.run(
+        ["herdr", *args], capture_output=True, text=True
+    ).stdout.strip()
+    try:
+        data = json.loads(out.splitlines()[-1])
+    except Exception:
+        die(f"reponse herdr illisible pour {' '.join(args)} : {out[:200]}")
+    if "error" in data:
+        die(f"herdr {' '.join(args)} : {data['error']}")
+    return data.get("result", {})
+
+
+def ensure_socket():
+    """A `type = "shell"` binding runs detached, it doesn't always get
+    the pane context. What's really needed is the socket, herdr reads
+    it from HERDR_SOCKET_PATH."""
+    if os.environ.get("HERDR_SOCKET_PATH"):
+        return
+    default = os.path.join(
+        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
+        "herdr", "herdr.sock",
+    )
+    if not os.path.exists(default):
+        die("serveur herdr injoignable")
+    os.environ["HERDR_SOCKET_PATH"] = default
+
+
+def find_workspace(name):
+    """Already open space with this name (label stripped of "[N] ")."""
+    for w in herdr("workspace", "list").get("workspaces", []):
+        label = re.sub(r"^\s*\[\d+\]\s*", "", w.get("label", ""))
+        if label.casefold() == name.casefold():
+            return w["workspace_id"]
+    return None
+
+
+def projects_dir():
+    out = subprocess.run(
+        ["herdr", "plugin", "config-dir", "cloudmanic.herdr-plus"],
+        capture_output=True, text=True,
+    ).stdout.strip().splitlines()
+    if not out:
+        die("herdr-plus introuvable — herdr plugin install cloudmanic/herdr-plus")
+    return os.path.join(out[-1], "projects")
+
+
+def load_template(name):
+    d = projects_dir()
+    if not os.path.isdir(d):
+        die(f"repertoire de templates absent : {d}")
+    exact, loose, names = None, None, []
+    for fn in sorted(os.listdir(d)):
+        if not fn.endswith(".toml"):
+            continue
+        with open(os.path.join(d, fn), "rb") as fh:
+            try:
+                t = tomllib.load(fh)
+            except Exception:
+                continue
+        n = t.get("name")
+        if not n:
+            continue
+        names.append(n)
+        if n == name:
+            exact = t
+        elif n.casefold() == name.casefold() and loose is None:
+            loose = t
+    t = exact or loose
+    if t is None:
+        die(f"aucun projet nomme « {name} » ; disponibles : {', '.join(names)}")
+    return t
+
+
+def expand(path):
+    return os.path.expanduser(os.path.expandvars(path))
+
+
+def env_args(command):
+    """`--env` only if there's a command: a tab without one must stay
+    a bare shell."""
+    command = (command or "").strip()
+    return ["--env", f"HERDR_TAB_CMD={command}"] if command else []
+
+
+def panes_of(tab):
+    """A tab is either a single command or a list of panes. Turn both
+    into a list."""
+    panes = tab.get("panes")
+    if panes:
+        return panes
+    return [{"command": tab.get("command", "")}]
+
+
+def main():
+    argv = sys.argv[1:]
+    force_new = False
+    if argv and argv[0] == "--new":
+        force_new = True
+        argv = argv[1:]
+    if not argv or not argv[0].strip():
+        die("usage: herdr-open-project [--new] <nom-du-template>")
+    name = argv[0].strip()
+
+    ensure_socket()
+
+    if not force_new:
+        ws = find_workspace(name)
+        if ws:
+            herdr("workspace", "focus", ws)
+            print(f"focus {name} ({ws})")
+            return
+
+    tpl = load_template(name)
+    cwd = expand(tpl.get("working_dir") or "~")
+    if not os.path.isdir(cwd):
+        die(f"working directory inexistant : {cwd}")
+    tabs = tpl.get("tabs") or [{"name": tpl.get("name", name)}]
+
+    # ── The space and its root tab ───────────────────────────────────
+    first = tabs[0]
+    first_panes = panes_of(first)
+    res = herdr(
+        "workspace", "create", "--cwd", cwd, "--label", tpl.get("name", name),
+        "--focus", *env_args(first_panes[0].get("command")),
+    )
+    ws = res.get("workspace", {}).get("workspace_id") or res.get("workspace_id")
+    root_tab = (res.get("tab") or {}).get("tab_id") or res.get("tab_id")
+    root_pane = (res.get("pane") or res.get("root_pane") or {}).get("pane_id")
+    if not ws:
+        die(f"creation du space impossible : {res}")
+
+    if root_tab and first.get("name"):
+        herdr("tab", "rename", root_tab, first["name"])
+    layout_panes(root_pane, first_panes[1:], first.get("name"))
+
+    # ── The next tabs, no focus: the first one stays in front ────────
+    for tab in tabs[1:]:
+        panes = panes_of(tab)
+        res = herdr(
+            "tab", "create", "--workspace", ws, "--label", tab.get("name", ""),
+            "--cwd", cwd, "--no-focus", *env_args(panes[0].get("command")),
+        )
+        pane = (res.get("root_pane") or {}).get("pane_id")
+        layout_panes(pane, panes[1:], tab.get("name"))
+
+    print(f"opened {tpl.get('name', name)} ({ws})")
+
+
+def layout_panes(prev_pane, panes, tab_name):
+    """A tab's extra panes: each one splits off the previous one,
+    "down" by default like herdr-plus."""
+    for pane in panes:
+        if not prev_pane:
+            return
+        direction = (pane.get("split") or "down").strip()
+        args = ["pane", "split", "--pane", prev_pane, "--direction", direction,
+                "--no-focus", *env_args(pane.get("command"))]
+        if pane.get("ratio"):
+            args += ["--ratio", str(pane["ratio"])]
+        res = herdr(*args)
+        new_pane = (res.get("pane") or {}).get("pane_id") or res.get("pane_id")
+        label = (pane.get("label") or "").strip()
+        if new_pane and label:
+            subprocess.run(["herdr", "pane", "rename", new_pane, label],
+                           capture_output=True, text=True)
+        prev_pane = new_pane
+
+
+if __name__ == "__main__":
+    main()

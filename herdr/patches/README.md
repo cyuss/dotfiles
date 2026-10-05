@@ -117,3 +117,29 @@ Si le correctif ne s'applique plus (le code amont a bouge), le repli est
 l'arborescence. Rien ne casse.
 
 Base du correctif : `b94ef1e`.
+
+## navigator-tab-env.patch
+
+A appliquer APRES `navigator-tab-children.patch`.
+
+Symptome : un projet ouvert depuis le navigator (Ctrl-P, prefix+p) cree
+bien ses tabs (« agent », « code »), mais rien ne demarre. Dans « code »,
+`nvim .` reste affiche au prompt, jamais lance. `ps` montre un
+`oh-my-posh print primary` par pane, bloque a 100 % CPU.
+
+Cause : le plugin creait les panes puis TAPAIT les commandes avec
+`herdr pane run`, alors que zsh demarrait encore. C'est la meme course
+que celle deja contournee dans `workflow-tools/herdr-open-project`.
+
+Correctif : meme mecanique que `herdr-open-project`. La commande part
+dans l'environnement du pane (`--env HERDR_TAB_CMD=...` sur
+`workspace create`, `tab create` et `pane split`) et `~/.zshrc` la lance
+avant le premier prompt. Plus aucun `pane run`.
+
+| Fichier | Modification |
+|---|---|
+| `src/herdr.rs` | `herdr_json_args()` : appel CLI avec une liste d'arguments construite a l'execution |
+| `src/integrations/herdr_plus.rs` | `command_env_args()`, `first_pane_command()` ; `build_project_tabs` passe `--env` (et `--cwd` aux splits) ; test adapte |
+| `src/app.rs` | `open_project` et `focus_or_create_dir` passent la commande du 1er pane a `workspace create` |
+
+Reconstruire : `cargo build --release` dans le depot du plugin.

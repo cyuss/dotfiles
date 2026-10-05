@@ -1,0 +1,303 @@
+diff --git i/src/app.rs w/src/app.rs
+index 35b0c3b..189e96e 100644
+--- i/src/app.rs
++++ w/src/app.rs
+@@ -6,7 +6,7 @@ use std::{
+ 
+ use crate::{
+     config::Config,
+-    herdr::{herdr_json, notify_done, notify_error, run_herdr, run_herdr_quiet},
++    herdr::{herdr_json, herdr_json_args, notify_done, notify_error, run_herdr, run_herdr_quiet},
+     integrations::{command, herdr_plus, sessions},
+     matcher::Scorer,
+     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
+@@ -445,15 +445,19 @@ impl App {
+             project.map(|p| p.name.as_str()).unwrap_or(&e.title),
+             self.config.picker.prefix_workspace_labels,
+         );
+-        let json = herdr_json([
+-            "workspace",
+-            "create",
+-            "--cwd",
+-            &e.path.display().to_string(),
+-            "--label",
+-            &label,
+-            "--focus",
+-        ])?;
++        let mut args: Vec<String> = vec![
++            "workspace".into(),
++            "create".into(),
++            "--cwd".into(),
++            e.path.display().to_string(),
++            "--label".into(),
++            label,
++            "--focus".into(),
++        ];
++        args.extend(herdr_plus::command_env_args(
++            project.and_then(herdr_plus::first_pane_command).as_deref(),
++        ));
++        let json = herdr_json_args(&args)?;
+         self.record_created_workspace(&json, WorkspaceKind::Project);
+         if let Some(p) = project {
+             herdr_plus::bootstrap_project_tabs(p, &json, &e.path)?;
+@@ -483,19 +487,23 @@ impl App {
+                 run_herdr(["workspace", "focus", &workspace_id])?;
+                 return herdr_plus::append_project_tabs(&template, &workspace_id, path);
+             }
+-            let json = herdr_json([
+-                "workspace",
+-                "create",
+-                "--cwd",
+-                &path.display().to_string(),
+-                "--label",
+-                &created_workspace_label(
++            let mut args: Vec<String> = vec![
++                "workspace".into(),
++                "create".into(),
++                "--cwd".into(),
++                path.display().to_string(),
++                "--label".into(),
++                created_workspace_label(
+                     WorkspaceKind::Dir,
+                     label,
+                     self.config.picker.prefix_workspace_labels,
+                 ),
+-                "--focus",
+-            ])?;
++                "--focus".into(),
++            ];
++            args.extend(herdr_plus::command_env_args(
++                herdr_plus::first_pane_command(&template).as_deref(),
++            ));
++            let json = herdr_json_args(&args)?;
+             self.record_created_workspace(&json, WorkspaceKind::Dir);
+             return herdr_plus::bootstrap_project_tabs(&template, &json, path);
+         }
+diff --git i/src/herdr.rs w/src/herdr.rs
+index 2fbd9e3..52179ff 100644
+--- i/src/herdr.rs
++++ w/src/herdr.rs
+@@ -21,6 +21,19 @@ pub(crate) fn herdr_json<const N: usize>(args: [&str; N]) -> Result<Value, Strin
+     }
+     serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())
+ }
++/// Same as `herdr_json`, for argument lists built at runtime (optional
++/// `--env` flags).
++pub(crate) fn herdr_json_args(args: &[String]) -> Result<Value, String> {
++    let out = Command::new(herdr_bin())
++        .args(args)
++        .output()
++        .map_err(|e| e.to_string())?;
++    if !out.status.success() {
++        return Err(String::from_utf8_lossy(&out.stderr).to_string());
++    }
++    serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())
++}
++
+ pub(crate) fn run_herdr<const N: usize>(args: [&str; N]) -> Result<(), String> {
+     let status = Command::new(herdr_bin())
+         .args(args)
+diff --git i/src/integrations/herdr_plus.rs w/src/integrations/herdr_plus.rs
+index 4697f08..d7841c1 100644
+--- i/src/integrations/herdr_plus.rs
++++ w/src/integrations/herdr_plus.rs
+@@ -7,7 +7,7 @@ use std::{
+ use serde_json::Value;
+ 
+ use crate::{
+-    herdr::{herdr_json, run_herdr},
++    herdr::{herdr_json_args, run_herdr},
+     model::{Entry, EntryAction, Project, Source},
+     paths::{expand_path, herdr_plus_projects_dir, home},
+ };
+@@ -118,61 +118,94 @@ pub(crate) fn append_project_tabs(
+     build_project_tabs(project, workspace_id, None, cwd)
+ }
+ 
++/// Local patch: pane commands travel in the pane ENVIRONMENT
++/// (`HERDR_TAB_CMD`, set at creation with `--env`) and ~/.zshrc runs them
++/// before the first prompt. Upstream typed them with `herdr pane run`
++/// right after creation: the text raced the shell startup (ZLE not ready,
++/// oh-my-posh spinning at 100 % CPU) and the command stayed displayed but
++/// never ran.
++pub(crate) const TAB_CMD_ENV: &str = "HERDR_TAB_CMD";
++
++pub(crate) fn command_env_args(command: Option<&str>) -> Vec<String> {
++    match command.map(str::trim).filter(|command| !command.is_empty()) {
++        Some(command) => vec!["--env".into(), format!("{TAB_CMD_ENV}={command}")],
++        None => Vec::new(),
++    }
++}
++
++/// Command of the first pane of the first tab — the pane that
++/// `workspace create` spawns, so it must be passed there.
++pub(crate) fn first_pane_command(project: &Project) -> Option<String> {
++    project
++        .tabs
++        .first()
++        .and_then(|tab| tab.effective_panes().into_iter().next())
++        .and_then(|pane| pane.command)
++}
++
+ fn build_project_tabs(
+     project: &Project,
+     workspace_id: &str,
+     first_root: Option<&str>,
+     cwd: &Path,
+ ) -> Result<(), String> {
+-    let mut runs = Vec::new();
+-
+     for (tab_index, tab) in project.tabs.iter().enumerate() {
++        let panes = tab.effective_panes();
++        let first_command = panes.first().and_then(|pane| pane.command.as_deref());
+         let tab_root = match (tab_index, first_root) {
+             (0, Some(root_pane)) => {
+                 let _ = run_herdr(["tab", "rename", &format!("{workspace_id}:t1"), &tab.name]);
+                 root_pane.to_string()
+             }
+-            _ => herdr_json([
+-                "tab",
+-                "create",
+-                "--workspace",
+-                workspace_id,
+-                "--cwd",
+-                &cwd.display().to_string(),
+-                "--label",
+-                &tab.name,
+-                "--no-focus",
+-            ])?
+-            .pointer("/result/root_pane/pane_id")
+-            .and_then(|v| v.as_str())
+-            .ok_or_else(|| format!("tab create did not return root pane for {}", tab.name))?
+-            .to_string(),
++            _ => {
++                let mut args: Vec<String> = vec![
++                    "tab".into(),
++                    "create".into(),
++                    "--workspace".into(),
++                    workspace_id.into(),
++                    "--cwd".into(),
++                    cwd.display().to_string(),
++                    "--label".into(),
++                    tab.name.clone(),
++                    "--no-focus".into(),
++                ];
++                args.extend(command_env_args(first_command));
++                herdr_json_args(&args)?
++                    .pointer("/result/root_pane/pane_id")
++                    .and_then(|v| v.as_str())
++                    .ok_or_else(|| format!("tab create did not return root pane for {}", tab.name))?
++                    .to_string()
++            }
+         };
+ 
+         let mut previous_pane = tab_root.clone();
+-        for (pane_index, pane) in tab.effective_panes().iter().enumerate() {
++        for (pane_index, pane) in panes.iter().enumerate() {
+             let pane_id = if pane_index == 0 {
+                 tab_root.clone()
+             } else {
+                 let direction = pane.split.as_deref().unwrap_or("down");
+-                herdr_json([
+-                    "pane",
+-                    "split",
+-                    &previous_pane,
+-                    "--direction",
+-                    direction,
+-                    "--no-focus",
+-                ])?
+-                .pointer("/result/pane/pane_id")
+-                .and_then(|v| v.as_str())
+-                .ok_or_else(|| {
+-                    format!(
+-                        "pane split did not return pane {} for {}",
+-                        pane_index + 1,
+-                        tab.name
+-                    )
+-                })?
+-                .to_string()
++                let mut args: Vec<String> = vec![
++                    "pane".into(),
++                    "split".into(),
++                    previous_pane.clone(),
++                    "--direction".into(),
++                    direction.into(),
++                    "--cwd".into(),
++                    cwd.display().to_string(),
++                    "--no-focus".into(),
++                ];
++                args.extend(command_env_args(pane.command.as_deref()));
++                herdr_json_args(&args)?
++                    .pointer("/result/pane/pane_id")
++                    .and_then(|v| v.as_str())
++                    .ok_or_else(|| {
++                        format!(
++                            "pane split did not return pane {} for {}",
++                            pane_index + 1,
++                            tab.name
++                        )
++                    })?
++                    .to_string()
+             };
+             if let Some(label) = pane
+                 .label
+@@ -181,20 +214,9 @@ fn build_project_tabs(
+             {
+                 let _ = run_herdr(["pane", "rename", &pane_id, label.trim()]);
+             }
+-            if let Some(command) = pane
+-                .command
+-                .as_deref()
+-                .filter(|command| !command.trim().is_empty())
+-            {
+-                runs.push((pane_id.clone(), command.to_string()));
+-            }
+             previous_pane = pane_id;
+         }
+     }
+-
+-    for (pane, command) in runs {
+-        let _ = run_herdr(["pane", "run", &pane, &command]);
+-    }
+     Ok(())
+ }
+ 
+@@ -268,7 +290,7 @@ split = "right"
+ 
+     #[cfg(unix)]
+     #[test]
+-    fn bootstraps_split_panes_before_running_commands() {
++    fn passes_pane_commands_through_env() {
+         use std::{
+             env,
+             os::unix::fs::PermissionsExt,
+@@ -357,15 +379,12 @@ command = "tail"
+             bootstrap_calls.lines().collect::<Vec<_>>(),
+             vec![
+                 "tab rename w1:t1 agent",
+-                "tab create --workspace w1 --cwd /tmp/project --label server --no-focus",
++                "tab create --workspace w1 --cwd /tmp/project --label server --no-focus --env HERDR_TAB_CMD=serve",
+                 "pane rename w1:p2 Server",
+-                "pane split w1:p2 --direction right --no-focus",
++                "pane split w1:p2 --direction right --cwd /tmp/project --no-focus",
+                 "pane rename w1:p3 Terminal",
+-                "pane split w1:p3 --direction down --no-focus",
++                "pane split w1:p3 --direction down --cwd /tmp/project --no-focus --env HERDR_TAB_CMD=tail",
+                 "pane rename w1:p4 Logs",
+-                "pane run w1:p1 claude",
+-                "pane run w1:p2 serve",
+-                "pane run w1:p4 tail",
+             ]
+         );
+         append_result.unwrap();
+@@ -373,8 +392,8 @@ command = "tail"
+         assert_eq!(
+             &append_calls[..2],
+             &[
+-                "tab create --workspace w1 --cwd /tmp/project --label agent --no-focus",
+-                "tab create --workspace w1 --cwd /tmp/project --label server --no-focus",
++                "tab create --workspace w1 --cwd /tmp/project --label agent --no-focus --env HERDR_TAB_CMD=claude",
++                "tab create --workspace w1 --cwd /tmp/project --label server --no-focus --env HERDR_TAB_CMD=serve",
+             ]
+         );
+         assert!(!append_calls
