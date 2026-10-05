@@ -9,7 +9,21 @@
 # (Emacs scripts, herdr, launchd, `zsh -c`). Don't put it back here.
 
 # ── Prompt ────────────────────────────────────────────────────────────
-eval "$(oh-my-posh init zsh --config ~/oh-my-posh-themes/amro.omp.json)"
+# Guard: when macOS denies access to the current dir ("Files and Folders"
+# protection on ~/Desktop, ~/Documents...), getcwd() fails and zsh sets
+# PWD="." instead of an absolute path. oh-my-posh then walks up the
+# parents of "." forever: 100% CPU, no prompt, empty pane.
+# Seen 2026-09-28 in herdr: a herdr server started BEFORE Alacritty got
+# Desktop access keeps that denial for its whole lifetime.
+# Fix: restart the herdr server from Alacritty (herdr server stop).
+if [[ $PWD == /* ]]; then
+  eval "$(oh-my-posh init zsh --config ~/oh-my-posh-themes/amro.omp.json)"
+else
+  print -P "%F{red}acces refuse au dossier courant (protection macOS).%f"
+  print -P "%F{red}Dans herdr, rouvrir le space ne suffit PAS : c'est le SERVEUR qu'il faut relancer.%f"
+  print -P "%F{red}  1. herdr server stop   2. dans Alacritty : herdr%f"
+  PROMPT='%F{red}[acces refuse]%f %# '
+fi
 
 # ══════════════════════════════════════════════════════════════════════
 #  Plugins (antidote), replaces antigen (unmaintained since 2021)

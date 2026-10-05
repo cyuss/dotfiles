@@ -359,3 +359,31 @@ lcn() {
       -e "s/{TITLE}/$(tr '-' ' ' <<<"$3")/" "$root/templates/solution.py" > "$dst"
   ${EDITOR:-nvim} "$dst"
 }
+
+# ── brew from an unreadable dir ──────────────────────────────────────
+# Symptom:
+#   Error: The current working directory must be readable to <user> to run brew.
+#
+# Not a Homebrew problem, and not about its permissions. `brew' checks
+# that the current dir is readable at startup, whatever the command. On
+# macOS ~/Desktop is protected by TCC: until Alacritty gets "Desktop
+# Folder" access, everything under ~/Desktop is unreadable for the
+# terminal, so for brew too. Since all projects live there the error
+# looks global, but it only hits that tree (checked: Documents,
+# Downloads, Pictures, Library, /tmp, /opt/homebrew all answer fine).
+#
+# The current dir doesn't matter for update / upgrade / install /
+# search / info. So fall back to $HOME, ONLY when the current dir is
+# unreadable: if `.' is readable nothing changes, `brew bundle' with a
+# local Brewfile included. The `cd' runs in a subshell, your shell
+# doesn't move.
+#
+# Remove once TCC access is granted. It's a workaround, not the fix.
+brew() {
+  if [[ -r . ]]; then
+    command brew "$@"
+  else
+    printf '\033[2m(brew : %s illisible, execute depuis %s)\033[0m\n' "$PWD" "$HOME" >&2
+    (cd "$HOME" && command brew "$@")
+  fi
+}

@@ -75,3 +75,22 @@ export VISUAL="emacsclient -c -a ''"
 # ── Misc ──────────────────────────────────────────────────────────────
 export TESSDATA_PREFIX=/opt/homebrew/share/tessdata
 export BAT_THEME="ansi"
+
+# ── File descriptors ──────────────────────────────────────────────────
+# macOS starts at 256 (launchctl limit maxfiles) and herdr passes its own
+# limit (8192) to the panes it spawns. opencode won't start below some
+# threshold ("possibly due to low max file descriptors"), so a project's
+# "agent" tab opened on an error.
+#
+# The hard limit is unlimited on this machine, so raising the soft one
+# needs no privileges. Here and not in .zshrc because .zshenv is also
+# read by non-interactive shells (scripts, launchd, `zsh -c`).
+if [[ $(ulimit -n) -lt 65536 ]]; then
+  ulimit -n 65536 2>/dev/null || true
+fi
+
+# brew upgrade deletes the old herdr version while the server is still
+# running from it. macOS can't find the binary anymore and then denies
+# ~/Desktop to every pane ("Operation not permitted"). So keep the old
+# version on disk (clean up by hand: brew cleanup herdr).
+export HOMEBREW_NO_CLEANUP_FORMULAE=herdr
