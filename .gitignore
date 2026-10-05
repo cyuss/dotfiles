@@ -124,3 +124,8 @@ zsh/.zcompdump*
 
 # macOS
 .DS_Store
+
+# herdr: agent socket and session snapshots (runtime state, private
+# project paths)
+herdr/*.sock.*
+herdr/session-snapshots/
