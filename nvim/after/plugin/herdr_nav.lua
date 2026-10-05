@@ -1,10 +1,10 @@
--- herdr <-> Neovim : <C-h/j/k/l> traverse les splits nvim ET les panes herdr.
+-- herdr <-> Neovim: <C-h/j/k/l> moves across nvim splits and herdr panes.
 --
--- Charge le fichier fourni par le plugin herdr `vim-herdr-navigation`.
--- Le chemin contient un hash qui change à chaque mise à jour du plugin,
--- donc on le résout au glob plutôt que de le coder en dur.
+-- Loads the file shipped by the herdr plugin `vim-herdr-navigation`.
+-- The path has a hash that changes on every plugin update,
+-- so we glob for it instead of hardcoding it.
 --
--- Placé dans after/plugin/ pour passer APRÈS les mappings <C-hjkl> de LazyVim.
+-- Lives in after/plugin/ so it runs AFTER LazyVim's <C-hjkl> mappings.
 
 local matches = vim.fn.glob(
   vim.fn.expand("~/.config/herdr/plugins/github/vim-herdr-navigation-*/editor/nvim.lua"),

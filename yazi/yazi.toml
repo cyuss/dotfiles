@@ -1,5 +1,5 @@
 [mgr]
-# Colonnes: parent / current / preview
+# Columns: parent / current / preview
 ratio = [1, 4, 3]
 sort_by = "mtime"
 sort_sensitive = false
@@ -14,12 +14,12 @@ max_height = 2000
 cache_dir = "~/.cache/yazi"
 
 [opener]
-# Ouvrir avec l’app par défaut macOS
+# Open with the default macOS app
 open = [
   { run = 'open "$@"', desc = "Open", for = "macos" },
 ]
 
-# Ouvrir dans ton éditeur (Emacsclient si tu veux)
+# Open in your editor (emacsclient if you want)
 edit = [
   { run = '${EDITOR:-vim} "$@"', desc = "Edit", for = "unix" },
 ]

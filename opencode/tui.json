@@ -1,11 +1,11 @@
 {
   "$schema": "https://opencode.ai/tui.json",
 
-  // "system" = opencode hérite des 16 couleurs du terminal.
-  // Résultat : cohérence parfaite avec le thème Alacritty (premium-noir).
+  // "system" = opencode uses the terminal's 16 colors.
+  // So it matches the Alacritty theme (premium-noir) exactly.
   "theme": "system",
 
-  // ── Confort de lecture ──────────────────────────────────────────────
+  // ── Readability ─────────────────────────────────────────────────────
   "diff_style": "auto",
   "scroll_speed": 3,
   "scroll_acceleration": { "enabled": true },
@@ -19,7 +19,7 @@
     "max_width": "auto"
   },
 
-  // ── Notifications quand l'agent a besoin de toi ─────────────────────
+  // ── Notify me when the agent needs me ───────────────────────────────
   "attention": {
     "enabled": true,
     "notifications": true,
@@ -27,17 +27,17 @@
     "volume": 0.35
   },
 
-  // ── Clavier ─────────────────────────────────────────────────────────
+  // ── Keyboard ────────────────────────────────────────────────────────
   "leader_timeout": 800,
   "keybinds": {
     "leader": "ctrl+x",
 
-    // Retour à la ligne sans envoyer. Les 3 formes sont acceptées :
-    // Alacritty envoie ESC+CR (= alt+enter) sur ⇧⏎ et ⌘⏎, et ctrl+j
-    // reste le repli universel (tmux, SSH, terminal sans protocole kitty).
+    // Newline without sending. All 3 forms are accepted:
+    // Alacritty sends ESC+CR (= alt+enter) on ⇧⏎ and ⌘⏎, and ctrl+j is
+    // the universal fallback (tmux, SSH, terminals without kitty protocol).
     "input_newline": ["shift+enter", "alt+enter", "ctrl+j"],
 
-    // Édition de prompt façon readline / macOS
+    // readline / macOS style prompt editing
     "input_line_home": ["ctrl+a", "home"],
     "input_line_end": ["ctrl+e", "end"],
     "input_word_backward": ["alt+arrowleft", "alt+b"],

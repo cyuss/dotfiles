@@ -7,7 +7,7 @@ Icon?
 .Spotlight-V100
 .Trashes
 
-# ── Éditeurs ──
+# ── Editors ──
 *.swp
 *.swo
 *~
@@ -18,7 +18,7 @@ Icon?
 .nvim.lua
 .helix/
 
-# ── Outils ──
+# ── Tools ──
 .direnv/
 .envrc.local
 *.log

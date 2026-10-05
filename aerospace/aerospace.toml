@@ -5,8 +5,8 @@
 # ==================
 # Config version
 # ==================
-# En v2, persistent-workspaces n'est plus deduit des raccourcis clavier
-# (heuristique jugee fragile en amont) : il faut le declarer explicitement.
+# In v2, persistent-workspaces is no longer guessed from keybindings
+# (upstream found that heuristic flaky): you have to declare it.
 config-version = 2
 
 persistent-workspaces = [
@@ -26,10 +26,10 @@ persistent-workspaces = [
 # ==================
 after-login-command = []
 
-# sync_top_gap.sh calculait outer.top a partir de la hauteur de SketchyBar.
-# SketchyBar est desactive (service arrete, LaunchAgent retire) : il n'y a
-# plus de barre a contourner, donc plus rien a synchroniser. outer.top est
-# fixe en dur plus bas, a la meme valeur que les autres marges.
+# sync_top_gap.sh used to compute outer.top from SketchyBar's height.
+# SketchyBar is off (service stopped, LaunchAgent removed), so there's no
+# bar to work around and nothing to sync. outer.top is hardcoded below,
+# same value as the other gaps.
 after-startup-command = []
 
 start-at-login = true
@@ -38,14 +38,14 @@ start-at-login = true
 # ==================
 # Core behavior
 # ==================
-# Normalisation de l'arbre : c'est CE qui range les fenetres toutes seules.
-#   flatten-containers          supprime les conteneurs a un seul enfant, qui
-#                               sinon s'empilent et figent la disposition
-#   opposite-orientation…       un conteneur imbrique prend l'orientation
-#                               inverse de son parent -> vrai pavage, au lieu
-#                               de tout aligner dans le meme sens
-# Les deux etaient a false (les defauts AeroSpace sont true) : l'arbre
-# degenerait au fil des ouvertures et plus rien ne se placait tout seul.
+# Tree normalization: THIS is what lays windows out on its own.
+#   flatten-containers          drops single-child containers, which
+#                               otherwise pile up and freeze the layout
+#   opposite-orientation…       a nested container takes the opposite
+#                               orientation of its parent -> real tiling
+#                               instead of everything in one direction
+# Both were false (AeroSpace defaults are true): the tree went bad as
+# windows opened and nothing placed itself anymore.
 enable-normalization-flatten-containers = true
 enable-normalization-opposite-orientation-for-nested-containers = true
 
@@ -56,14 +56,14 @@ default-root-container-orientation = 'auto'
 
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
-# Le curseur suit la fenetre focalisee. « lazy » = il ne bouge que s'il
-# n'est pas deja dans la fenetre : pas de saut intempestif si tu es a la
-# souris. Evite de chercher son pointeur apres un changement au clavier.
+# Pointer follows the focused window. "lazy" = it only moves if it's
+# not already inside the window, so no random jumps when you're on the
+# mouse. Saves hunting for the pointer after a keyboard switch.
 on-focus-changed = ['move-mouse window-lazy-center']
 
-# Script lance a chaque changement de workspace (rafraichit sketchybar,
-# et tout ce que tu voudras y ajouter). Defensif : ne fait rien si le
-# script est absent.
+# Script run on every workspace change (refreshes sketchybar, plus
+# whatever you want to add). Safe: does nothing if the script is
+# missing.
 exec-on-workspace-change = [
   '/bin/bash', '-c',
   '~/.config/aerospace/scripts/on_workspace_change.sh "$AEROSPACE_FOCUSED_WORKSPACE" "$AEROSPACE_PREV_WORKSPACE" 2>/dev/null || true',
@@ -73,10 +73,10 @@ automatically-unhide-macos-hidden-apps = true
 key-mapping.preset = 'qwerty'
 
 # ══════════════════════════════════════════════════════════════════════
-#  Ancrage des workspaces aux ecrans
-#  Sur un seul ecran, tout retombe dessus : ces regles ne s'activent
-#  qu'au branchement du second. Le travail lourd reste sur l'ultrawide,
-#  la surveillance et le loisir partent sur l'ecran du MacBook.
+#  Pin workspaces to monitors
+#  With one screen everything lands on it: these rules only kick in
+#  when a second one is plugged in. Heavy work stays on the ultrawide,
+#  monitoring and fun stuff go to the MacBook screen.
 # ══════════════════════════════════════════════════════════════════════
 [workspace-to-monitor-force-assignment]
 '01_Main'       = 'main'
@@ -98,9 +98,9 @@ inner.horizontal = 12
 inner.vertical = 12
 outer.left = 12
 outer.right = 12
-outer.top = 12       # symetrique avec les autres marges. macOS reserve deja
-                     # la barre de menus : AeroSpace pose les fenetres sous
-                     # elle, cette valeur ne s'ajoute qu'a l'espace visible.
+outer.top = 12       # same as the other gaps. macOS already reserves the
+                     # menu bar: AeroSpace puts windows below it, this value
+                     # only adds to the visible area.
 outer.bottom = 12
 
 # ==================
@@ -122,9 +122,9 @@ cmd-alt-ctrl-i = 'focus up'
 cmd-alt-ctrl-j = 'focus left'
 cmd-alt-ctrl-k = 'focus down'
 cmd-alt-ctrl-l = 'focus right'
-# cmd-alt-i/j/k/l retires : strictement redondants avec les deux blocs
-# ci-dessus (cmd-alt-ctrl-* et Hyper), et c'etaient les seuls bindings
-# sans ctrl — donc les seuls exposes aux raccourcis applicatifs.
+# cmd-alt-i/j/k/l removed: fully redundant with the two blocks above
+# (cmd-alt-ctrl-* and Hyper), and they were the only bindings without
+# ctrl, so the only ones clashing with app shortcuts.
 
 # --- Focus (arrows) ---
 cmd-alt-ctrl-shift-left = 'focus left'
@@ -148,7 +148,7 @@ cmd-alt-ctrl-shift-g = 'macos-native-fullscreen'
 
 # --- Modes ---
 cmd-alt-ctrl-shift-r = 'mode resize'
-cmd-alt-ctrl-shift-a = 'mode layout'   # t/a/f/h/v/s/g/b/r puis esc
+cmd-alt-ctrl-shift-a = 'mode layout'   # t/a/f/h/v/s/g/b/r then esc
 
 # --- Quick resize presets ---
 cmd-alt-ctrl-shift-y = 'balance-sizes'
@@ -188,18 +188,18 @@ cmd-alt-shift-tab = 'exec-and-forget ~/.config/workflow-tools/appswitcher prev'
 
 
 # ==================
-# Layout mode  (Hyper+A)  — plus besoin de retenir 3 combos Hyper
+# Layout mode  (Hyper+A)  (no need to remember 3 Hyper combos)
 # ==================
 [mode.layout.binding]
-t = ['layout tiles horizontal vertical', 'mode main']   # tuiles
+t = ['layout tiles horizontal vertical', 'mode main']   # tiles
 a = ['layout accordion horizontal vertical', 'mode main']
-f = ['layout floating tiling', 'mode main']             # bascule flottant
+f = ['layout floating tiling', 'mode main']             # toggle floating
 h = ['layout tiles horizontal', 'mode main']            # force horizontal
 v = ['layout tiles vertical', 'mode main']              # force vertical
-s = ['fullscreen', 'mode main']                         # plein ecran (space)
+s = ['fullscreen', 'mode main']                         # fullscreen (space)
 g = ['macos-native-fullscreen', 'mode main']
 b = ['balance-sizes', 'mode main']
-r = ['flatten-workspace-tree', 'mode main']             # remet a plat
+r = ['flatten-workspace-tree', 'mode main']             # flatten
 
 esc = 'mode main'
 enter = 'mode main'
@@ -254,19 +254,19 @@ q = ['close', 'mode main']
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  Regles a l'ouverture d'une fenetre
+#  Rules when a window opens
 #
-#  Choix de conception : on NE route PAS le terminal ni l'editeur.
-#  Une fenetre Alacritty ou Emacs doit s'ouvrir la ou tu travailles,
-#  pas sauter ailleurs — c'etait la raison de ton ancien commentaire
-#  « keep new windows on the current workspace ».
-#  On route seulement les apps « destination » (navigateur, chat, media,
-#  ops) et on fait flotter les utilitaires, ou le gain est sans ambiguite.
+#  Design choice: we do NOT route the terminal or the editor.
+#  An Alacritty or Emacs window should open where you're working,
+#  not jump somewhere else (that was the point of the old comment
+#  "keep new windows on the current workspace").
+#  We only route "destination" apps (browser, chat, media, ops) and
+#  float the utilities, where the win is obvious.
 # ══════════════════════════════════════════════════════════════════════
 
-# ── Utilitaires : flottants, jamais tuiles ────────────────────────────
-# Lanceurs, presse-papiers, HUD, captures : les tuiler n'a aucun sens et
-# casse la mise en page a chaque apparition.
+# ── Utilities: floating, never tiled ──────────────────────────────────
+# Launchers, clipboard managers, HUDs, screenshots: tiling them makes no
+# sense and wrecks the layout every time they pop up.
 [[on-window-detected]]
 if.app-id = 'com.raycast.macos'
 run = ['layout floating']
@@ -295,53 +295,51 @@ run = ['layout floating']
 if.app-id = 'pro.betterdisplay.BetterDisplay'
 run = ['layout floating']
 
-# ── Finder : le BUREAU flotte, les fenetres de dossier se tuilent ─────
+# ── Finder: the DESKTOP floats, folder windows tile ───────────────────
 #
-# Deux familles de fenetres Finder n'ont rien a faire dans le pavage :
+# Two kinds of Finder windows have no business in the tiling:
 #
-#   Desktop / Bureau   macOS expose le bureau comme une fenetre Finder a
-#                      part entiere. Tuilee, elle occupe un emplacement
-#                      pour rien : Finder semble prendre deux places.
-#   Copy / Copie       la fenetre de progression d'une copie. Elle
-#                      apparait, pousse tout le monde, et disparait.
+#   Desktop / Bureau   macOS exposes the desktop as a full Finder
+#                      window. Tiled, it takes a slot for nothing:
+#                      Finder looks like it takes two spots.
+#   Copy / Copie       the copy progress window. It pops up, shoves
+#                      everything around, then goes away.
 #
-# L'ancrage ^...$ evite d'attraper un dossier dont le nom CONTIENT ces
-# mots. Un dossier nomme exactement « Copy » flotterait quand meme —
-# c'est le seul faux positif possible, et il est benin.
+# The ^...$ anchor avoids catching a folder whose name CONTAINS these
+# words. A folder named exactly "Copy" would still float. That's the
+# only possible false positive, and it's harmless.
 #
-# Son window-id change en permanence — macOS la recree — donc rien ne
-# sert de la traiter a la main : seule une regle a la detection tient.
+# The desktop's window-id keeps changing (macOS recreates it), so
+# handling it by hand is pointless: only an on-detect rule sticks.
 #
-# Verification : `aerospace list-windows --all` la fait apparaitre a cote
-# des vraies fenetres de dossier. Un premier controle ne l'avait pas vue,
-# ce qui m'avait fait conclure a tort qu'il n'y avait rien a proteger.
+# Checked: `aerospace list-windows --all` shows it next to the real
+# folder windows. A first check missed it, which made me wrongly
+# conclude there was nothing to protect.
 [[on-window-detected]]
 if.app-id = 'com.apple.finder'
 if.window-title-regex-substring = '^(Desktop|Bureau|Copy|Copie|Move|Deplacement|Déplacement)$'
 run = ['layout floating']
 
-# Les fenetres de DOSSIER, elles, ne sont pas dans la liste des flottants
-# ci-dessus, et c'est un changement assume.
-# Il y figurait par erreur de classement : les entrees ci-dessus sont des
-# fenetres PASSAGERES (lanceur, presse-papiers, capture, HUD) qu'on fait
-# apparaitre puis disparaitre. Finder est une fenetre dans laquelle on
-# TRAVAILLE — la tuiler a exactement le meme sens que tuiler un terminal.
+# FOLDER windows, on the other hand, are not in the floating list above,
+# on purpose. Finder used to be there by mistake: the entries above are
+# SHORT-LIVED windows (launcher, clipboard, screenshot, HUD) that pop up
+# and go away. Finder is a window you WORK in, tiling it makes exactly
+# as much sense as tiling a terminal.
 #
-# Verifie avant de changer : `aerospace list-windows --all` ne rapporte
-# qu'une fenetre Finder (celle du dossier ouvert). Le bureau n'est pas
-# compte comme une fenetre, il n'y a donc rien a proteger ici.
+# Checked before changing: `aerospace list-windows --all` only reports
+# one Finder window (the open folder). The desktop isn't counted as a
+# window, so nothing to protect here.
 #
-# Les boites Ouvrir/Enregistrer de Finder restent flottantes : elles sont
-# couvertes par la regle de titre juste en dessous, qui vaut pour toutes
-# les applications.
+# Finder's Open/Save dialogs stay floating: the title rule right below
+# covers them, and it applies to every app.
 
-# Boites de dialogue (Ouvrir/Enregistrer) : toujours flottantes
+# Dialogs (Open/Save): always floating
 [[on-window-detected]]
 if.window-title-regex-substring = '^(Open|Save|Enregistrer|Ouvrir|Preferences|Reglages)'
 run = ['layout floating']
 check-further-callbacks = true
 
-# ── 06_Web : navigateurs ──────────────────────────────────────────────
+# ── 06_Web: browsers ──────────────────────────────────────────────────
 [[on-window-detected]]
 if.app-id = 'company.thebrowser.Browser'
 run = ['move-node-to-workspace 06_Web']
@@ -358,7 +356,7 @@ run = ['move-node-to-workspace 06_Web']
 if.app-id = 'com.apple.Safari'
 run = ['move-node-to-workspace 06_Web']
 
-# ── 05_I.A : assistants ───────────────────────────────────────────────
+# ── 05_I.A: assistants ────────────────────────────────────────────────
 [[on-window-detected]]
 if.app-id = 'com.anthropic.claudefordesktop'
 run = ['move-node-to-workspace 05_I.A']
@@ -371,7 +369,7 @@ run = ['move-node-to-workspace 05_I.A']
 if.app-id = 'ai.perplexity.mac'
 run = ['move-node-to-workspace 05_I.A']
 
-# ── 03_Work : communication ───────────────────────────────────────────
+# ── 03_Work: communication ────────────────────────────────────────────
 [[on-window-detected]]
 if.app-id = 'com.mimestream.Mimestream'
 run = ['move-node-to-workspace 03_Work']
@@ -384,7 +382,7 @@ run = ['move-node-to-workspace 03_Work']
 if.app-id = 'com.hnc.Discord'
 run = ['move-node-to-workspace 03_Work']
 
-# ── 04_Management : notes & organisation ──────────────────────────────
+# ── 04_Management: notes & planning ───────────────────────────────────
 [[on-window-detected]]
 if.app-id = 'notion.id'
 run = ['move-node-to-workspace 04_Management']
@@ -397,7 +395,7 @@ run = ['move-node-to-workspace 04_Management']
 if.app-id = 'com.clickup.desktop-app'
 run = ['move-node-to-workspace 04_Management']
 
-# ── 08_Ops : infra & bases de donnees ─────────────────────────────────
+# ── 08_Ops: infra & databases ─────────────────────────────────────────
 [[on-window-detected]]
 if.app-id = 'com.docker.docker'
 run = ['move-node-to-workspace 08_Ops']
@@ -410,7 +408,7 @@ run = ['move-node-to-workspace 08_Ops']
 if.app-id = 'org.jkiss.dbeaver.core.product'
 run = ['move-node-to-workspace 08_Ops']
 
-# ── 09_Divers : media ─────────────────────────────────────────────────
+# ── 09_Divers: media ──────────────────────────────────────────────────
 [[on-window-detected]]
 if.app-id = 'com.spotify.client'
 run = ['move-node-to-workspace 09_Divers']

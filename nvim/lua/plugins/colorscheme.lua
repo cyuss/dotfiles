@@ -3,7 +3,7 @@ return {
     "LazyVim/LazyVim",
     opts = {
       colorscheme = function()
-        vim.cmd("colorscheme habamax") -- thème Vim intégré, léger
+        vim.cmd("colorscheme habamax") -- built-in Vim theme, lightweight
         vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
         vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
         vim.api.nvim_set_hl(0, "FloatBorder", { bg = "none" })

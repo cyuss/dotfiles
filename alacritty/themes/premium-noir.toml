@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────
 #  Premium Noir — graphite base, muted accents, warm cursor
-#  Pensé pour opacity ~0.92 + blur et pour un nvim transparent.
+#  Made for opacity ~0.92 + blur, and a transparent nvim.
 # ─────────────────────────────────────────────────────────────
 
 [colors]

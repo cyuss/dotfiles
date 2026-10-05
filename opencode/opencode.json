@@ -1,9 +1,9 @@
 {
   "$schema": "https://opencode.ai/config.json",
 
-  // ── Modèles ─────────────────────────────────────────────────────────
-  // Tout est local (Ollama). Pour ajouter un provider cloud :
-  //   opencode auth login   puis   "model": "anthropic/claude-opus-5"
+  // ── Models ──────────────────────────────────────────────────────────
+  // All local (Ollama). To add a cloud provider:
+  //   opencode auth login   then   "model": "anthropic/claude-opus-5"
   "model": "ollama/qwen3-coder:30b",
   "small_model": "ollama/qwen2.5vl:7b",
   "default_agent": "build",
@@ -26,7 +26,7 @@
   },
 
   // ── Agents ──────────────────────────────────────────────────────────
-  // Les subagents dédiés vivent dans ~/.config/opencode/agent/*.md
+  // Dedicated subagents live in ~/.config/opencode/agent/*.md
   "agent": {
     "build": {
       "temperature": 0.1,
@@ -37,23 +37,23 @@
       "temperature": 0.3,
       "description": "Analyse et conception, sans écrire de code."
     }
-    // Les subagents sont definis dans agent/*.md :
-    //   reviewer (relecture)  scout (recherche)
-    //   debugger (diagnostic) tester (tests)
+    // Subagents are defined in agent/*.md:
+    //   reviewer (review)     scout (research)
+    //   debugger (diagnosis)  tester (tests)
   },
   "subagent_depth": 1,
 
   // ── Skills ──────────────────────────────────────────────────────────
-  // Un skill = un dossier skill/<nom>/SKILL.md. opencode charge sa
-  // description au demarrage et n'injecte le corps QUE si le contexte
-  // correspond : le cout en tokens reste nul tant qu'il ne sert pas.
-  // Ceux d'ici couvrent : python-uv, typescript-node, rust, go,
+  // A skill = a skill/<name>/SKILL.md dir. opencode loads its description
+  // at startup and only injects the body when the context matches, so it
+  // costs zero tokens until it's used.
+  // The ones here cover: python-uv, typescript-node, rust, go,
   // containers, data-science, shell.
   "skills": {
     "paths": ["~/.config/opencode/skill"]
   },
 
-  // ── Contexte ────────────────────────────────────────────────────────
+  // ── Context ─────────────────────────────────────────────────────────
   "instructions": [
     "~/.config/opencode/AGENTS.md",
     "AGENTS.md",
@@ -61,8 +61,8 @@
     "docs/architecture.md"
   ],
 
-  // ── Outils : LSP + formatters natifs ────────────────────────────────
-  // rust-analyzer, gopls, pyright, ruff, eslint… sont détectés seuls.
+  // ── Tools: LSP + built-in formatters ────────────────────────────────
+  // rust-analyzer, gopls, pyright, ruff, eslint... get picked up on their own.
   "lsp": true,
   "formatter": true,
 
@@ -80,9 +80,9 @@
     ]
   },
 
-  // ── Garde-fous ──────────────────────────────────────────────────────
-  // Lecture/édition libres, mais confirmation sur tout ce qui sort du
-  // repo ou détruit du travail.
+  // ── Guardrails ──────────────────────────────────────────────────────
+  // Read/edit freely, but ask before anything that leaves the repo or
+  // destroys work.
   "permission": {
     "read": "allow",
     "grep": "allow",
@@ -90,8 +90,8 @@
     "list": "allow",
     "edit": "allow",
     "webfetch": "allow",
-    // Les skills et la config d'opencode vivent hors du projet courant :
-    // sans ces regles, chaque lecture de skill declenche une demande.
+    // Skills and opencode config live outside the current project:
+    // without these rules every skill read triggers a prompt.
     "external_directory": {
       "*": "ask",
       "~/.config/opencode/**": "allow",
@@ -120,7 +120,7 @@
     }
   },
 
-  // ── Session / contexte ──────────────────────────────────────────────
+  // ── Session / context ───────────────────────────────────────────────
   "share": "disabled",
   "autoupdate": "notify",
   "snapshot": true,
@@ -136,7 +136,7 @@
     "batch_tool": true
   }
 
-  // ── MCP (exemple, décommenter au besoin) ────────────────────────────
+  // ── MCP (example, uncomment if needed) ──────────────────────────────
   // "mcp": {
   //   "github": {
   //     "type": "local",
