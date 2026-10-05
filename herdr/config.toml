@@ -736,13 +736,6 @@ type = "plugin_action"
 command = "dave.token-dashboard.open-dashboard"
 description = "dashboard tokens"
 
-# alt+l = llmtrim (prefix+shift+l is already next_workspace)
-[[keys.command]]
-key = "prefix+alt+l"
-type = "plugin_action"
-command = "llmtrim.proxy.summary"
-description = "llmtrim (economie de contexte)"
-
 # alt+p = plugins (prefix+shift+p is herdr's rename_pane)
 [[keys.command]]
 key = "prefix+alt+p"
