@@ -1,13 +1,13 @@
-# core — le socle. Sans ces outils, les alias et la config zsh de ce
-# depot ne fonctionnent pas : ils y font reference directement.
+# core: the base. Without these, the aliases and zsh config in this
+# repo break, they call them directly.
 brew "git"
 brew "coreutils"
-brew "fd"           # utilise par fzf, les widgets et Doom
-brew "ripgrep"      # rg — recherche, et backend de consult-ripgrep
-brew "bat"          # pager colore, MANPAGER, apercus fzf
-brew "eza"          # remplace ls dans tous les alias ls/ll/la/lt
-brew "git-delta"    # pager de git (core.pager dans git/gitconfig)
+brew "fd"           # used by fzf, the widgets and Doom
+brew "ripgrep"      # rg: search, and consult-ripgrep backend
+brew "bat"          # colored pager, MANPAGER, fzf previews
+brew "eza"          # replaces ls in all the ls/ll/la/lt aliases
+brew "git-delta"    # git pager (core.pager in git/gitconfig)
 brew "fzf"
-brew "zoxide"       # alias j / ji
-brew "atuin"        # historique — alias hist / hstats
+brew "zoxide"       # aliases j / ji
+brew "atuin"        # history, aliases hist / hstats
 brew "jq"

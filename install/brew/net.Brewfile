@@ -1,7 +1,7 @@
-# net — reseau et diagnostic.
-brew "trippy"       # traceroute/mtr en TUI
-brew "gping"        # ping graphique
-brew "xh"           # client HTTP
+# net: network and diagnostics.
+brew "trippy"       # traceroute/mtr as a TUI
+brew "gping"        # ping with a graph
+brew "xh"           # HTTP client
 brew "doggo"        # DNS
-brew "bandwhich"    # bande passante par processus
+brew "bandwhich"    # bandwidth per process
 brew "nmap"

@@ -1,3 +1,3 @@
-# term — terminal et multiplexeur.
+# term: terminal and multiplexer.
 cask "alacritty"
-brew "herdr"        # multiplexeur / gestionnaire d'espaces
+brew "herdr"        # multiplexer / workspace manager

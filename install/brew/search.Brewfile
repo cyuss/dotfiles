@@ -1,5 +1,5 @@
-# search — recherche et remplacement avances.
-brew "sd"           # sed sans le dialecte regex de 1974
-brew "serpl"        # rechercher-remplacer sur un projet, en TUI
-brew "ast-grep"     # recherche structurelle (arbre syntaxique)
+# search: advanced search and replace.
+brew "sd"           # sed without the 1974 regex dialect
+brew "serpl"        # project-wide search/replace, TUI
+brew "ast-grep"     # structural search (syntax tree)
 brew "semgrep"

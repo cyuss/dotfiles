@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════
-#  install.sh — installe cette configuration sur une machine macOS.
+#  install.sh: sets up this config on a macOS machine.
 #
-#  Trois choses separees, qu'on peut faire independamment :
+#  Three separate things, each can run on its own:
 #
-#    1. LIENS     relier ~/.zshrc, ~/.gitconfig… vers ce depot
-#    2. PAQUETS   installer les outils, par groupes (brew bundle)
-#    3. SUITE     les etapes qui ne s'automatisent pas bien (doom sync,
-#                 identite, LaunchAgent) — annoncees, jamais faites
-#                 dans ton dos
+#    1. LINKS     symlink ~/.zshrc, ~/.gitconfig... to this repo
+#    2. PACKAGES  install the tools, by group (brew bundle)
+#    3. NEXT      steps that don't automate well (doom sync, identity,
+#                 LaunchAgent). Printed out, never done behind your back
 #
-#  Rien n'est detruit : tout fichier existant est sauvegarde avant
-#  d'etre remplace, et --dry-run montre l'integralite du plan.
+#  Nothing gets destroyed: any existing file is backed up before being
+#  replaced, and --dry-run shows the whole plan.
 # ══════════════════════════════════════════════════════════════════════
 set -uo pipefail
 
@@ -22,7 +21,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 DO_LINKS=1 DO_PACKAGES=0 DRY=0 ASSUME_YES=0 GROUPS_ARG="" MODE=interactive
 
-# ── Presentation ─────────────────────────────────────────────────────
+# ── Output ───────────────────────────────────────────────────────────
 if [[ -t 1 ]]; then
   B=$'\033[1m'; D=$'\033[2m'; G=$'\033[32m'; Y=$'\033[33m'
   R=$'\033[31m'; C=$'\033[36m'; X=$'\033[0m'
@@ -75,7 +74,7 @@ usage() {
 USAGE
 }
 
-# ── Groupes ──────────────────────────────────────────────────────────
+# ── Groups ───────────────────────────────────────────────────────────
 all_groups()  { awk -F'|' '!/^#/ && NF {print $1}' "$GROUPS_CONF"; }
 def_groups()  { awk -F'|' '!/^#/ && NF && $2==1 {print $1}' "$GROUPS_CONF"; }
 group_desc()  { awk -F'|' -v g="$1" '!/^#/ && $1==g {print $3}' "$GROUPS_CONF"; }
@@ -94,7 +93,7 @@ cmd_list() {
   printf '\n  %sDetail d'"'"'un groupe :%s  cat install/brew/<groupe>.Brewfile\n\n' "$D" "$X"
 }
 
-# ── Diagnostic ───────────────────────────────────────────────────────
+# ── Check ────────────────────────────────────────────────────────────
 cmd_check() {
   printf '\n  %sDiagnostic%s\n' "$B" "$X"
 
@@ -145,10 +144,10 @@ cmd_check() {
   printf '\n'
 }
 
-# Un paquet peut etre la sans venir de brew : une .app telechargee, un
-# binaire pose a la main, une police copiee dans ~/Library/Fonts. Le
-# declarer « manquant » serait faux et pousserait a une reinstallation
-# en double. On distingue donc trois etats : brew / other / absent.
+# A package can be there without coming from brew: a downloaded .app, a
+# binary dropped by hand, a font copied into ~/Library/Fonts. Calling it
+# "missing" would be wrong and push a duplicate install. So three
+# states: brew / other / absent.
 presence() {
   local kind="$1" pkg="$2"
   if [[ $kind == cask ]]; then
@@ -158,7 +157,7 @@ presence() {
     command -v "$pkg" >/dev/null 2>&1 && { echo other; return; }
   fi
 
-  # Polices : cherchees par leur nom de famille dans les dossiers systeme.
+  # Fonts: look up their family name in the system font dirs.
   if [[ $pkg == font-* ]]; then
     local fam="${pkg#font-}"; fam="${fam%-nerd-font}"; fam="${fam//-/ }"
     if ls ~/Library/Fonts /Library/Fonts 2>/dev/null \
@@ -167,7 +166,7 @@ presence() {
     fi
   fi
 
-  # Casks : une application du meme nom, installee autrement.
+  # Casks: an app with the same name, installed some other way.
   local app
   for app in "/Applications" "$HOME/Applications"; do
     [[ -d $app ]] || continue
@@ -175,7 +174,7 @@ presence() {
       echo other; return
     fi
   done
-  # Karabiner s'installe sous un nom different de son cask.
+  # Karabiner installs under a different name than its cask.
   case "$pkg" in
     karabiner-elements) [[ -d /Applications/Karabiner-Elements.app ]] && { echo other; return; } ;;
   esac
@@ -188,7 +187,7 @@ parse_brewfile() {
   sed -nE 's/^(brew|cask)[[:space:]]+"([^"]+)".*/\1 \2/p' "$f"
 }
 
-# ── Liens ────────────────────────────────────────────────────────────
+# ── Links ────────────────────────────────────────────────────────────
 links_table() {
   cat <<'TABLE'
 zsh/.zshrc:.zshrc
@@ -221,7 +220,7 @@ cmd_links() {
   done <<< "$(links_table)"
 }
 
-# ── Paquets ──────────────────────────────────────────────────────────
+# ── Packages ─────────────────────────────────────────────────────────
 install_group() {
   local g="$1" f; f="$(group_file "$g")"
   if [[ ! -f $f ]]; then err "groupe inconnu : $g"; return 1; fi
@@ -229,7 +228,7 @@ install_group() {
   run "brew bundle --file='$f' --no-upgrade"
 }
 
-# ── Selection interactive ────────────────────────────────────────────
+# ── Interactive picker ───────────────────────────────────────────────
 select_groups() {
   local avail; avail=$(all_groups)
   local defaults; defaults=$(def_groups | tr '\n' ',')
@@ -247,7 +246,7 @@ select_groups() {
     return 0
   fi
 
-  # Repli sans gum : une invite texte, aucune dependance.
+  # Fallback without gum: plain text prompt, no deps.
   printf '\n  %sGroupes%s  %s(* = recommande)%s\n\n' "$B" "$X" "$D" "$X" >&2
   local i=1 names=()
   for g in $avail; do
@@ -268,7 +267,7 @@ select_groups() {
   done
 }
 
-# ── Suite ────────────────────────────────────────────────────────────
+# ── Next steps ───────────────────────────────────────────────────────
 cmd_next_steps() {
   step "Ce qu'il reste a faire, a la main"
   if [[ ! -f "$CONFIG_DIR/doom/private.el" ]]; then
@@ -284,7 +283,7 @@ cmd_next_steps() {
   note "Diagnostic a tout moment :  ./install.sh --check"
 }
 
-# ── Arguments ────────────────────────────────────────────────────────
+# ── Args ─────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --links|--links-only) MODE=links;        shift ;;
@@ -301,7 +300,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ── Deroulement ──────────────────────────────────────────────────────
+# ── Main ─────────────────────────────────────────────────────────────
 printf '\n  %sdotfiles%s  %s%s%s\n' "$B" "$X" "$D" "$CONFIG_DIR" "$X"
 [[ $DRY -eq 1 ]] && printf '  %sMODE SIMULATION — rien ne sera modifie.%s\n' "$Y" "$X"
 

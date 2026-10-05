@@ -1,4 +1,4 @@
-# prose — relecture et lecture de texte.
-brew "languagetool" # grammaire FR/EN hors ligne — moteur de `prose`
-brew "vale"         # regles de style (anglais)
-brew "typioca"      # test de frappe en TUI
+# prose: proofreading and reading text.
+brew "languagetool" # offline FR/EN grammar, the engine behind `prose`
+brew "vale"         # style rules (English)
+brew "typioca"      # typing test TUI

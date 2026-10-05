@@ -1,4 +1,4 @@
-# tui — interfaces plein ecran.
+# tui: full-screen apps.
 brew "btop"         # alias top
 brew "yazi"         # alias yz
 brew "broot"
@@ -6,5 +6,5 @@ brew "navi"         # alias cheat
 brew "television"   # alias tv*
 brew "jesseduffield/lazydocker/lazydocker"
 brew "gromgit/brewtils/taproom"   # alias tap*
-brew "glow"         # rendu markdown, moteur de `mdv`
-brew "gum"          # invites interactives (utilise par install.sh et `net`)
+brew "glow"         # markdown rendering, the engine behind `mdv`
+brew "gum"          # interactive prompts (used by install.sh and `net`)

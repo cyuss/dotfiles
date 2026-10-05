@@ -1,9 +1,9 @@
-# data — donnees structurees et bases.
-brew "dasel"        # JSON/YAML/TOML/CSV, une seule syntaxe
-brew "miller"       # mlr — CSV/JSON en flux
-brew "gron"         # JSON greppable
-brew "jless"        # pager JSON pliable
-brew "jnv"          # jq interactif
+# data: structured data and databases.
+brew "dasel"        # JSON/YAML/TOML/CSV, one syntax
+brew "miller"       # mlr: streaming CSV/JSON
+brew "gron"         # greppable JSON
+brew "jless"        # foldable JSON pager
+brew "jnv"          # interactive jq
 brew "yq"
 brew "visidata"
 brew "pgcli"

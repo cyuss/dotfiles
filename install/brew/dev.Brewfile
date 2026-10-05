@@ -1,6 +1,6 @@
-# dev — la boucle de travail quotidienne.
-brew "uv"           # Python : environnements et outils
-brew "ruff"         # formatage/lint Python — apheleia s'appuie dessus
+# dev: the daily work loop.
+brew "uv"           # Python envs and tools
+brew "ruff"         # Python format/lint, apheleia uses it
 brew "just"
 brew "watchexec"    # alias wx / wxt
 brew "direnv"
