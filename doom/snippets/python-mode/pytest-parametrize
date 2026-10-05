@@ -1,5 +1,5 @@
 # -*- mode: snippet -*-
-# name: @pytest.mark.parametrize (avec id)
+# name: @pytest.mark.parametrize (with id)
 # key: param
 # group: tests
 # --

@@ -1,34 +1,34 @@
-;;; premium-noir-theme.el --- port Emacs du theme Alacritty "Premium Noir" -*- lexical-binding: t; no-byte-compile: t; -*-
+;;; premium-noir-theme.el --- Emacs port of the "Premium Noir" Alacritty theme -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;
-;; Source : ~/.config/alacritty/themes/premium-noir.toml
-;; Base graphite tres sombre, accents desatures, curseur ambre.
-;; Concu pour un fond transparent (Alacritty opacity 0.70).
+;; Source: ~/.config/alacritty/themes/premium-noir.toml
+;; Very dark graphite base, muted accents, amber cursor.
+;; Made for a transparent background (Alacritty opacity 0.70).
 ;;
 ;;; Code:
 
 (require 'doom-themes)
 
 (defgroup premium-noir-theme nil
-  "Options du theme premium-noir."
+  "Options for the premium-noir theme."
   :group 'doom-themes)
 
 (defcustom premium-noir-brighter-modeline nil
-  "Si non-nil, modeline plus contrastee."
+  "If non-nil, higher-contrast modeline."
   :group 'premium-noir-theme
   :type 'boolean)
 
 (defcustom premium-noir-brighter-comments nil
-  "Si non-nil, commentaires plus lumineux."
+  "If non-nil, brighter comments."
   :group 'premium-noir-theme
   :type 'boolean)
 
 (defcustom premium-noir-padded-modeline nil
-  "Si non-nil, ajoute 4px de padding a la modeline."
+  "If non-nil, add 4px of padding to the modeline."
   :group 'premium-noir-theme
   :type '(or integer boolean))
 
 (def-doom-theme premium-noir
-  "Graphite sombre, accents desatures, ambre chaud. Jumeau du terminal."
+  "Dark graphite, muted accents, warm amber. Twin of the terminal theme."
 
   ;; name        default   256       16
   ((bg         '("#101216" "#101216" "black"        ))
@@ -57,10 +57,10 @@
    (violet     '("#c4a6dd" "#c4a6dd" "brightmagenta"))
    (cyan       '("#96cbcd" "#96cbcd" "brightcyan"   ))
    (dark-cyan  '("#5c888a" "#5c888a" "cyan"         ))
-   ;; accent maison : le curseur du terminal
+   ;; custom accent: the terminal cursor
    (amber      '("#e3b778" "#e3b778" "yellow"       ))
 
-   ;; face categories -- obligatoires
+   ;; face categories -- required
    (highlight      amber)
    (vertical-bar   base2)
    (selection      base4)
@@ -84,7 +84,7 @@
    (vc-added       green)
    (vc-deleted     red)
 
-   ;; categories maison
+   ;; custom categories
    (hidden     `(,(car bg) "black" "black"))
    (-modeline-bright premium-noir-brighter-modeline)
    (-modeline-pad
@@ -100,7 +100,7 @@
 
   ;; --- Faces ------------------------------
   (
-   ;; curseur ambre, comme dans Alacritty
+   ;; amber cursor, same as Alacritty
    (cursor :background amber :foreground bg)
    ((line-number &override) :foreground base4)
    ((line-number-current-line &override) :foreground amber :weight 'bold)
@@ -128,7 +128,7 @@
    (doom-modeline-warning :foreground yellow)
    (doom-modeline-urgent :foreground red)
 
-   ;;; solaire — panneaux legerement decroches
+   ;;; solaire: panels slightly offset
    (solaire-default-face :background base1)
    (solaire-hl-line-face :background base2)
    (solaire-mode-line-face
@@ -138,7 +138,7 @@
     :inherit 'mode-line-inactive :background modeline-bg-inactive-l
     :box (if -modeline-pad `(:line-width ,-modeline-pad :color ,modeline-bg-inactive-l)))
 
-   ;;; selection / recherche — memes teintes que le terminal
+   ;;; selection / search: same shades as the terminal
    (region :background base4 :distant-foreground 'unspecified)
    (isearch :background amber :foreground bg :weight 'bold)
    (lazy-highlight :background base6 :foreground bg)

@@ -57,7 +57,7 @@
        (evil +everywhere)    ; come to the dark side, we have cookies
        file-templates    ; auto-snippets for empty files
        ;;fold              ; (nigh) universal code folding
-       (format +onsave)  ; apheleia : formatage async, sans bouger le point
+       (format +onsave)  ; apheleia: async formatting, point stays put
        ;;god               ; run Emacs commands without modifier keys
        ;;lispy             ; vim for lisp, for people who don't like vim
        multiple-cursors  ; editing in many places at once

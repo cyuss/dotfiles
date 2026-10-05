@@ -6,14 +6,13 @@
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets. It is optional.
-;; ── Identite ────────────────────────────────────────────────────────
-;; Ce depot est PUBLIC : nom et adresse ne sont pas versionnes ici. Ils
-;; vivent dans doom/private.el, ignore par git (voir .gitignore).
-;; Modele fourni : doom/private.el.example — copie-le et remplis-le.
+;; ── Identity ────────────────────────────────────────────────────────
+;; This repo is PUBLIC, so name and email aren't tracked here. They live
+;; in doom/private.el, which git ignores (see .gitignore).
+;; Template: doom/private.el.example. Copy it and fill it in.
 ;;
-;; Sans ce fichier, Doom fonctionne normalement ; seules les signatures
-;; GPG, les modeles de fichiers et les snippets qui insèrent l'auteur
-;; utiliseront les valeurs par defaut d'Emacs.
+;; Without that file Doom works fine. Only GPG signing, file templates
+;; and snippets that insert the author fall back to Emacs defaults.
 (let ((private (expand-file-name "private.el" doom-user-dir)))
   (when (file-readable-p private)
     (load private nil 'nomessage)))
@@ -109,23 +108,20 @@
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
 ;; [EVIL] relative is strongly recommended -- numeric prefixes like 5j, 12dd
 ;; become natural once you can read jump distances directly off the gutter.
-;; 'relative : `5j', `12dd', `d7k' — le coeur de la grammaire Evil — se
-;; lisent directement dans la marge, sans compter.
+;; 'relative: `5j', `12dd', `d7k' (the core of Evil grammar) can be read
+;; straight off the margin, no counting.
 ;;
-;; L'ancien commentaire ici disait « 'relative recalcule toute la marge a
-;; chaque mouvement du curseur ». C'est vrai, mais le garde-fou
-;; `+maybe-lighten-buffer-h' (plus bas) coupe DEJA les numeros au-dela de
-;; 2000 lignes ou 512 Ko — c'est-a-dire exactement dans les tampons ou ce
-;; recalcul se voit. En dessous, il est de l'ordre de la microseconde.
+;; Yes, 'relative redraws the whole margin on every cursor move. But
+;; `+maybe-lighten-buffer-h' (below) already drops line numbers past 2000
+;; lines or 512 KB, which is exactly where that cost shows. Below that
+;; it's microseconds.
 ;;
-;; Honnetement : ce cout-la ne se mesure PAS en batch. Il vit dans le
-;; redisplay d'une vraie frame graphique — le commentaire du bloc
-;; « Diagnostiquer la lenteur » plus bas dit la meme chose. Si tu sens une
-;; latence au deplacement, le verdict se rend avec SPC P s / SPC P r, pas
-;; avec un chiffre trouve ailleurs.
+;; This cost can't be measured in batch, it lives in the redisplay of a
+;; real GUI frame (same story as the "Diagnosing lag" block below). If
+;; moving around feels laggy, check with SPC P s / SPC P r.
 ;;
-;; Retour en arriere : remettre `t' (absolus). 'visual est le compromis —
-;; relatif, mais compte sur les lignes AFFICHEES (utile avec word-wrap).
+;; To go back: set it to `t' (absolute). 'visual is the middle ground:
+;; relative, but counts DISPLAYED lines (handy with word-wrap).
 (setq display-line-numbers-type 'relative)
 
 ;; change the key modifiers on mac os
@@ -191,7 +187,7 @@
 (setq pixel-scroll-precision-large-scroll-height 30)
 ;; (global-set-key (kbd "C-x SPC") #'set-mark-command)
 
-;; moins de travail graphique
+;; less redisplay work
 (setq redisplay-skip-fontification-on-input t)
 
 (setq-default standard-indent 4)
@@ -633,9 +629,9 @@ copilot and started the node server. That was the real cause of
 ;; lsp-headerline-breadcrumb-enable belongs to lsp-mode. This config uses
 ;; eglot (:tools (lsp +eglot)), so that setq did nothing. Removed.
 ;;
-;; Pas de header-line non plus : `breadcrumb' (l'equivalent eglot) a ete
-;; retire — le fil projet > fichier > symbole mangeait une ligne en haut
-;; de chaque fenetre. Le chemin relatif au projet vit dans la modeline.
+;; No header-line either: `breadcrumb' (the eglot equivalent) is gone.
+;; The project > file > symbol trail ate a line at the top of every
+;; window. The project-relative path lives in the modeline.
 
 ;; With +tree-sitter (added to :lang javascript) the real modes are
 ;; js-ts-mode / typescript-ts-mode / tsx-ts-mode: without those variants
@@ -646,63 +642,58 @@ copilot and started the node server. That was the real cause of
   (add-hook h #'eglot-ensure))
 
 ;; ── modeline ────────────────────────────────────────────────────────
-;; Mesure avant de regler quoi que ce soit : 2000 rendus de
-;; `format-mode-line' sur ce fichier donnent ~73 us par rendu. A 60 Hz la
-;; modeline coute 0,4 % d'une frame — elle n'est PAS un probleme de
-;; performance. La raison est que les deux segments couteux sont mis en
-;; cache buffer-local par doom-modeline : `doom-modeline--buffer-file-name'
-;; (recalcule sur find-file) et `doom-modeline--vcs' (sur after-save et
-;; vc-refresh-state). Le chemin projet et l'etat git ne coutent rien au
-;; rendu. On arbitre donc sur le SIGNAL, pas sur les cycles.
+;; Measured before tuning anything: 2000 `format-mode-line' renders on
+;; this file come out at ~73 us each. At 60 Hz that's 0.4% of a frame, so
+;; the modeline is NOT a perf problem. The two expensive segments are
+;; cached buffer-locally by doom-modeline: `doom-modeline--buffer-file-name'
+;; (recomputed on find-file) and `doom-modeline--vcs' (on after-save and
+;; vc-refresh-state). So the choices below are about SIGNAL, not cycles.
 ;;
-;; L'ancien bloc ici etait quasiment inerte : `doom-modeline-checker' et
-;; `doom-modeline-checker-simple-format' n'existent pas (setq creait juste
-;; deux symboles que personne ne lit — la vraie variable est
-;; `doom-modeline-check'), et word-count / indent-info / modal / modal-icon
-;; ne faisaient que repeter les valeurs par defaut. Seul
-;; `doom-modeline-buffer-encoding nil' avait un effet, et il etait negatif.
+;; The old block here did almost nothing: `doom-modeline-checker' and
+;; `doom-modeline-checker-simple-format' don't exist (the real variable is
+;; `doom-modeline-check'), and word-count / indent-info / modal /
+;; modal-icon just repeated the defaults. The only setting that did
+;; anything was `doom-modeline-buffer-encoding nil', and it made it worse.
 (after! doom-modeline
   (setq
    ;; ── signal ───────────────────────────────────────────────────────
-   ;; Le chemin est la SEULE indication de localisation depuis que
-   ;; breadcrumb est parti : on garde le chemin relatif au projet, et on
-   ;; ajoute le nom du projet — sans lui, `lisp/comint.el' ne dit pas DANS
-   ;; QUEL depot on se trouve, ce qui compte avec plusieurs workspaces.
+   ;; The path is the ONLY location hint since breadcrumb is gone. Keep it
+   ;; project-relative and add the project name, otherwise
+   ;; `lisp/comint.el' doesn't tell you which repo you're in.
    doom-modeline-buffer-file-name-style 'relative-from-project
    doom-modeline-project-name           t
-   ;; La vraie variable du segment d'erreurs : auto / full / simple / nil.
-   ;; 'simple = compteurs courts. Avec eglot ce sont les diagnostics
-   ;; pyright — c'est l'endroit ou l'on voit qu'un serveur est mort.
+   ;; The real errors-segment variable: auto / full / simple / nil.
+   ;; 'simple = short counters. With eglot these are the pyright
+   ;; diagnostics, which is where you notice a dead server.
    doom-modeline-check                  'simple
-   ;; 'nondefault : rien pour un UTF-8/LF normal, l'info n'apparait que
-   ;; pour un CRLF ou un latin-1. Filet gratuit que le `nil' precedent
-   ;; supprimait.
+   ;; 'nondefault: nothing for plain UTF-8/LF, only shows up for CRLF or
+   ;; latin-1. A free safety net the old `nil' removed.
    doom-modeline-buffer-encoding        'nondefault
-   ;; 15 caracteres tronquent la plupart des noms de branche.
+   ;; 15 chars cut off most branch names.
    doom-modeline-vcs-max-length         24
-   ;; ── bruit ────────────────────────────────────────────────────────
+   ;; ── noise ────────────────────────────────────────────────────────
    doom-modeline-percent-position       nil   ; "All" / "Top" / "42%"
-   doom-modeline-time                   nil   ; barre de menu macOS
+   doom-modeline-time                   nil   ; macOS menu bar has it
    doom-modeline-battery                nil
    doom-modeline-irc                    nil
    doom-modeline-gnus                   nil)
 
-  ;; `doom-modeline-def-modeline' est une FONCTION (name lhs &optional rhs)
-  ;; qui definit `doom-modeline-format--main'. Comme `mode-line-format'
-  ;; contient (:eval (doom-modeline-format--main)), la redefinition prend
-  ;; effet partout immediatement — pas besoin de `doom-modeline-set-modeline'.
+  ;; `doom-modeline-def-modeline' is a FUNCTION (name lhs &optional rhs)
+  ;; that defines `doom-modeline-format--main'. Since `mode-line-format'
+  ;; holds (:eval (doom-modeline-format--main)), redefining it applies
+  ;; everywhere right away, no `doom-modeline-set-modeline' needed.
   ;;
-  ;; Retires de la definition par defaut, faute de paquet correspondant
-  ;; installe (chacun est un appel de fonction qui renvoie "" a chaque
-  ;; rendu) : eldoc window-state follow word-count parrot objed-state
+  ;; Dropped from the default definition because the matching package
+  ;; isn't installed (each one is a function call returning "" on every
+  ;; render): eldoc window-state follow word-count parrot objed-state
   ;; persp-name battery grip irc mu4e gnus github minor-modes
   ;; input-method indent-info time.
   (doom-modeline-def-modeline 'main
     '(bar workspace-name window-number modals matches
       buffer-info remote-host buffer-position selection-info)
-    ;; compilation/debug/repl/process : etat de dape, des REPL Python et
-    ;; des tampons comint. Muets tant qu'il ne se passe rien.
-    ;; misc-info : c'est la qu'envrc et pyvenv affichent l'environnement.
+    ;; compilation/debug/repl/process: state of dape, Python REPLs and
+    ;; comint buffers. Silent while nothing is going on.
+    ;; misc-info: that's where envrc and pyvenv show the environment.
     '(compilation misc-info project-name debug repl lsp
       check vcs major-mode process buffer-encoding)))
 
@@ -877,7 +868,7 @@ surface, so the same number reads very differently in each app.")
         leetcode-save-solutions t
         leetcode-directory "~/Desktop/projects/leetcode-challenges/solutions")
   :config
-  ;; Fenetres : description a gauche, code a droite, resultats en bas.
+  ;; Windows: description on the left, code on the right, results below.
   (setq leetcode-path-operation-alist
         '(("python3" . python-ts-mode)
           ("go"      . go-mode)
@@ -896,7 +887,7 @@ surface, so the same number reads very differently in each app.")
        :desc "Quit"          "q" #'leetcode-quit))
 
 ;; ══════════════════════════════════════════════════════════════════════
-;;  IDE moderne — 2026-08-21
+;;  Modern IDE setup (2026-08-21)
 ;; ══════════════════════════════════════════════════════════════════════
 
 ;; ── Fallback font ───────────────────────────────────────────────────
@@ -1210,113 +1201,106 @@ DIRECTION is -1 to move the view down, +1 to move it up."
 
 
 ;; ══════════════════════════════════════════════════════════════════════
-;;  Ameliorations du 2026-08-22
-;;  Chaque bloc porte le numero de la recommandation dont il vient.
+;;  Improvements (2026-08-22)
+;;  Each block carries the number of the recommendation it came from.
 ;; ══════════════════════════════════════════════════════════════════════
 
-;; ── nº 4 · apheleia : formatage a la sauvegarde ─────────────────────
-;; Active par `(format +onsave)' dans init.el. apheleia tourne en
-;; ASYNCHRONE et applique un DIFF au lieu de remplacer le tampon : ni le
-;; point ni le defilement ne bougent. C'est ce qui rendait format-all et
-;; consorts insupportables.
+;; ── nº 4 · apheleia: format on save ─────────────────────────────────
+;; Enabled by `(format +onsave)' in init.el. apheleia runs ASYNC and
+;; applies a DIFF instead of replacing the buffer, so neither point nor
+;; scroll position moves. That's what made format-all & co unbearable.
 ;;
-;; Trois reglages ici, et chacun protege quelque chose de precis.
+;; Three settings here, each one guards something specific.
 (after! apheleia
-  ;; 1. Python -> ruff, pas black.
-  ;;    apheleia route python vers `black' par defaut. Toi tu formates
-  ;;    avec ruff (alias `ruffc' = ruff check --fix + ruff format). Les
-  ;;    deux sont presque identiques (ruff format est une reimplementation
-  ;;    de black) mais PRESQUE : garder black ici ferait osciller tes
-  ;;    fichiers entre deux formateurs a chaque aller-retour.
-  ;;    `ruff-isort' trie les imports, `ruff' formate — dans cet ordre.
+  ;; 1. Python -> ruff, not black.
+  ;;    apheleia sends python to `black' by default. I format with ruff
+  ;;    (alias `ruffc' = ruff check --fix + ruff format). The two are
+  ;;    ALMOST identical, and almost means files would flip-flop between
+  ;;    two formatters. `ruff-isort' sorts imports, then `ruff' formats.
   ;;
-  ;;    Mesure avant activation (ruff format --diff) :
-  ;;      projet actif      2 / 235 fichiers seraient touches
-  ;;      autre projet      5 /  18
-  ;;      vieux projet     85 / 147   (jamais passe a ruff)
-  ;;    Donc : quasiment aucun churn sur le projet actif.
+  ;;    Measured before enabling (ruff format --diff):
+  ;;      active project    2 / 235 files would change
+  ;;      other project     5 /  18
+  ;;      old project      85 / 147   (never ran ruff)
+  ;;    So basically no churn on the active project.
   (setf (alist-get 'python-mode    apheleia-mode-alist) '(ruff-isort ruff))
   (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff))
 
-  ;; 2. AUCUN formatage des scripts shell. C'est une protection, pas un
-  ;;    oubli. Doom ajoute `(sh-mode . shfmt)' a l'alist ; shfmt n'est
-  ;;    meme pas installe ici (verifie), mais surtout : tes scripts de
-  ;;    ~/.config/workflow-tools sont alignes a la main, avec des colonnes
-  ;;    de commentaires soignees. shfmt les reformaterait sans etat d'ame.
-  ;;    nil = « pas de formateur », c'est la valeur documentee.
+  ;; 2. NO formatting for shell scripts, on purpose. Doom adds
+  ;;    `(sh-mode . shfmt)' to the alist. shfmt isn't even installed here,
+  ;;    but the scripts in ~/.config/workflow-tools are hand-aligned with
+  ;;    careful comment columns and shfmt would wreck them.
+  ;;    nil = "no formatter", that's the documented value.
   (setf (alist-get 'sh-mode       apheleia-mode-alist) nil)
   (setf (alist-get 'bash-ts-mode  apheleia-mode-alist) nil)
 
-  ;; 3. Idem pour TOML : tes config.toml (herdr, aerospace, alacritty)
-  ;;    sont alignes a la main. `taplo' n'est pas installe aujourd'hui,
-  ;;    donc rien ne se passerait — mais le jour ou tu l'installes pour
-  ;;    autre chose, il se mettrait a reformater ces fichiers en silence.
+  ;; 3. Same for TOML: the config.toml files (herdr, aerospace, alacritty)
+  ;;    are hand-aligned. `taplo' isn't installed today, but the day it
+  ;;    gets installed for something else it would quietly reformat them.
   (setf (alist-get 'conf-toml-mode apheleia-mode-alist) nil)
   (setf (alist-get 'toml-ts-mode   apheleia-mode-alist) nil))
 
-;; JS/TS/web/JSON passent par prettier, deja installe. Verifie avant
-;; activation : sur le projet actif, 0 / 173 fichiers JS/TS ne sont pas
-;; conformes — le formatage y est un non-evenement.
+;; JS/TS/web/JSON go through prettier, already installed. Checked before
+;; enabling: on the active project 0 / 173 JS/TS files are off, so
+;; formatting there is a non-event.
 ;;
-;; Pour inhiber ponctuellement : C-u C-x C-s (prefixe sur la sauvegarde).
-;; Pour un mode entier : ajouter le mode a `+format-on-save-disabled-modes'
-;; (LaTeX et SQL y sont deja, mis par Doom).
+;; Skip it once: C-u C-x C-s (prefix arg on save).
+;; Skip a whole mode: add it to `+format-on-save-disabled-modes'
+;; (Doom already puts LaTeX and SQL there).
 
-;; ── nº 6 · diff-hl : le diff git dans la marge ──────────────────────
-;; Active par `(vc-gutter +pretty +diff-hl)' dans init.el.
+;; ── nº 6 · diff-hl: git diff in the gutter ──────────────────────────
+;; Enabled by `(vc-gutter +pretty +diff-hl)' in init.el.
 ;;
-;; Doom cable DEJA les raccourcis quand le module est present — inutile de
-;; les redefinir :
-;;   SPC g ]   hunk suivant        SPC g r   annuler le hunk
-;;   SPC g [   hunk precedent      SPC g s   indexer le hunk
-;;   SPC t d   activer/desactiver diff-hl dans ce tampon
+;; Doom ALREADY wires the keys when the module is on, no need to redo them:
+;;   SPC g ]   next hunk           SPC g r   revert hunk
+;;   SPC g [   previous hunk       SPC g s   stage hunk
+;;   SPC t d   toggle diff-hl in this buffer
 ;;
-;; On ajoute seulement la navigation facon vim-gitgutter (verifie libre :
-;; Doom ne definit aucun `] d' / `[ d') et l'apercu du hunk en popup.
+;; We only add vim-gitgutter style navigation (checked free: Doom defines
+;; no `] d' / `[ d') and a popup preview of the hunk.
 (map! :when (modulep! :ui vc-gutter)
       :n "] d" #'+vc-gutter/next-hunk
       :n "[ d" #'+vc-gutter/previous-hunk
       :n "g H" #'diff-hl-show-hunk)
 
-;; Cout : diff-hl interroge git en asynchrone depuis Emacs 28. Mesure sur
-;; tes depots : `git status' met 0,06 s sur le plus gros (519 fichiers)
-;; et 0,01 s ailleurs. Rien de perceptible.
+;; Cost: diff-hl queries git async since Emacs 28. Measured on my repos:
+;; `git status' takes 0.06s on the biggest (519 files) and 0.01s
+;; elsewhere. Not noticeable.
 
-;; ── nº 7 · evil-textobj-tree-sitter : objets textuels syntaxiques ───
-;; Le chainon manquant entre tree-sitter et Evil. combobulate fait de la
-;; navigation et de la manipulation ; il ne fournit PAS d'objets Evil.
+;; ── nº 7 · evil-textobj-tree-sitter: syntax text objects ────────────
+;; The missing link between tree-sitter and Evil. combobulate does
+;; navigation and editing, it does NOT provide Evil text objects.
 ;;
-;; Verifie avant d'installer : le paquet gere le `treesit' NATIF d'Emacs 30
-;; (variable `evil-textobj-tree-sitter--can-use-builtin-treesit') et embarque
-;; un dossier treesit-queries/ — il fonctionne donc avec python-ts-mode,
-;; js-ts-mode & co, pas seulement avec l'ancien tree-sitter.el.
+;; Checked before installing: the package handles Emacs 30's NATIVE
+;; `treesit' (variable `evil-textobj-tree-sitter--can-use-builtin-treesit')
+;; and ships a treesit-queries/ dir, so it works with python-ts-mode,
+;; js-ts-mode & co, not just the old tree-sitter.el.
 ;;
-;; Grammaire obtenue — `a' = avec l'enveloppe, `i' = l'interieur seul,
-;; comme partout ailleurs dans Evil :
+;; What you get. `a' = with the wrapper, `i' = just the inside, like
+;; everywhere else in Evil:
 ;;
-;;   af / if   fonction        vaf  daf  caf  yaf ...
-;;   ac / ic   classe
-;;   aa / ia   argument (parametre)
-;;   al / il   boucle
-;;   ai / ii   bloc conditionnel
-;;   ak / ik   commentaire
+;;   af / if   function        vaf  daf  caf  yaf ...
+;;   ac / ic   class
+;;   aa / ia   argument (parameter)
+;;   al / il   loop
+;;   ai / ii   conditional block
+;;   ak / ik   comment
 ;;
-;; et les sauts :  ] f / [ f   fonction suivante / precedente
-;;                 ] c / [ c   classe suivante / precedente
+;; and the jumps:  ] f / [ f   next / previous function
+;;                 ] c / [ c   next / previous class
 (use-package! evil-textobj-tree-sitter
   :after evil
   :config
-  ;; Ecrit en toutes lettres, et ce n'est PAS de la maladresse :
-  ;; `evil-textobj-tree-sitter-get-textobj' est une MACRO (verifie dans ses
-  ;; autoloads, la forme se termine par `nil t'). Une boucle qui lui passe
-  ;; une variable lui transmet le SYMBOLE, pas la chaine — d'ou un
-  ;; (wrong-type-argument sequencep outer) qui interrompt le chargement de
-  ;; tout ce fichier a partir d'ici, silencieusement. Le nom du groupe doit
-  ;; etre un litteral.
+  ;; Spelled out on purpose, not sloppiness:
+  ;; `evil-textobj-tree-sitter-get-textobj' is a MACRO (checked in its
+  ;; autoloads, the form ends with `nil t'). A loop passing it a variable
+  ;; hands over the SYMBOL, not the string, which gives a
+  ;; (wrong-type-argument sequencep outer) that silently aborts loading
+  ;; the rest of this file. The group name has to be a literal.
   ;;
-  ;; Les noms de captures viennent des requetes livrees par le paquet
-  ;; (treesit-queries/python/textobjects.scm) : function, class, parameter,
-  ;; loop, conditional, comment, test, entry — chacun en .outer et .inner.
+  ;; Capture names come from the queries shipped with the package
+  ;; (treesit-queries/python/textobjects.scm): function, class, parameter,
+  ;; loop, conditional, comment, test, entry, each with .outer and .inner.
   (define-key evil-outer-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.outer"))
   (define-key evil-inner-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.inner"))
   (define-key evil-outer-text-objects-map "c" (evil-textobj-tree-sitter-get-textobj "class.outer"))
@@ -1330,35 +1314,34 @@ DIRECTION is -1 to move the view down, +1 to move it up."
   (define-key evil-outer-text-objects-map "k" (evil-textobj-tree-sitter-get-textobj "comment.outer"))
   (define-key evil-inner-text-objects-map "k" (evil-textobj-tree-sitter-get-textobj "comment.inner"))
 
-  ;; Sauts de fonction / classe. `] f' et `[ f' n'entrent en conflit avec
-  ;; rien : Doom ne definit que 5 bindings commencant par `]', aucun sur f
-  ;; ni c (verifie dans +evil-bindings.el).
+  ;; Function / class jumps. `] f' and `[ f' clash with nothing: Doom only
+  ;; defines 5 bindings starting with `]', none on f or c (checked in
+  ;; +evil-bindings.el).
   ;;
-  ;; Signature reelle, verifiee dans les autoloads du paquet :
+  ;; Real signature, checked in the package autoloads:
   ;;   (evil-textobj-tree-sitter-goto-textobj GROUP &optional END PREVIOUS QUERY)
-  ;; PREVIOUS est le TROISIEME argument. Passer `t' en deuxieme position
-  ;; sauterait a la FIN de la fonction courante, pas a la precedente.
+  ;; PREVIOUS is the THIRD arg. Passing `t' second would jump to the END
+  ;; of the current function, not to the previous one.
   (map! :n "] f" (cmd! (evil-textobj-tree-sitter-goto-textobj "function.outer"))
         :n "[ f" (cmd! (evil-textobj-tree-sitter-goto-textobj "function.outer" nil t))
         :n "] c" (cmd! (evil-textobj-tree-sitter-goto-textobj "class.outer"))
         :n "[ c" (cmd! (evil-textobj-tree-sitter-goto-textobj "class.outer" nil t))))
 
-;; ── nº 8 · outli : replier ses propres fichiers de config ───────────
-;; jdtsmith, le meme auteur qu'eglot-booster et indent-bars, tous deux
-;; deja utilises ici.
+;; ── nº 8 · outli: fold my own config files ──────────────────────────
+;; By jdtsmith, same author as eglot-booster and indent-bars, both
+;; already used here.
 ;;
-;; ATTENTION, c'est le point qui fait tout : outli attend par defaut des
-;; titres `;;; Titre' (tige ";;" + repetition du caractere ";"). TA
-;; convention est `;; ── titre ──────', qu'il ne verrait pas.
-;; On reconfigure donc la tige et le caractere de repetition pour ta
-;; convention reelle, dans les trois familles de fichiers concernees.
+;; The key point: by default outli expects `;;; Title' headings (stem
+;; ";;" + repeated ";"). My convention is `;; ── title ──────', which it
+;; wouldn't see. So we reconfigure the stem and repeat char for the real
+;; convention, across the three file families involved.
 ;;
-;; Le regexp construit est  \(;; ─+ \)  — teste sur de vraies lignes de
-;; ta config avant d'ecrire ce bloc :
-;;   ";; ── modeline ─────────"     -> titre
-;;   ";; ══════════════════════"    -> ignore  (les boites restent des boites)
-;;   ";;  IDE moderne — 2026"       -> ignore
-;;   ";; commentaire ordinaire"     -> ignore
+;; The resulting regexp is  \(;; ─+ \)  (tested on real lines of this
+;; config before writing the block):
+;;   ";; ── modeline ─────────"     -> heading
+;;   ";; ══════════════════════"    -> ignored  (boxes stay boxes)
+;;   ";;  Modern IDE setup (2026"   -> ignored
+;;   ";; plain comment"             -> ignored
 (use-package! outli
   :defer t
   :hook ((emacs-lisp-mode sh-mode bash-ts-mode conf-mode
@@ -1377,32 +1360,31 @@ DIRECTION is -1 to move the view down, +1 to move it up."
           (toml-ts-mode    "# "  ?─ t)
           (yaml-mode       "# "  ?─ t)
           (yaml-ts-mode    "# "  ?─ t)
-          ;; org gere deja sa propre structure : `. nil' desactive outli
-          ;; dans les modes qui en derivent. C'est la valeur qu'outli met
-          ;; lui-meme par defaut ; on la conserve en reconstruisant l'alist.
+          ;; org already handles its own structure: `. nil' turns outli
+          ;; off in modes derived from it. That's outli's own default, we
+          ;; keep it since we rebuild the alist.
           (org-mode . nil)
-          ;; Filet pour tout le reste : comportement natif d'outli.
+          ;; Fallback for everything else: outli's native behaviour.
           (t (let* ((c (or comment-start "#"))
                     (space (unless (eq (aref c (1- (length c))) ?\s) " ")))
                (concat c space))
              ?*))))
 
-;; Volontairement AUCUNE reliaison de TAB ici. outli active
-;; `outline-minor-mode', et `evil-fold-list' (evil-vars.el:1841) le
-;; reconnait deja : les commandes de pliage natives d'Evil fonctionnent
-;; telles quelles sur ces titres —
-;;   za  basculer    zc  replier      zo  deplier
-;;   zm  tout replier              zr  tout deplier
-;; Rebinder TAB aurait masque celle de Doom dans tous ces tampons pour
-;; un gain nul.
+;; NO TAB rebinding here, on purpose. outli turns on
+;; `outline-minor-mode', and `evil-fold-list' (evil-vars.el:1841) already
+;; knows it, so Evil's native fold commands just work on these headings:
+;;   za  toggle      zc  close        zo  open
+;;   zm  close all                 zr  open all
+;; Rebinding TAB would have shadowed Doom's in all those buffers for no
+;; gain.
 
-;; ── nº 12 · casual : des menus transient pour ce qu'on oublie ───────
-;; L'interet n'est pas la vitesse, c'est la DECOUVRABILITE : on n'ouvre
-;; pas la doc de dired, on appuie sur une touche et on voit tout.
+;; ── nº 12 · casual: transient menus for the stuff you forget ────────
+;; The point isn't speed, it's DISCOVERABILITY: no need to open the dired
+;; docs, press one key and see everything.
 ;;
-;; Prefixe `SPC =' : verifie libre dans +evil-bindings.el (0 occurrence).
-;; On ne touche NI a `C-o' (= evil-jump-backward, on y tient) NI aux
-;; keymaps des modes, pour eviter toute collision avec evil-collection.
+;; Prefix `SPC =': checked free in +evil-bindings.el (0 hits).
+;; We touch neither `C-o' (= evil-jump-backward, want to keep it) nor
+;; mode keymaps, to avoid any clash with evil-collection.
 (map! :leader
       (:prefix ("=" . "casual")
        :desc "Menu du mode courant" "=" #'casual-editkit-main-tmenu
@@ -1421,17 +1403,17 @@ DIRECTION is -1 to move the view down, +1 to move it up."
        :desc "help"         "h" #'casual-help-tmenu
        :desc "man"          "M" #'casual-man-tmenu))
 
-;; ── nº 14 · numpydoc : le paquet installe qu'on n'avait jamais branche ──
-;; `(package! numpydoc)' etait declare dans packages.el depuis toujours et
-;; n'apparaissait NULLE PART dans config.el. Il genere le squelette d'une
-;; docstring numpy a partir de la signature de la fonction sous le point.
+;; ── nº 14 · numpydoc: installed forever, never wired up ─────────────
+;; `(package! numpydoc)' sat in packages.el forever and showed up NOWHERE
+;; in config.el. It generates a numpy docstring skeleton from the
+;; signature of the function at point.
 (use-package! numpydoc
   :defer t
   :commands (numpydoc-generate)
   :config
-  ;; 'prompt pose les questions dans le minibuffer ; nil ecrit juste le
-  ;; squelette a remplir. On garde le squelette : moins intrusif, et on
-  ;; remplit dans le tampon avec la completion et copilot sous la main.
+  ;; 'prompt asks questions in the minibuffer, nil just writes the
+  ;; skeleton to fill in. Skeleton it is: less intrusive, and you fill it
+  ;; in the buffer with completion and copilot at hand.
   (setq numpydoc-insertion-style nil
         numpydoc-insert-examples-block nil
         numpydoc-template-short "FIXME: courte description."))
