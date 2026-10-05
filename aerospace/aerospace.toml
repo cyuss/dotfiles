@@ -56,10 +56,13 @@ default-root-container-orientation = 'auto'
 
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
-# Pointer follows the focused window. "lazy" = it only moves if it's
-# not already inside the window, so no random jumps when you're on the
-# mouse. Saves hunting for the pointer after a keyboard switch.
-on-focus-changed = ['move-mouse window-lazy-center']
+# DISABLED 2026-09-12: the pointer took off on its own whenever a window
+# opened or got focus (notification, new Emacs frame, popup). "lazy" only
+# covers one case (pointer already INSIDE the target window), and a window
+# that just appeared is by definition elsewhere, so it fired every time.
+# Moving on MONITOR change stays on above: that's rare and intentional.
+# To bring it back: uncomment the line, then `aerospace reload-config'.
+# on-focus-changed = ['move-mouse window-lazy-center']
 
 # Script run on every workspace change (refreshes sketchybar, plus
 # whatever you want to add). Safe: does nothing if the script is
@@ -69,6 +72,12 @@ exec-on-workspace-change = [
   '~/.config/aerospace/scripts/on_workspace_change.sh "$AEROSPACE_FOCUSED_WORKSPACE" "$AEROSPACE_PREV_WORKSPACE" 2>/dev/null || true',
 ]
 
+# DON'T set this back to false. Tried on 2026-09-12 to cut down focus
+# stealing: Finder and Arc dropped out of AeroSpace. macOS keeps those
+# apps "hidden", and a hidden app doesn't expose its windows to the
+# accessibility API, so AeroSpace can't see them at all and stops tiling
+# them. Auto-unhide isn't a nicety here, it's what makes those windows
+# visible to the WM. Reverted right away.
 automatically-unhide-macos-hidden-apps = true
 key-mapping.preset = 'qwerty'
 
@@ -260,8 +269,8 @@ q = ['close', 'mode main']
 #  An Alacritty or Emacs window should open where you're working,
 #  not jump somewhere else (that was the point of the old comment
 #  "keep new windows on the current workspace").
-#  We only route "destination" apps (browser, chat, media, ops) and
-#  float the utilities, where the win is obvious.
+#  No app gets routed to a dedicated workspace: we only float the
+#  utilities, where the win is obvious.
 # ══════════════════════════════════════════════════════════════════════
 
 # ── Utilities: floating, never tiled ──────────────────────────────────
@@ -339,84 +348,9 @@ if.window-title-regex-substring = '^(Open|Save|Enregistrer|Ouvrir|Preferences|Re
 run = ['layout floating']
 check-further-callbacks = true
 
-# ── 06_Web: browsers ──────────────────────────────────────────────────
-[[on-window-detected]]
-if.app-id = 'company.thebrowser.Browser'
-run = ['move-node-to-workspace 06_Web']
-
-[[on-window-detected]]
-if.app-id = 'com.google.Chrome'
-run = ['move-node-to-workspace 06_Web']
-
-[[on-window-detected]]
-if.app-id = 'org.mozilla.firefox'
-run = ['move-node-to-workspace 06_Web']
-
-[[on-window-detected]]
-if.app-id = 'com.apple.Safari'
-run = ['move-node-to-workspace 06_Web']
-
-# ── 05_I.A: assistants ────────────────────────────────────────────────
-[[on-window-detected]]
-if.app-id = 'com.anthropic.claudefordesktop'
-run = ['move-node-to-workspace 05_I.A']
-
-[[on-window-detected]]
-if.app-id = 'com.openai.chat'
-run = ['move-node-to-workspace 05_I.A']
-
-[[on-window-detected]]
-if.app-id = 'ai.perplexity.mac'
-run = ['move-node-to-workspace 05_I.A']
-
-# ── 03_Work: communication ────────────────────────────────────────────
-[[on-window-detected]]
-if.app-id = 'com.mimestream.Mimestream'
-run = ['move-node-to-workspace 03_Work']
-
-[[on-window-detected]]
-if.app-id = 'ru.keepcoder.Telegram'
-run = ['move-node-to-workspace 03_Work']
-
-[[on-window-detected]]
-if.app-id = 'com.hnc.Discord'
-run = ['move-node-to-workspace 03_Work']
-
-# ── 04_Management: notes & planning ───────────────────────────────────
-[[on-window-detected]]
-if.app-id = 'notion.id'
-run = ['move-node-to-workspace 04_Management']
-
-[[on-window-detected]]
-if.app-id = 'md.obsidian'
-run = ['move-node-to-workspace 04_Management']
-
-[[on-window-detected]]
-if.app-id = 'com.clickup.desktop-app'
-run = ['move-node-to-workspace 04_Management']
-
-# ── 08_Ops: infra & databases ─────────────────────────────────────────
-[[on-window-detected]]
-if.app-id = 'com.docker.docker'
-run = ['move-node-to-workspace 08_Ops']
-
-[[on-window-detected]]
-if.app-id = 'com.postmanlabs.mac'
-run = ['move-node-to-workspace 08_Ops']
-
-[[on-window-detected]]
-if.app-id = 'org.jkiss.dbeaver.core.product'
-run = ['move-node-to-workspace 08_Ops']
-
-# ── 09_Divers: media ──────────────────────────────────────────────────
-[[on-window-detected]]
-if.app-id = 'com.spotify.client'
-run = ['move-node-to-workspace 09_Divers']
-
-[[on-window-detected]]
-if.app-id = 'com.colliderli.iina'
-run = ['move-node-to-workspace 09_Divers']
-
-[[on-window-detected]]
-if.app-id = 'org.videolan.vlc'
-run = ['move-node-to-workspace 09_Divers']
+# ── Workspace routing: NO rules (removed 2026-10-02) ─────────────────
+# No app gets sent to a dedicated workspace anymore (browsers to 06_Web
+# removed 2026-09-28, then AI, chat, notes, ops and media). A new window
+# opens on the current workspace; an app that's already running focuses
+# its window when activated, and so ITS workspace. Only the "floating"
+# rules above are left, and they don't move anything.
