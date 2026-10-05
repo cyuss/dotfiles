@@ -591,11 +591,28 @@ description = "reviewr (toggle)"
 # The universal entry point: when you don't know where something is, w.
 # (prefix+i is focus pane UP like AeroSpace; goto moved to
 #  prefix+shift+w.)
+#
+# Goes through herdr-navigator-fresh instead of the plugin action: the
+# navigator reads projects from herdr-plus TOML templates, which only
+# change when herdr-sync-projects runs. A repo cloned since the last sync
+# stayed invisible. The wrapper syncs first, then opens the same picker.
+#
+# Costs nothing most of the time: `--if-needed` just compares two lists of
+# names and exits if nothing changed. If the sync fails, the navigator
+# still opens on the existing index.
 [[keys.command]]
 key = "prefix+w"
+type = "shell"
+command = "$HOME/.config/workflow-tools/herdr-navigator-fresh"
+description = "navigator (index resynchronise)"
+
+# alt+shift+w = the raw navigator, no sync. Handy if the sync gets slow or
+# noisy: same picker, direct path.
+[[keys.command]]
+key = "prefix+alt+shift+w"
 type = "plugin_action"
 command = "herdr-navigator.open"
-description = "navigator"
+description = "navigator (sans resynchro)"
 
 # alt+w = same thing, in a side pane instead of full screen
 [[keys.command]]

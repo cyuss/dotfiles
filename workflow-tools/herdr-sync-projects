@@ -3,32 +3,115 @@
 # herdr-sync-projects
 #
 # Generates one herdr-plus template per git repo in ~/Desktop/projects.
-# Tabs depend on the detected stack (make / compose / node / …).
+#
+# Two tabs per project, only two:
+#
+#   agent   a bare shell: start whatever agent you want
+#   code    a bare shell: start whatever editor you want
+#
+# Why not more: every tab is one more interactive shell started at once
+# when the space mounts. lazygit and a bare shell open in a second when
+# needed (prefix+alt+v for lazygit, prefix+c for a shell), paying for
+# them upfront on every project open bought nothing.
 #
 # Only writes the files it owns (GENERATED header): a template you edit
-# by hand is left alone, and generated files whose repo is gone get
-# deleted.
+# by hand is left alone.
 #
 #   herdr-sync-projects            # sync
 #   herdr-sync-projects --dry-run  # show without writing
+#   herdr-sync-projects --if-needed  # do nothing if nothing changed
+#
+# ── Two ways to find the repos ───────────────────────────────────────
+#
+# 1. LISTING. `$ROOT/*/`, the normal way, complete and reliable.
+#
+# 2. FALLBACK through zoxide, when listing is denied. macOS protects
+#    ~/Desktop: a process without the "Files and Folders" permission can
+#    TRAVERSE the dir (open ~/Desktop/x/y) but not LIST it, so the glob
+#    returns nothing even though everything is there. That's herdr until
+#    the permission is granted, so anything running in a pane too.
+#
+#    zoxide keeps its own db of visited dirs: read candidate names from
+#    it, and check each with `test -d`, which works since only listing
+#    is blocked.
+#
+#    This fallback is INCOMPLETE by nature (a repo never visited isn't
+#    there), so it only purges templates whose dir is really gone. It's
+#    a workaround, not a replacement for the permission.
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 PROJECTS_ROOT="${HERDR_PROJECTS_ROOT:-$HOME/Desktop/projects}"
 MARKER="# GENERATED-BY herdr-sync-projects — retire cette ligne pour figer ce fichier"
 DRY_RUN=0
-[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
+IF_NEEDED=0
+case "${1:-}" in
+  --dry-run)   DRY_RUN=1 ;;
+  --if-needed) IF_NEEDED=1 ;;
+esac
 
 OUT_DIR=$(herdr plugin config-dir cloudmanic.herdr-plus 2>/dev/null | tail -1)/projects
 [[ -d $OUT_DIR ]] || { echo "herdr-plus introuvable — herdr plugin install cloudmanic/herdr-plus" >&2; exit 1; }
 [[ -d $PROJECTS_ROOT ]] || { echo "$PROJECTS_ROOT introuvable" >&2; exit 1; }
 
+# ── Discovery ────────────────────────────────────────────────────────
+MODE="listage"
+names=()
+
+if compgen -G "$PROJECTS_ROOT/*/" >/dev/null; then
+  for d in "$PROJECTS_ROOT"/*/; do d=${d%/}; names+=("${d##*/}"); done
+else
+  MODE="repli"
+  # Candidates: zoxide (visited dirs) + the templates already there.
+  # `sort -u` dedupes. Case comes from zoxide, so it's the real on-disk
+  # case, not whatever was typed.
+  while IFS= read -r line; do
+    [[ -n $line ]] && names+=("$line")
+  done < <(
+    {
+      zoxide query -l 2>/dev/null \
+        | sed -n "s#^${PROJECTS_ROOT}/\([^/]*\)\$#\1#p"
+      for f in "$OUT_DIR"/*.toml; do
+        [[ -e $f ]] || continue
+        grep -q "GENERATED-BY herdr-sync-projects" "$f" 2>/dev/null || continue
+        f=${f##*/}; printf '%s\n' "${f%.toml}"
+      done
+    } | sort -u
+  )
+fi
+
+# ── Filter: only keep git repos that actually exist ──────────────────
+repos=()
+for name in "${names[@]+"${names[@]}"}"; do
+  [[ -d "$PROJECTS_ROOT/$name/.git" ]] && repos+=("$name")
+done
+
+if (( ${#repos[@]} == 0 )); then
+  echo "aucun dépôt git trouvé dans $PROJECTS_ROOT — rien n'est touché." >&2
+  echo "Si le répertoire est bien peuplé, c'est une autorisation macOS qui manque :" >&2
+  echo "  Réglages > Confidentialité et sécurité > Fichiers et dossiers (ou Accès complet au disque)" >&2
+  echo "  -> autoriser herdr sur le Bureau, puis « herdr server stop » et relancer." >&2
+  exit 1
+fi
+
+# ── Fast path (--if-needed) ──────────────────────────────────────────
+# Runs on every prefix+w: just compare two name lists, repos seen and
+# templates already generated. Same → exit.
+if [[ $IF_NEEDED -eq 1 ]]; then
+  have=$(printf '%s\n' "${repos[@]}" | sort)
+  gen=$(
+    while IFS= read -r f; do
+      f=${f##*/}; printf '%s\n' "${f%.toml}"
+    done < <(grep -l "GENERATED-BY herdr-sync-projects" "$OUT_DIR"/*.toml 2>/dev/null) | sort
+  )
+  [[ "$have" == "$gen" ]] && exit 0
+fi
+
 added=0 kept=0 removed=0
 declare -a seen=()
 
-for repo in "$PROJECTS_ROOT"/*/; do
-  [[ -d "$repo/.git" ]] || continue
-  name=$(basename "$repo")
+for name in "${repos[@]}"; do
+  repo="$PROJECTS_ROOT/$name/"
   out="$OUT_DIR/${name}.toml"
   seen+=("$out")
 
@@ -37,19 +120,15 @@ for repo in "$PROJECTS_ROOT"/*/; do
     kept=$((kept + 1)); continue
   fi
 
-  # ── Stack detection (drives the group and the "run" tab) ──
-  group="divers"; run_cmd=""
+  # ── Stack detection (drives the picker group) ──
+  group="divers"
   [[ -f "$repo/pyproject.toml" || -f "$repo/requirements.txt" ]] && group="python"
   [[ -f "$repo/package.json" ]]                                  && group="node"
   [[ -f "$repo/Cargo.toml" ]]                                    && group="rust"
   [[ -f "$repo/go.mod" ]]                                        && group="go"
 
-  if [[ -f "$repo/docker-compose.yml" || -f "$repo/compose.yaml" || -f "$repo/docker-compose.yaml" ]]; then
-    run_cmd="docker compose up"
-  elif [[ -f "$repo/Makefile" ]]; then
-    run_cmd="make help 2>/dev/null || make -qp | grep -oE '^[a-zA-Z0-9_-]+:' | sort -u"
-  fi
-
+  # `git log` needs getcwd(): it fails too while the Desktop permission
+  # is missing. Fall back to a neutral description.
   desc=$(git -C "$repo" log -1 --format=%s 2>/dev/null | cut -c1-70 || true)
   [[ -n $desc ]] && desc="dernier commit : $desc" || desc="dépôt git"
 
@@ -62,40 +141,37 @@ for repo in "$PROJECTS_ROOT"/*/; do
     echo
     echo '[[tabs]]'
     echo 'name = "agent"'
-    echo 'command = "opencode"'
     echo
     echo '[[tabs]]'
     echo 'name = "code"'
-    echo 'command = "nvim ."'
-    echo
-    echo '[[tabs]]'
-    echo 'name = "git"'
-    echo 'command = "lazygit"'
-    if [[ -n $run_cmd ]]; then
-      echo
-      echo '[[tabs]]'
-      echo 'name = "run"'
-      echo "command = \"${run_cmd//\"/\\\"}\""
-    fi
-    echo
-    echo '[[tabs]]'
-    echo 'name = "shell"'
   } > "$( [[ $DRY_RUN -eq 1 ]] && echo /dev/null || echo "$out" )"
 
   added=$((added + 1))
 done
 
-# Purge generated templates whose repo no longer exists.
+# ── Purge ────────────────────────────────────────────────────────────
+# In listing mode the list is complete: a generated template missing
+# from `seen` means a deleted repo. In fallback mode it isn't, so only
+# remove what's really gone from disk.
 for f in "$OUT_DIR"/*.toml; do
   [[ -e $f ]] || continue
   head -1 "$f" | grep -q "GENERATED-BY herdr-sync-projects" || continue
   keep=0
   for s in "${seen[@]+"${seen[@]}"}"; do [[ $s == "$f" ]] && keep=1 && break; done
   if [[ $keep -eq 0 ]]; then
+    if [[ $MODE == "repli" ]]; then
+      gone_name=${f##*/}; gone_name=${gone_name%.toml}
+      [[ -d "$PROJECTS_ROOT/$gone_name" ]] && continue
+    fi
     [[ $DRY_RUN -eq 0 ]] && rm -f "$f"
     removed=$((removed + 1))
   fi
 done
 
-printf '%s%d généré(s), %d conservé(s) à la main, %d supprimé(s) → %s\n' \
-  "$([[ $DRY_RUN -eq 1 ]] && echo '[dry-run] ')" "$added" "$kept" "$removed" "$OUT_DIR"
+printf '%s%d généré(s), %d conservé(s) à la main, %d supprimé(s) [%s] → %s\n' \
+  "$([[ $DRY_RUN -eq 1 ]] && echo '[dry-run] ')" "$added" "$kept" "$removed" "$MODE" "$OUT_DIR"
+
+if [[ $MODE == "repli" ]]; then
+  echo "note : listage de $PROJECTS_ROOT refusé par macOS — liste reconstruite depuis zoxide," >&2
+  echo "       donc potentiellement incomplète. Autorise herdr sur le Bureau pour la voie normale." >&2
+fi
