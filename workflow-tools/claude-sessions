@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""List resumable Claude Code sessions, with their metadata.
+
+Output: one line per session, tab-separated fields
+
+    <session-id>  <cwd>  <age>  <title>
+
+With `--show <session-id>`, print a readable card for THAT session
+instead: full path first, then age, size, title and the first few
+messages. That's the completion preview. The list only has one line
+behind a 36-char uuid, so the path barely fits there. Here it has room.
+
+Made for the zsh completion of `claude --resume` (see
+~/.config/zsh/completions/_claude), but works fine on its own.
+
+Transcripts live in ~/.claude/projects/<encoded-path>/<uuid>.jsonl and
+can weigh several hundred MB, so only the first lines of each file are
+read. That's enough for `cwd' and the first real message. A cache keyed
+on (size, mtime) avoids redoing it on every Tab.
+"""
+import glob
+import itertools
+import json
+import os
+import sys
+import time
+
+HOME = os.path.expanduser("~")
+ROOT = os.path.join(HOME, ".claude", "projects")
+CACHE = os.path.join(HOME, ".cache", "claude-sessions.json")
+HEAD_LINES = 400          # past this, the first message won't be found anyway
+SKIP_PREFIXES = (
+    "<local-command", "<command-name>", "<command-message>",
+    "Caveat:", "<system-reminder>", "<task-notification>",
+)
+
+
+def human_age(seconds):
+    if seconds < 3600:
+        return f"{int(seconds // 60)}min"
+    if seconds < 86400:
+        return f"{int(seconds // 3600)}h"
+    return f"{int(seconds // 86400)}j"
+
+
+def clean(text):
+    text = " ".join(text.split())
+    return text
+
+
+def scan(path):
+    """Return (cwd, title), reading only the start of the file."""
+    cwd = None
+    title = None
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in itertools.islice(fh, HEAD_LINES):
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if cwd is None:
+                    cwd = rec.get("cwd")
+                if title is None and rec.get("type") == "summary":
+                    title = rec.get("summary")
+                if title is None and rec.get("type") == "user":
+                    content = (rec.get("message") or {}).get("content")
+                    text = None
+                    if isinstance(content, str):
+                        text = content
+                    elif isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                text = block.get("text")
+                                break
+                    if text and not text.lstrip().startswith(SKIP_PREFIXES):
+                        title = clean(text)
+                if cwd and title:
+                    break
+    except OSError:
+        pass
+    return cwd, title
+
+
+def find_transcript(sid):
+    """Path of a session's .jsonl, or None."""
+    hits = glob.glob(os.path.join(ROOT, "*", sid + ".jsonl"))
+    return hits[0] if hits else None
+
+
+def first_messages(path, limit=3):
+    """The first real user messages, to place the session."""
+    out = []
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in itertools.islice(fh, HEAD_LINES):
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if rec.get("type") != "user":
+                    continue
+                content = (rec.get("message") or {}).get("content")
+                text = None
+                if isinstance(content, str):
+                    text = content
+                elif isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            text = block.get("text")
+                            break
+                if not text or text.lstrip().startswith(SKIP_PREFIXES):
+                    continue
+                out.append(clean(text))
+                if len(out) >= limit:
+                    break
+    except OSError:
+        pass
+    return out
+
+
+def human_size(n):
+    for unit in ("o", "Ko", "Mo", "Go"):
+        if n < 1024 or unit == "Go":
+            return f"{n:.0f} {unit}" if unit == "o" else f"{n:.1f} {unit}"
+        n /= 1024
+
+
+def show(sid):
+    """Session card, for the completion preview."""
+    path = find_transcript(sid)
+    if not path:
+        print(f"session inconnue : {sid}")
+        return 1
+    st = os.stat(path)
+    cwd, title = scan(path)
+    cwd = cwd or os.path.basename(os.path.dirname(path))
+    short = cwd.replace(HOME, "~")
+
+    B, D, R = "\033[1m", "\033[2m", "\033[0m"
+    print(f"{B}{short}{R}")
+    print(f"{D}{os.path.basename(cwd)}  ·  il y a {human_age(time.time() - st.st_mtime)}"
+          f"  ·  {human_size(st.st_size)}{R}")
+    print()
+    if title:
+        print(f"{B}{title[:160]}{R}")
+        print()
+    msgs = first_messages(path)
+    # The title is often the first message. Don't print it twice.
+    if msgs and title and msgs[0][:160] == title[:160]:
+        msgs = msgs[1:]
+    if msgs:
+        print(f"{D}premiers échanges{R}")
+        for m in msgs:
+            print(f"  · {m[:200]}")
+        print()
+    print(f"{D}{sid}{R}")
+    return 0
+
+
+def main():
+    try:
+        with open(CACHE, encoding="utf-8") as fh:
+            cache = json.load(fh)
+    except Exception:
+        cache = {}
+
+    now = time.time()
+    rows = []
+    fresh = {}
+    for path in glob.glob(os.path.join(ROOT, "*", "*.jsonl")):
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        key = path
+        stamp = [st.st_size, int(st.st_mtime)]
+        hit = cache.get(key)
+        if hit and hit.get("stamp") == stamp:
+            cwd, title = hit["cwd"], hit["title"]
+        else:
+            cwd, title = scan(path)
+        fresh[key] = {"stamp": stamp, "cwd": cwd, "title": title}
+        sid = os.path.basename(path)[:-6]
+        if not cwd:
+            # fallback: the folder name encodes the path, ambiguously
+            cwd = os.path.basename(os.path.dirname(path))
+        rows.append((st.st_mtime, sid, cwd, title or ""))
+
+    rows.sort(reverse=True)
+    for mtime, sid, cwd, title in rows:
+        short = cwd.replace(HOME, "~")
+        print(f"{sid}\t{short}\t{human_age(now - mtime)}\t{title[:70]}")
+
+    try:
+        os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+        with open(CACHE, "w", encoding="utf-8") as fh:
+            json.dump(fresh, fh)
+    except OSError:
+        pass
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 2 and sys.argv[1] == "--show":
+        sys.exit(show(sys.argv[2]))
+    sys.exit(main())

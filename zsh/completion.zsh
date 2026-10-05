@@ -94,6 +94,17 @@ zstyle ':fzf-tab:complete:git-(log|show):*'   fzf-preview 'git log --color=alway
 zstyle ':fzf-tab:complete:git-(branch|checkout|switch):argument-1' fzf-preview \
   'git log --oneline --color=always -20 $word 2>/dev/null'
 
+# claude --resume: the uuid means nothing. The preview is the session
+# card: full path on top, then age, size, title and the first exchanges.
+# Without it, the generic rule above fell back to `echo $word' and only
+# showed the uuid, already visible in the list.
+zstyle ':fzf-tab:complete:claude:*' fzf-preview \
+  '${XDG_CONFIG_HOME:-$HOME/.config}/workflow-tools/claude-sessions --show $word 2>/dev/null || echo $word'
+zstyle ':fzf-tab:complete:claude:*' fzf-flags \
+  --height=70% --layout=reverse --border=rounded --info=inline --prompt='❯ ' \
+  --color=hl:#e3b778,hl+:#e3b778,border:#2b303b \
+  --preview-window='right:55%:wrap'
+
 # Env vars: their value.
 zstyle ':fzf-tab:complete:(-command-|-parameter-|-brace-parameter-|export|unset|expand):*' \
   fzf-preview 'echo ${(P)word}'

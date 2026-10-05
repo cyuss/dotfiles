@@ -1,0 +1,48 @@
+#compdef claude
+# ══════════════════════════════════════════════════════════════════════
+#  Completion for `claude --resume` with session metadata
+#
+#  Without it, Tab after --resume completed FILE NAMES: you can't guess
+#  a uuid, and nothing told you which project it belonged to.
+#
+#  Ids and metadata come from ~/.config/workflow-tools/claude-sessions,
+#  which only reads the start of each transcript (some are 280 MB) and
+#  caches on (size, mtime). Newest session first.
+# ══════════════════════════════════════════════════════════════════════
+
+_claude_sessions() {
+  local -a sessions
+  local sid cwd age title
+  local helper="${XDG_CONFIG_HOME:-$HOME/.config}/workflow-tools/claude-sessions"
+  [[ -x $helper ]] || return 1
+  # `_describe' splits on the FIRST colon. A uuid never has one, so the
+  # description can contain colons safely.
+  #
+  # The uuid already eats 36 columns. An absolute path after it ends up
+  # off screen, and that's exactly what tells sessions apart. So it gets
+  # cut FROM THE LEFT: the end of the path (the project) identifies it,
+  # the start (~/Desktop/projects) is the same on every line.
+  #
+  # The full path is at the top of the preview (--show).
+  local -i max=34
+  local short
+  while IFS=$'\t' read -r sid cwd age title; do
+    [[ -n $sid ]] || continue
+    short=$cwd
+    (( ${#short} > max )) && short="…${short[-$((max-1)),-1]}"
+    sessions+=( "${sid}:${(r:max:)short}  ·  ${age}  ·  ${title}" )
+  done < <("$helper" 2>/dev/null)
+  (( ${#sessions} )) || return 1
+  _describe -V -t claude-sessions 'session Claude' sessions
+}
+
+_claude() {
+  _arguments -C \
+    '(--resume -r)'{--resume,-r}'[reprendre une session]:session:_claude_sessions' \
+    '(--continue -c)'{--continue,-c}'[reprendre la derniere session de ce dossier]' \
+    '--model[modele a utiliser]:modele:(opus sonnet haiku)' \
+    '--print[mode non interactif]' \
+    '*:prompt ou fichier:_files'
+}
+
+_claude "$@"
